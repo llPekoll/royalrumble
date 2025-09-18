@@ -1,7 +1,14 @@
 import { cronJobs } from "convex/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 const crons = cronJobs();
+
+// Main game loop - check for new games every 10 seconds
+crons.interval(
+  "game loop",
+  { seconds: 10 },
+  internal.games.gameLoop
+);
 
 // Process transaction queue every 30 seconds
 crons.interval(

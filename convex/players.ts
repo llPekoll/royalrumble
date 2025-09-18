@@ -33,7 +33,6 @@ export const createPlayer = mutation({
       walletAddress: args.walletAddress,
       gameCoins: 0,
       pendingCoins: 0,
-      createdAt: Date.now(),
       lastActive: Date.now(),
     });
 

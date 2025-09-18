@@ -6,6 +6,7 @@ export class MainMenu extends Scene
 {
     background: GameObjects.Image;
     orc: GameObjects.Sprite;
+    soldier: GameObjects.Sprite;
     logo: GameObjects.Image;
     title: GameObjects.Text;
     logoTween: Phaser.Tweens.Tween | null;
@@ -21,7 +22,9 @@ export class MainMenu extends Scene
         const arenaKey = Math.random() < 0.5 ? 'arena' : 'arena2';
         this.background = this.add.image(512, 384, arenaKey);
         this.orc = this.add.sprite(100, 100, 'orc');
+        this.soldier = this.add.sprite(140, 100, 'soldier');
         this.orc.play({ key: 'orc-walk', repeat: -1 });
+        this.soldier.play({ key: 'soldier-walk', repeat: -1 });
         this.logo = this.add.image(512, 300, 'logo').setDepth(100);
 
         this.title = this.add.text(512, 460, 'Main Menu', {

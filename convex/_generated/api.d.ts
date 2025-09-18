@@ -14,6 +14,8 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as crons from "../crons.js";
+import type * as games from "../games.js";
+import type * as leaderboard from "../leaderboard.js";
 import type * as players from "../players.js";
 import type * as solana from "../solana.js";
 import type * as transactions from "../transactions.js";
@@ -28,6 +30,8 @@ import type * as transactions from "../transactions.js";
  */
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  games: typeof games;
+  leaderboard: typeof leaderboard;
   players: typeof players;
   solana: typeof solana;
   transactions: typeof transactions;

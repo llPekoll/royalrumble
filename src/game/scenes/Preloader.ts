@@ -32,9 +32,9 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
         this.load.atlas('orc', 'spriteSheets/orc.png', 'spriteSheets/orc.json');
+        this.load.atlas('soldier', 'spriteSheets/Soldier.png', 'spriteSheets/Soldier.json');
 
         this.load.image('logo', 'logo.png');
-        this.load.image('star', 'star.png');
     }
 
     create ()
@@ -57,6 +57,32 @@ export class Preloader extends Scene
             key: 'orc-idle',
             frames: this.anims.generateFrameNames('orc', {
                 prefix: 'Orc ',
+                suffix: '.aseprite',
+                start: 0,
+                end: 5
+            }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        // Create walk animation using frames 6-13
+        this.anims.create({
+            key: 'soldier-walk',
+            frames: this.anims.generateFrameNames('soldier', {
+                prefix: 'Soldier ',
+                suffix: '.aseprite',
+                start: 6,
+                end: 13
+            }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        // Create idle animation using frames 0-5
+        this.anims.create({
+            key: 'soldier-idle',
+            frames: this.anims.generateFrameNames('soldier', {
+                prefix: 'Soldier ',
                 suffix: '.aseprite',
                 start: 0,
                 end: 5

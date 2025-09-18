@@ -55,16 +55,24 @@ bun run typecheck
 ## Key Features
 
 ### Game Mechanics
-- **1-minute games**: Continuous 24/7 gameplay
-- **6 phases**: Selection → Arena → Elimination → Betting → Battle → Results
+- **75-second games**: Continuous 24/7 gameplay
+- **5 phases**: Waiting (30s) → Arena (10s) → Betting (15s) → Battle (15s) → Results (5s)
 - **Bet-to-size**: Character size increases with bet amount
 - **Single-player mode**: Auto-refund if playing alone
-- **Demo mode**: Bot games when no players for 2 minutes
+- **Demo mode**: Bot games when no players join
+
+### Betting Rules
+- **Self-Betting**: Players can ONLY bet on themselves during game entry (waiting phase)
+- **Spectator Betting**: During top 4 phase, players bet on OTHER participants only
+- **No Double Self-Betting**: Players cannot bet additional amounts on themselves in top 4
+- **Reason**: Maintains game balance and encourages social interaction
 
 ### Economy System
 - **Game Coins**: Internal currency (1 SOL = 1000 coins)
-- **Betting**: Min 10, Max 10,000 coins per round
-- **Payouts**: 2-10x for self-bets, 1.5-4x for spectator bets
+- **Betting Limits**: Min 10, Max 10,000 coins per bet
+- **Pool Distribution**: 95% to winners, 5% house edge
+- **Self Bet Pool**: All initial entry bets, winners share 95% proportionally
+- **Spectator Pool**: All top 4 bets, winners share 95% proportionally
 - **NFT Minting**: Winners can mint character NFTs
 
 ### Technical Features

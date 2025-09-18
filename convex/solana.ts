@@ -2,8 +2,7 @@ import { mutation, action, query } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
-// Solana Web3.js imports for real transactions
-const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair } = require("@solana/web3.js");
+import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair } from"@solana/web3.js";
 
 export const processTransactionQueue = action({
   args: {},
@@ -250,7 +249,6 @@ export const initiateDeposit = mutation({
         walletAddress: args.walletAddress,
         gameCoins: 0,
         pendingCoins: 0,
-        createdAt: Date.now(),
         lastActive: Date.now(),
       });
       player = await ctx.db.get(playerId);

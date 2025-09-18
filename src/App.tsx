@@ -1,101 +1,54 @@
 import { useRef, useState } from "react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
-import { MainMenu } from "./game/scenes/MainMenu";
-import { Button } from "./components/ui/button";
 import { Header } from "./components/Header";
+import { GameLobby } from "./components/GameLobby";
+import { Leaderboard } from "./components/Leaderboard";
+import { Navigation } from "./components/Navigation";
 
 export default function App() {
-  const [canMoveSprite, setCanMoveSprite] = useState(true);
+  const [currentView, setCurrentView] = useState<"game" | "leaderboard">("game");
 
   //  References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
-  const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
-
-  const changeScene = () => {
-    if (phaserRef.current) {
-      const scene = phaserRef.current.scene as MainMenu;
-
-      if (scene) {
-        scene.changeScene();
-      }
-    }
-  };
-
-  const moveSprite = () => {
-    if (phaserRef.current) {
-      const scene = phaserRef.current.scene as MainMenu;
-
-      if (scene && scene.scene.key === "MainMenu") {
-        // Get the update logo position
-        scene.moveLogo(({ x, y }) => {
-          setSpritePosition({ x, y });
-        });
-      }
-    }
-  };
-
-  const addSprite = () => {
-    if (phaserRef.current) {
-      const scene = phaserRef.current.scene;
-
-      if (scene) {
-        // Add more stars
-        const x = Phaser.Math.Between(64, scene.scale.width - 64);
-        const y = Phaser.Math.Between(64, scene.scale.height - 64);
-
-        //  `add.sprite` is a Phaser GameObjectFactory method and it returns a Sprite Game Object instance
-        const star = scene.add.sprite(x, y, "star");
-
-        //  ... which you can then act upon. Here we create a Phaser Tween to fade the star sprite in and out.
-        //  You could, of course, do this from within the Phaser Scene code, but this is just an example
-        //  showing that Phaser objects and systems can be acted upon from outside of Phaser itself.
-        scene.add.tween({
-          targets: star,
-          duration: 500 + Math.random() * 1000,
-          alpha: 0,
-          yoyo: true,
-          repeat: -1,
-        });
-      }
-    }
-  };
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
-    setCanMoveSprite(scene.scene.key !== "MainMenu");
+    // Handle scene changes if needed
   };
 
   return (
     <>
       <Header />
-      <div className="flex flex-col items-center pt-16">
-        <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-        <div className="mt-4">
-          <div>
-            <Button className="button" onClick={changeScene}>
-              Change Scene
-            </Button>
+
+      {/* Main Content */}
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 pt-16 pb-24">
+        {currentView === "game" && (
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Compact Game Lobby - Left Side */}
+              <div className="lg:w-80 xl:w-96">
+                <GameLobby />
+              </div>
+
+              {/* Main Phaser Game Arena - Center/Right */}
+              <div className="flex-1 flex justify-center items-start">
+                <div className="bg-black/50 rounded-lg overflow-hidden border border-purple-500/30 max-w-4xl w-full">
+                  <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <Button
-              disabled={canMoveSprite}
-              className="button"
-              onClick={moveSprite}
-            >
-              Toggle Movement
-            </Button>
+        )}
+
+        {currentView === "leaderboard" && (
+          <div className="container mx-auto">
+            <Leaderboard />
           </div>
-          <div className="spritePosition">
-            Sprite Position:
-            <pre>{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
-          </div>
-          <div>
-            <Button className="button" onClick={addSprite}>
-              Add New Sprite
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* Bottom Navigation */}
+      <Navigation currentView={currentView} onViewChange={setCurrentView} />
     </>
   );
 }

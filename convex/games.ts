@@ -1,0 +1,841 @@
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// Game phase durations in seconds
+const PHASE_DURATIONS = {
+  WAITING: 30,    // Wait for players to join and bet
+  RUNNING: 10,    // Players run to center
+  TOP4: 15,       // Show top 4 and allow spectator betting
+  BATTLE: 15,     // Final battle
+  RESULTS: 10,    // Show winner
+};
+
+// Bot names for demo/single-player mode
+const BOT_NAMES = [
+  "Shadow", "Blaze", "Frost", "Thunder", "Viper", "Phoenix", "Storm", "Titan",
+  "Ghost", "Spark", "Crusher", "Ninja", "Savage", "Fury", "Chaos", "Doom"
+];
+
+// Get current active game
+export const getCurrentGame = query({
+  args: {},
+  handler: async (ctx) => {
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_status")
+      .filter((q) =>
+        q.neq(q.field("status"), "completed")
+      )
+      .order("desc")
+      .first();
+
+    if (!game) return null;
+
+    // Get participants
+    const participants = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
+      .collect();
+
+    return {
+      ...game,
+      participants,
+      timeRemaining: Math.max(0, game.nextPhaseTime - Date.now())
+    };
+  },
+});
+
+// Get game by ID
+export const getGame = query({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game) return null;
+
+    const participants = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
+      .collect();
+
+    const bets = await ctx.db
+      .query("bets")
+      .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
+      .collect();
+
+    return {
+      ...game,
+      participants,
+      bets,
+    };
+  },
+});
+
+// Create a new game (internal, called by cron)
+export const createNewGame = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Check if there's already an active game
+    const activeGame = await ctx.db
+      .query("games")
+      .withIndex("by_status")
+      .filter((q) => q.neq(q.field("status"), "completed"))
+      .first();
+
+    if (activeGame) {
+      console.log("Game already active, skipping creation");
+      return null;
+    }
+
+    const now = Date.now();
+    const gameId = await ctx.db.insert("games", {
+      status: "waiting",
+      phase: 1,
+      phaseStartTime: now,
+      nextPhaseTime: now + (PHASE_DURATIONS.WAITING * 1000),
+      startTime: now,
+      playerCount: 0,
+      totalPot: 0,
+      isDemo: false,
+      isSinglePlayer: false,
+    });
+
+    return gameId;
+  },
+});
+
+// Join game and place initial bet
+export const joinGame = mutation({
+  args: {
+    walletAddress: v.string(),
+    betAmount: v.number(),
+    displayName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Validate bet amount
+    if (args.betAmount < 10 || args.betAmount > 10000) {
+      throw new Error("Bet amount must be between 10 and 10,000 coins");
+    }
+
+    // Get current game in waiting phase
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_status", (q: any) => q.eq("status", "waiting"))
+      .first();
+
+    if (!game) {
+      throw new Error("No game available to join");
+    }
+
+    // Check if player already joined
+    const existingParticipant = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game_wallet", (q: any) =>
+        q.eq("gameId", game._id).eq("walletAddress", args.walletAddress)
+      )
+      .first();
+
+    if (existingParticipant) {
+      throw new Error("Already joined this game");
+    }
+
+    // Get player
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      throw new Error("Player not found");
+    }
+
+    if (player.gameCoins < args.betAmount) {
+      throw new Error("Insufficient game coins");
+    }
+
+    // Deduct coins
+    await ctx.db.patch(player._id, {
+      gameCoins: player.gameCoins - args.betAmount,
+      lastActive: Date.now(),
+    });
+
+    // Create participant
+    const participantId = await ctx.db.insert("gameParticipants", {
+      gameId: game._id,
+      playerId: player._id,
+      walletAddress: args.walletAddress,
+      displayName: args.displayName || `Player${args.walletAddress.slice(-4)}`,
+      spriteIndex: Math.floor(Math.random() * 16), // Random sprite 0-15
+      colorHue: Math.floor(Math.random() * 360),
+      isBot: false,
+      betAmount: args.betAmount,
+      position: {
+        x: Math.random() * 800, // Random starting position
+        y: Math.random() * 600
+      },
+      eliminated: false,
+    });
+
+    // Create self bet
+    await ctx.db.insert("bets", {
+      gameId: game._id,
+      playerId: player._id,
+      walletAddress: args.walletAddress,
+      betType: "self",
+      targetParticipantId: participantId,
+      amount: args.betAmount,
+      status: "pending",
+      placedAt: Date.now(),
+    });
+
+    // Update game stats
+    await ctx.db.patch(game._id, {
+      playerCount: game.playerCount + 1,
+      totalPot: game.totalPot + args.betAmount,
+    });
+
+    return {
+      gameId: game._id,
+      participantId,
+      message: "Successfully joined the game!"
+    };
+  },
+});
+
+// Place spectator bet on top 4
+export const placeSpectatorBet = mutation({
+  args: {
+    walletAddress: v.string(),
+    gameId: v.id("games"),
+    targetParticipantId: v.id("gameParticipants"),
+    betAmount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Validate bet amount
+    if (args.betAmount < 10 || args.betAmount > 10000) {
+      throw new Error("Bet amount must be between 10 and 10,000 coins");
+    }
+
+    // Get game
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "betting") {
+      throw new Error("Game not in betting phase");
+    }
+
+    // Get player
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      throw new Error("Player not found");
+    }
+
+    if (player.gameCoins < args.betAmount) {
+      throw new Error("Insufficient game coins");
+    }
+
+    // Check target is in top 4
+    const participant = await ctx.db.get(args.targetParticipantId);
+    if (!participant || participant.eliminated) {
+      throw new Error("Invalid bet target");
+    }
+
+    // Deduct coins
+    await ctx.db.patch(player._id, {
+      gameCoins: player.gameCoins - args.betAmount,
+      lastActive: Date.now(),
+    });
+
+    // Create spectator bet
+    await ctx.db.insert("bets", {
+      gameId: game._id,
+      playerId: player._id,
+      walletAddress: args.walletAddress,
+      betType: "spectator",
+      targetParticipantId: args.targetParticipantId,
+      amount: args.betAmount,
+      status: "pending",
+      placedAt: Date.now(),
+    });
+
+    // Update game pot
+    await ctx.db.patch(game._id, {
+      totalPot: game.totalPot + args.betAmount,
+    });
+
+    return {
+      message: "Spectator bet placed successfully!"
+    };
+  },
+});
+
+// Advance game phase (internal, called by cron)
+export const advanceGamePhase = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status === "completed") return;
+
+    const now = Date.now();
+    let nextStatus = game.status;
+    let nextPhase = game.phase;
+    let nextPhaseTime = now;
+
+    switch (game.status) {
+      case "waiting":
+        // Check if we have players
+        const participants = await ctx.db
+          .query("gameParticipants")
+          .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
+          .filter((q) => q.eq(q.field("isBot"), false))
+          .collect();
+
+        if (participants.length === 0) {
+          // No players, convert to demo mode
+          await addBots(ctx, args.gameId, 8);
+          nextStatus = "arena";
+          nextPhase = 2;
+          nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+
+          await ctx.db.patch(args.gameId, {
+            isDemo: true,
+            status: nextStatus,
+            phase: nextPhase,
+            phaseStartTime: now,
+            nextPhaseTime,
+          });
+        } else if (participants.length === 1) {
+          // Single player mode
+          await addBots(ctx, args.gameId, 7);
+          nextStatus = "arena";
+          nextPhase = 2;
+          nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+
+          await ctx.db.patch(args.gameId, {
+            isSinglePlayer: true,
+            status: nextStatus,
+            phase: nextPhase,
+            phaseStartTime: now,
+            nextPhaseTime,
+          });
+        } else {
+          // Normal multiplayer game
+          nextStatus = "arena";
+          nextPhase = 2;
+          nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+
+          await ctx.db.patch(args.gameId, {
+            status: nextStatus,
+            phase: nextPhase,
+            phaseStartTime: now,
+            nextPhaseTime,
+          });
+        }
+        break;
+
+      case "arena":
+        // Eliminate all but top 4 based on bet amounts
+        await eliminateToTop4(ctx, args.gameId);
+        nextStatus = "betting";
+        nextPhase = 3;
+        nextPhaseTime = now + (PHASE_DURATIONS.TOP4 * 1000);
+        break;
+
+      case "betting":
+        nextStatus = "battle";
+        nextPhase = 4;
+        nextPhaseTime = now + (PHASE_DURATIONS.BATTLE * 1000);
+        break;
+
+      case "battle":
+        // Determine winner
+        await determineWinner(ctx, args.gameId);
+        nextStatus = "results";
+        nextPhase = 5;
+        nextPhaseTime = now + (PHASE_DURATIONS.RESULTS * 1000);
+        break;
+
+      case "results":
+        // Process payouts
+        await processPayouts(ctx, args.gameId);
+        nextStatus = "completed" as any;
+        nextPhase = 6;
+
+        await ctx.db.patch(args.gameId, {
+          status: nextStatus,
+          phase: nextPhase,
+          endTime: now,
+        });
+        return;
+    }
+
+    // Update game phase
+    await ctx.db.patch(args.gameId, {
+      status: nextStatus,
+      phase: nextPhase,
+      phaseStartTime: now,
+      nextPhaseTime,
+    });
+  },
+});
+
+// Helper: Add bots to game
+async function addBots(ctx: any, gameId: Id<"games">, count: number) {
+  const usedNames = new Set<string>();
+
+  for (let i = 0; i < count; i++) {
+    let botName: string;
+    do {
+      botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+    } while (usedNames.has(botName));
+    usedNames.add(botName);
+
+    const betAmount = Math.floor(Math.random() * 500) + 50; // 50-550 coins
+
+    await ctx.db.insert("gameParticipants", {
+      gameId,
+      displayName: botName,
+      spriteIndex: Math.floor(Math.random() * 16),
+      colorHue: Math.floor(Math.random() * 360),
+      isBot: true,
+      betAmount,
+      position: {
+        x: Math.random() * 800,
+        y: Math.random() * 600,
+      },
+      eliminated: false,
+    });
+  }
+}
+
+// Helper: Eliminate to top 4
+async function eliminateToTop4(ctx: any, gameId: Id<"games">) {
+  const participants = await ctx.db
+    .query("gameParticipants")
+    .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+    .collect();
+
+  if (participants.length <= 4) {
+    // If 4 or fewer participants, nobody gets eliminated
+    return;
+  }
+
+  // Calculate survival weights with randomness
+  const weights = participants.map((p: any) => {
+    // Base survival weight from bet amount (square root to reduce dominance)
+    const baseWeight = Math.sqrt(p.betAmount);
+
+    // Add random factor (30-70% of base weight for more chaos)
+    const randomFactor = 0.3 + (Math.random() * 0.4);
+    const randomBonus = baseWeight * randomFactor;
+
+    return {
+      participant: p,
+      weight: baseWeight + randomBonus,
+    };
+  });
+
+  // Sort by final weight (higher survives)
+  weights.sort((a: any, b: any) => b.weight - a.weight);
+
+  // Top 4 by weight survive, rest are eliminated
+  for (let i = 0; i < weights.length; i++) {
+    const { participant } = weights[i];
+
+    if (i >= 4) {
+      await ctx.db.patch(participant._id, {
+        eliminated: true,
+        eliminatedAt: Date.now(),
+        finalPosition: weights.length - i + 1, // 5th place, 6th place, etc.
+      });
+    }
+  }
+}
+
+// Helper: Determine winner
+async function determineWinner(ctx: any, gameId: Id<"games">) {
+  const game = await ctx.db.get(gameId);
+  if (!game) return;
+
+  const participants = await ctx.db
+    .query("gameParticipants")
+    .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+    .filter((q: any) => q.eq(q.field("eliminated"), false))
+    .collect();
+
+  if (participants.length === 0) return;
+
+  let winner: typeof participants[0];
+
+  if (game.isSinglePlayer) {
+    // In single player mode, human always wins
+    winner = participants.find((p: any) => !p.isBot) || participants[0];
+  } else {
+    // Calculate weighted probabilities with randomness
+    const weights = participants.map((p: any) => {
+      // Base weight from bet amount (square root to reduce dominance)
+      const baseWeight = Math.sqrt(p.betAmount);
+
+      // Add random factor (20-80% of base weight)
+      const randomFactor = 0.2 + (Math.random() * 0.6);
+      const randomBonus = baseWeight * randomFactor;
+
+      // Final weight = base + random bonus
+      return {
+        participant: p,
+        weight: baseWeight + randomBonus,
+      };
+    });
+
+    // Calculate total weight for probability calculation
+    const totalWeight = weights.reduce((sum: number, w: any) => sum + w.weight, 0);
+
+    // Create probability distribution
+    const probabilities = weights.map((w: any) => ({
+      participant: w.participant,
+      probability: w.weight / totalWeight,
+    }));
+
+    // Random selection with weighted probabilities
+    const random = Math.random();
+    let cumulative = 0;
+
+    for (const { participant, probability } of probabilities) {
+      cumulative += probability;
+      if (random <= cumulative) {
+        winner = participant;
+        break;
+      }
+    }
+
+    // Fallback to highest bet if somehow no winner selected
+    winner = winner! || participants.sort((a: any, b: any) => b.betAmount - a.betAmount)[0];
+  }
+
+  // Update winner and losers
+  for (const participant of participants) {
+    if (participant._id === winner._id) {
+      await ctx.db.patch(participant._id, {
+        finalPosition: 1,
+      });
+      await ctx.db.patch(gameId, {
+        winnerId: winner._id,
+      });
+    } else {
+      await ctx.db.patch(participant._id, {
+        eliminated: true,
+        eliminatedAt: Date.now(),
+        finalPosition: 2, // All others tie for 2nd in final battle
+      });
+    }
+  }
+}
+
+// Helper: Process payouts
+async function processPayouts(ctx: any, gameId: Id<"games">) {
+  const game = await ctx.db.get(gameId);
+  if (!game || !game.winnerId) return;
+
+  const winner = await ctx.db.get(game.winnerId);
+  if (!winner) return;
+
+  const bets = await ctx.db
+    .query("bets")
+    .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+    .collect();
+
+  if (game.isSinglePlayer && !winner.isBot) {
+    // Single player mode - refund all bets
+    for (const bet of bets) {
+      await ctx.db.patch(bet._id, {
+        payout: bet.amount,
+        status: "refunded",
+        settledAt: Date.now(),
+      });
+
+      if (bet.playerId) {
+        const player = await ctx.db.get(bet.playerId);
+        if (player) {
+          await ctx.db.patch(player._id, {
+            gameCoins: player.gameCoins + bet.amount,
+            totalGames: (player.totalGames || 0) + 1,
+          });
+        }
+      }
+    }
+    return;
+  }
+
+  // Separate bets by type
+  const selfBets = bets.filter((b: any) => b.betType === "self");
+  const spectatorBets = bets.filter((b: any) => b.betType === "spectator");
+
+  // Calculate total pools
+  const selfBetPool = selfBets.reduce((sum: number, bet: any) => sum + bet.amount, 0);
+  const spectatorBetPool = spectatorBets.reduce((sum: number, bet: any) => sum + bet.amount, 0);
+
+  // Calculate winning bets
+  const winningSelfBets = selfBets.filter((b: any) => b.targetParticipantId === game.winnerId);
+  const winningSpectatorBets = spectatorBets.filter((b: any) => b.targetParticipantId === game.winnerId);
+
+  // Calculate total winning amounts
+  const totalWinningSelf = winningSelfBets.reduce((sum: number, bet: any) => sum + bet.amount, 0);
+  const totalWinningSpectator = winningSpectatorBets.reduce((sum: number, bet: any) => sum + bet.amount, 0);
+
+  // Calculate payable pools (95% of total, 5% house edge)
+  const payableSelfPool = Math.floor(selfBetPool * 0.95);
+  const payableSpectatorPool = Math.floor(spectatorBetPool * 0.95);
+
+  // Process self bets (main game bets)
+  for (const bet of selfBets) {
+    let payout = 0;
+    let status: "won" | "lost" = "lost";
+
+    if (bet.targetParticipantId === game.winnerId) {
+      // Winner gets proportional share of 95% of the self bet pool
+      if (totalWinningSelf > 0) {
+        const share = bet.amount / totalWinningSelf;
+        payout = Math.floor(payableSelfPool * share);
+        status = "won";
+      }
+    }
+
+    await ctx.db.patch(bet._id, {
+      payout,
+      status,
+      settledAt: Date.now(),
+    });
+
+    // Credit winnings
+    if (payout > 0 && bet.playerId) {
+      const player = await ctx.db.get(bet.playerId);
+      if (player) {
+        await ctx.db.patch(player._id, {
+          gameCoins: player.gameCoins + payout,
+          totalWins: (player.totalWins || 0) + (status === "won" ? 1 : 0),
+          totalGames: (player.totalGames || 0) + 1,
+          totalEarnings: (player.totalEarnings || 0) + Math.max(0, payout - bet.amount),
+        });
+      }
+    }
+  }
+
+  // Process spectator bets (top 4 betting phase)
+  for (const bet of spectatorBets) {
+    let payout = 0;
+    let status: "won" | "lost" = "lost";
+
+    if (bet.targetParticipantId === game.winnerId) {
+      // Winner gets proportional share of 95% of the spectator bet pool
+      if (totalWinningSpectator > 0) {
+        const share = bet.amount / totalWinningSpectator;
+        payout = Math.floor(payableSpectatorPool * share);
+        status = "won";
+      }
+    }
+
+    await ctx.db.patch(bet._id, {
+      payout,
+      status,
+      settledAt: Date.now(),
+    });
+
+    // Credit winnings
+    if (payout > 0 && bet.playerId) {
+      const player = await ctx.db.get(bet.playerId);
+      if (player) {
+        await ctx.db.patch(player._id, {
+          gameCoins: player.gameCoins + payout,
+          totalWins: (player.totalWins || 0) + (status === "won" ? 1 : 0),
+          totalGames: (player.totalGames || 0) + 1,
+          totalEarnings: (player.totalEarnings || 0) + Math.max(0, payout - bet.amount),
+        });
+      }
+    }
+  }
+}
+
+// Get recent games
+export const getRecentGames = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    const games = await ctx.db
+      .query("games")
+      .withIndex("by_start_time")
+      .order("desc")
+      .take(limit);
+
+    return games;
+  },
+});
+
+// Get player's game history
+export const getPlayerGames = query({
+  args: { walletAddress: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+
+    // Get player's bets
+    const bets = await ctx.db
+      .query("bets")
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
+      .order("desc")
+      .take(limit);
+
+    // Get unique game IDs
+    const gameIds = [...new Set(bets.map(b => b.gameId))];
+
+    // Get games
+    const games = await Promise.all(
+      gameIds.map(id => ctx.db.get(id))
+    );
+
+    return games.filter(Boolean);
+  },
+});
+
+// Main game loop (called by cron every 10 seconds)
+export const gameLoop = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Check for active game
+    const activeGame = await ctx.db
+      .query("games")
+      .withIndex("by_status")
+      .filter((q) => q.neq(q.field("status"), "completed"))
+      .first();
+
+    const now = Date.now();
+
+    if (!activeGame) {
+      // Create new game - call internal function directly
+      const now = Date.now();
+      const gameId = await ctx.db.insert("games", {
+        status: "waiting",
+        phase: 1,
+        phaseStartTime: now,
+        nextPhaseTime: now + (PHASE_DURATIONS.WAITING * 1000),
+        startTime: now,
+        playerCount: 0,
+        totalPot: 0,
+        isDemo: false,
+        isSinglePlayer: false,
+      });
+
+      console.log("Created new game");
+      return;
+    }
+
+    // Check if current phase time is up
+    if (now >= activeGame.nextPhaseTime) {
+      // Inline phase advancement logic
+      let nextStatus: any = activeGame.status;
+      let nextPhase = activeGame.phase;
+      let nextPhaseTime = now;
+
+      switch (activeGame.status) {
+        case "waiting":
+          // Check if we have players
+          const participants = await ctx.db
+            .query("gameParticipants")
+            .withIndex("by_game", (q: any) => q.eq("gameId", activeGame._id))
+            .filter((q: any) => q.eq(q.field("isBot"), false))
+            .collect();
+
+          if (participants.length === 0) {
+            // No players, convert to demo mode
+            await addBots(ctx, activeGame._id, 8);
+            nextStatus = "arena";
+            nextPhase = 2;
+            nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+
+            await ctx.db.patch(activeGame._id, {
+              isDemo: true,
+              status: nextStatus,
+              phase: nextPhase,
+              phaseStartTime: now,
+              nextPhaseTime,
+            });
+          } else if (participants.length === 1) {
+            // Single player mode
+            await addBots(ctx, activeGame._id, 7);
+            nextStatus = "arena";
+            nextPhase = 2;
+            nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+
+            await ctx.db.patch(activeGame._id, {
+              isSinglePlayer: true,
+              status: nextStatus,
+              phase: nextPhase,
+              phaseStartTime: now,
+              nextPhaseTime,
+            });
+          } else {
+            // Normal multiplayer game
+            nextStatus = "arena";
+            nextPhase = 2;
+            nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+
+            await ctx.db.patch(activeGame._id, {
+              status: nextStatus,
+              phase: nextPhase,
+              phaseStartTime: now,
+              nextPhaseTime,
+            });
+          }
+          break;
+
+        case "arena":
+          // Eliminate all but top 4 based on bet amounts
+          await eliminateToTop4(ctx, activeGame._id);
+          nextStatus = "betting";
+          nextPhase = 3;
+          nextPhaseTime = now + (PHASE_DURATIONS.TOP4 * 1000);
+          break;
+
+        case "betting":
+          nextStatus = "battle";
+          nextPhase = 4;
+          nextPhaseTime = now + (PHASE_DURATIONS.BATTLE * 1000);
+          break;
+
+        case "battle":
+          // Determine winner
+          await determineWinner(ctx, activeGame._id);
+          nextStatus = "results";
+          nextPhase = 5;
+          nextPhaseTime = now + (PHASE_DURATIONS.RESULTS * 1000);
+          break;
+
+        case "results":
+          // Process payouts
+          await processPayouts(ctx, activeGame._id);
+          nextStatus = "completed" as any;
+          nextPhase = 6;
+
+          await ctx.db.patch(activeGame._id, {
+            status: nextStatus,
+            phase: nextPhase,
+            endTime: now,
+          });
+          console.log(`Completed game ${activeGame._id}`);
+          return;
+      }
+
+      // Update game phase if not results
+      if (nextStatus !== "completed") {
+        await ctx.db.patch(activeGame._id, {
+          status: nextStatus,
+          phase: nextPhase,
+          phaseStartTime: now,
+          nextPhaseTime,
+        });
+      }
+
+      console.log(`Advanced game ${activeGame._id} from ${activeGame.status} to ${nextStatus}`);
+    }
+  },
+});
