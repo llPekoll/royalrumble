@@ -26,7 +26,6 @@ export class MainMenu extends Scene
         this.orc.play({ key: 'orc-walk', repeat: -1 });
         this.soldier.play({ key: 'soldier-walk', repeat: -1 });
         this.logo = this.add.image(512, 300, 'logo').setDepth(100);
-
         this.title = this.add.text(512, 460, 'Main Menu', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 8,
@@ -44,7 +43,7 @@ export class MainMenu extends Scene
             this.logoTween = null;
         }
 
-        this.scene.start('Game');
+        this.scene.start('RoyalRumble');
     }
 
     moveLogo (vueCallback: ({ x, y }: { x: number, y: number }) => void)

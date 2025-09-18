@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+import { useQuery } from "convex/react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
 import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
 import { Leaderboard } from "./components/Leaderboard";
 import { Navigation } from "./components/Navigation";
+import { api } from "../convex/_generated/api";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<"game" | "leaderboard">("game");
@@ -11,10 +13,26 @@ export default function App() {
   //  References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
 
+  // Get current game state
+  const currentGame = useQuery(api.games.getCurrentGame);
+
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
-    // Handle scene changes if needed
+    // Update Phaser scene with game state when it's ready
+    if (scene && scene.scene.key === 'RoyalRumble' && currentGame) {
+      (scene as any).updateGameState?.(currentGame);
+    }
   };
+
+  // Update Phaser scene when game state changes
+  useEffect(() => {
+    if (phaserRef.current?.scene && currentGame) {
+      const scene = phaserRef.current.scene;
+      if (scene.scene.key === 'RoyalRumble') {
+        (scene as any).updateGameState?.(currentGame);
+      }
+    }
+  }, [currentGame]);
 
   return (
     <>

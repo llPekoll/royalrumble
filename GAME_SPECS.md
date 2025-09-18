@@ -9,11 +9,11 @@ A fast-paced, 1-minute battle royale betting game on Solana where players bet on
 - **Duration**: 1 minute per game
 - **Continuous**: Games run 24/7 with no downtime
 - **Join Anytime**: Players can join mid-game for the next round
-- **Single Player Mode**: 
+- **Single Player Mode**:
   - If only 1 player joins, game runs normally
   - Player automatically wins and gets their bet refunded
   - No profit/loss - just demonstration of mechanics
-- **Auto-Demo Mode**: 
+- **Auto-Demo Mode**:
   - If no players for 2 minutes, generate demo game with bots
   - Bot games show gameplay to attract players
   - Bots use fake wallets and don't affect real economy
@@ -41,13 +41,13 @@ A fast-paced, 1-minute battle royale betting game on Solana where players bet on
 - All players (including eliminated) can bet on final winners
 - Head-to-head betting pairs displayed
 
-#### Phase 5: Final Battle (45-55 seconds)
+#### Phase 5: Final Betting (45-55 seconds)
 - Tournament-style battles between final 4
 - Semi-finals: 2 simultaneous 1v1 battles
 - Finals: Winners face off
 - Battle outcomes determined by total bet weights
 
-#### Phase 6: Results & Rewards (55-60 seconds)
+#### Phase 6: Final Betting (55-60 seconds)
 - Winner announced
 - Payouts distributed
 - NFT minting option for winners

@@ -34,6 +34,10 @@ export class Preloader extends Scene
         this.load.atlas('orc', 'spriteSheets/orc.png', 'spriteSheets/orc.json');
         this.load.atlas('soldier', 'spriteSheets/Soldier.png', 'spriteSheets/Soldier.json');
 
+        // Load arena backgrounds
+        this.load.image('arena', 'arena.png');
+        this.load.image('arena2', 'arena2.png');
+
         this.load.image('logo', 'logo.png');
     }
 
