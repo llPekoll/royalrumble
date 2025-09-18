@@ -68,9 +68,9 @@ export default function App() {
   return (
     <>
       <Header />
-      <div className="flex pt-16">
+      <div className="flex flex-col items-center pt-16">
         <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-        <div>
+        <div className="mt-4">
           <div>
             <Button className="button" onClick={changeScene}>
               Change Scene

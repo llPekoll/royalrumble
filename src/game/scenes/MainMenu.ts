@@ -5,6 +5,7 @@ import { EventBus } from '../EventBus';
 export class MainMenu extends Scene
 {
     background: GameObjects.Image;
+    orc: GameObjects.Sprite;
     logo: GameObjects.Image;
     title: GameObjects.Text;
     logoTween: Phaser.Tweens.Tween | null;
@@ -17,7 +18,8 @@ export class MainMenu extends Scene
     create ()
     {
         this.background = this.add.image(512, 384, 'background');
-
+        this.orc = this.add.sprite(100, 100, 'orc');
+        this.orc.play({ key: 'orc-walk', repeat: -1 });
         this.logo = this.add.image(512, 300, 'logo').setDepth(100);
 
         this.title = this.add.text(512, 460, 'Main Menu', {
@@ -28,7 +30,7 @@ export class MainMenu extends Scene
 
         EventBus.emit('current-scene-ready', this);
     }
-    
+
     changeScene ()
     {
         if (this.logoTween)
@@ -52,7 +54,7 @@ export class MainMenu extends Scene
             {
                 this.logoTween.play();
             }
-        } 
+        }
         else
         {
             this.logoTween = this.tweens.add({
