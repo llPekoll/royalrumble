@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
@@ -11,6 +11,7 @@ export function GameLobby() {
   const { connected, publicKey } = useWallet();
   const [betAmount, setBetAmount] = useState(100);
   const [displayName, setDisplayName] = useState("");
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Get current game
   const currentGame = useQuery(api.games.getCurrentGame);
@@ -27,6 +28,15 @@ export function GameLobby() {
   const placeSpectatorBet = useMutation(api.games.placeSpectatorBet);
 
   const gameCoins = playerData?.gameCoins || 0;
+
+  // Real-time countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000); // Update every second
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Check if player is in current game
   const playerInGame = currentGame?.participants?.find(
@@ -109,10 +119,14 @@ export function GameLobby() {
     }
   };
 
-  const formatTime = (ms: number) => {
-    const seconds = Math.ceil(ms / 1000);
+  const formatTime = (nextPhaseTime: number) => {
+    const timeRemaining = Math.max(0, nextPhaseTime - currentTime);
+    const seconds = Math.ceil(timeRemaining / 1000);
     return `${seconds}s`;
   };
+
+  // Calculate real-time remaining time
+  const timeRemaining = currentGame ? Math.max(0, currentGame.nextPhaseTime - currentTime) : 0;
 
   const getPhaseDescription = (game: any) => {
     switch (game.status) {
@@ -128,6 +142,23 @@ export function GameLobby() {
         return "🏆 Showing results";
       default:
         return "🎮 Game in progress";
+    }
+  };
+
+  const getPhaseName = (game: any) => {
+    switch (game.status) {
+      case "waiting":
+        return "Join Phase";
+      case "arena":
+        return "Arena Phase";
+      case "betting":
+        return "Betting Phase";
+      case "battle":
+        return "Battle Phase";
+      case "results":
+        return "Results Phase";
+      default:
+        return "Game Phase";
     }
   };
 
@@ -152,8 +183,10 @@ export function GameLobby() {
             <p className="text-sm text-purple-200">{getPhaseDescription(currentGame)}</p>
           </div>
           <div className="text-right">
-            <div className="text-xl font-mono text-green-400">
-              ⏱️ {formatTime(currentGame.timeRemaining)}
+            <div className={`text-xl font-mono ${
+              timeRemaining <= 10000 ? 'text-red-400 animate-pulse' : 'text-green-400'
+            }`}>
+              ⏱️ {formatTime(currentGame.nextPhaseTime)}
             </div>
             <div className="text-xs text-gray-400">Time remaining</div>
           </div>
@@ -176,7 +209,7 @@ export function GameLobby() {
             <div className="text-lg font-bold text-purple-400">
               {currentGame.phase}/5
             </div>
-            <div className="text-xs text-gray-400">Phase</div>
+            <div className="text-xs text-gray-400">{getPhaseName(currentGame)}</div>
           </div>
         </div>
       </Card>
@@ -184,7 +217,18 @@ export function GameLobby() {
       {/* Join Game or Spectator Betting */}
       {currentGame.status === "waiting" && !playerInGame && connected && (
         <Card className="p-4 border-green-500/30 bg-green-900/20">
-          <h2 className="text-lg font-bold text-green-400 mb-3">🎯 Join the Battle!</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-green-400">🎯 Join the Battle!</h2>
+            <div className={`text-sm font-mono font-bold px-2 py-1 rounded ${
+              timeRemaining <= 5000
+                ? 'text-red-300 bg-red-900/50 animate-pulse'
+                : timeRemaining <= 10000
+                ? 'text-yellow-300 bg-yellow-900/50'
+                : 'text-green-300 bg-green-900/50'
+            }`}>
+              ⏰ {formatTime(currentGame.nextPhaseTime)}
+            </div>
+          </div>
 
           <div className="space-y-3">
             <div>
@@ -241,7 +285,18 @@ export function GameLobby() {
       {/* Top 4 Betting Phase */}
       {currentGame.status === "betting" && top4.length > 0 && !playerInGame && connected && (
         <Card className="p-6 border-yellow-500/30 bg-yellow-900/20">
-          <h2 className="text-xl font-bold text-yellow-400 mb-4">🎲 Bet on the Winner!</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-yellow-400">🎲 Bet on the Winner!</h2>
+            <div className={`text-lg font-mono font-bold px-3 py-1 rounded ${
+              timeRemaining <= 5000
+                ? 'text-red-300 bg-red-900/50 animate-pulse'
+                : timeRemaining <= 10000
+                ? 'text-yellow-300 bg-yellow-900/50'
+                : 'text-green-300 bg-green-900/50'
+            }`}>
+              ⏰ {formatTime(currentGame.nextPhaseTime)}
+            </div>
+          </div>
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
