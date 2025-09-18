@@ -24,4 +24,11 @@ crons.cron(
   api.transactions.cleanupOldTransactions
 );
 
+// Clean up old completed games every 6 hours
+crons.cron(
+  "cleanup old games",
+  "0 */6 * * *", // Every 6 hours
+  internal.games.cleanupOldGames
+);
+
 export default crons;

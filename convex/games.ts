@@ -697,6 +697,70 @@ export const getPlayerGames = query({
   },
 });
 
+// Clean up old completed games (called by cron)
+export const cleanupOldGames = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const cutoffTime = now - (3 * 24 * 60 * 60 * 1000); // 3 days ago
+
+    // Find old completed games
+    const oldGames = await ctx.db
+      .query("games")
+      .withIndex("by_start_time")
+      .filter((q: any) =>
+        q.and(
+          q.eq(q.field("status"), "completed"),
+          q.lt(q.field("startTime"), cutoffTime)
+        )
+      )
+      .collect();
+
+    let deletedGames = 0;
+    let deletedParticipants = 0;
+    let deletedBets = 0;
+
+    for (const game of oldGames) {
+      // Delete related participants
+      const participants = await ctx.db
+        .query("gameParticipants")
+        .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
+        .collect();
+
+      for (const p of participants) {
+        await ctx.db.delete(p._id);
+        deletedParticipants++;
+      }
+
+      // Delete related bets
+      const bets = await ctx.db
+        .query("bets")
+        .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
+        .collect();
+
+      for (const b of bets) {
+        await ctx.db.delete(b._id);
+        deletedBets++;
+      }
+
+      // Delete the game itself
+      await ctx.db.delete(game._id);
+      deletedGames++;
+    }
+
+    if (deletedGames > 0) {
+      console.log(`Cleaned up ${deletedGames} old games, ${deletedParticipants} participants, ${deletedBets} bets (older than 3 days)`);
+    }
+
+    return {
+      deletedGames,
+      deletedParticipants,
+      deletedBets,
+      message: `Cleaned up ${deletedGames} games older than 3 days`
+    };
+  },
+});
+
 // Main game loop (called by cron every 10 seconds)
 export const gameLoop = internalMutation({
   args: {},
@@ -711,21 +775,36 @@ export const gameLoop = internalMutation({
     const now = Date.now();
 
     if (!activeGame) {
-      // Create new game - call internal function directly
-      const now = Date.now();
-      const gameId = await ctx.db.insert("games", {
-        status: "waiting",
-        phase: 1,
-        phaseStartTime: now,
-        nextPhaseTime: now + (PHASE_DURATIONS.WAITING * 1000),
-        startTime: now,
-        playerCount: 0,
-        totalPot: 0,
-        isDemo: false,
-        isSinglePlayer: false,
-      });
+      // Check if we recently had a game deleted (to avoid rapid game creation)
+      const recentGames = await ctx.db
+        .query("games")
+        .withIndex("by_start_time")
+        .order("desc")
+        .take(5);
 
-      console.log("Created new game");
+      // If the last game was very recent (within 2 minutes), don't create immediately
+      const lastGameTime = recentGames.length > 0 ? recentGames[0].startTime : 0;
+      const timeSinceLastGame = now - lastGameTime;
+
+      // Only create a new game if enough time has passed (2 minutes = 120,000ms)
+      // or if there was no recent game
+      if (timeSinceLastGame > 120000 || recentGames.length === 0) {
+        const gameId = await ctx.db.insert("games", {
+          status: "waiting",
+          phase: 1,
+          phaseStartTime: now,
+          nextPhaseTime: now + (PHASE_DURATIONS.WAITING * 1000),
+          startTime: now,
+          playerCount: 0,
+          totalPot: 0,
+          isDemo: false,
+          isSinglePlayer: false,
+        });
+
+        console.log("Created new game");
+      } else {
+        console.log(`Waiting ${Math.ceil((120000 - timeSinceLastGame) / 1000)}s before creating new game`);
+      }
       return;
     }
 
@@ -746,19 +825,22 @@ export const gameLoop = internalMutation({
             .collect();
 
           if (participants.length === 0) {
-            // No players, convert to demo mode
-            await addBots(ctx, activeGame._id, 8);
-            nextStatus = "arena";
-            nextPhase = 2;
-            nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
+            // No players after 30s - delete the game to save database space
+            console.log(`Deleting empty game ${activeGame._id} - no players joined`);
 
-            await ctx.db.patch(activeGame._id, {
-              isDemo: true,
-              status: nextStatus,
-              phase: nextPhase,
-              phaseStartTime: now,
-              nextPhaseTime,
-            });
+            // Delete any related data first (shouldn't be any, but just in case)
+            const allParticipants = await ctx.db
+              .query("gameParticipants")
+              .withIndex("by_game", (q: any) => q.eq("gameId", activeGame._id))
+              .collect();
+
+            for (const p of allParticipants) {
+              await ctx.db.delete(p._id);
+            }
+
+            // Delete the game
+            await ctx.db.delete(activeGame._id);
+            return; // Exit early, don't create a new game yet
           } else if (participants.length === 1) {
             // Single player mode
             await addBots(ctx, activeGame._id, 7);

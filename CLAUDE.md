@@ -108,9 +108,10 @@ bun run typecheck
 ## Convex Backend
 
 ### Scheduled Functions
-- Game loop: Every 60 seconds
-- Phase transitions: Every 10 seconds
-- Inactivity check: Every 2 minutes
+- Game loop: Every 10 seconds (game phase management)
+- Transaction processing: Every 30 seconds (Solana operations)
+- Transaction cleanup: Every 1 hour (removes 7-day old transactions)
+- Game cleanup: Every 6 hours (removes 3-day old completed games)
 
 ### Real-time Features
 - Automatic UI updates
@@ -145,6 +146,13 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 - Test Solana integration on devnet first
 
 ## Important Notes
+
+### Database Management
+- **Data Retention**: Game history kept for 3 days, then automatically deleted
+- **Empty Game Cleanup**: Games with no players are deleted immediately after waiting phase
+- **Transaction History**: Solana transactions kept for 7 days
+- **Player Data**: Account balances and leaderboard stats are permanent
+- **NFTs**: Minted NFT records are permanent (never deleted)
 
 ### Bun-Specific
 - Use `bun` instead of `npm` for all commands

@@ -243,6 +243,22 @@ export function Leaderboard() {
           </div>
         )}
       </Card>
+
+      {/* Data Retention Notice */}
+      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+        <div className="flex items-start space-x-3">
+          <div className="text-blue-400 mt-0.5">ℹ️</div>
+          <div className="flex-1">
+            <h3 className="text-blue-300 font-medium mb-2">Data Retention Policy</h3>
+            <div className="text-sm text-gray-300 space-y-1">
+              <div>• <strong>Game History:</strong> Individual games are kept for 3 days</div>
+              <div>• <strong>Player Stats:</strong> Your balance and leaderboard position are permanent</div>
+              <div>• <strong>Transaction History:</strong> Solana deposits/withdrawals kept for 7 days</div>
+              <div>• <strong>NFTs:</strong> Your minted NFT records are permanent</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
