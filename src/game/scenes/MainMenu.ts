@@ -17,7 +17,9 @@ export class MainMenu extends Scene
 
     create ()
     {
-        this.background = this.add.image(512, 384, 'background');
+        // Randomly select between 'arena' and 'arena2'
+        const arenaKey = Math.random() < 0.5 ? 'arena' : 'arena2';
+        this.background = this.add.image(512, 384, arenaKey);
         this.orc = this.add.sprite(100, 100, 'orc');
         this.orc.play({ key: 'orc-walk', repeat: -1 });
         this.logo = this.add.image(512, 300, 'logo').setDepth(100);

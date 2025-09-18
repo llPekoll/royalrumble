@@ -18,7 +18,7 @@ import Phaser from 'phaser';
 export class BattleArenaScene extends Phaser.Scene {
   private players: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private centerPoint: { x: number, y: number };
-  
+
   constructor() {
     super({ key: 'BattleArena' });
   }
@@ -29,22 +29,23 @@ export class BattleArenaScene extends Phaser.Scene {
       frameWidth: 64,
       frameHeight: 64
     });
-    
+
     // Load effects
     this.load.spritesheet('explosion', '/assets/explosion.png', {
       frameWidth: 128,
       frameHeight: 128
     });
-    
+
     // Load arena background
     this.load.image('arena', '/assets/arena.png');
+    this.load.image('arena2', '/assets/arena2.png');
   }
 
   create() {
     // Set up arena
     this.add.image(400, 300, 'arena');
     this.centerPoint = { x: 400, y: 300 };
-    
+
     // Create animations
     this.anims.create({
       key: 'walk',
@@ -52,14 +53,14 @@ export class BattleArenaScene extends Phaser.Scene {
       frameRate: 10,
       repeat: -1
     });
-    
+
     this.anims.create({
       key: 'idle',
       frames: this.anims.generateFrameNumbers('characters', { start: 8, end: 11 }),
       frameRate: 8,
       repeat: -1
     });
-    
+
     this.anims.create({
       key: 'explode',
       frames: this.anims.generateFrameNumbers('explosion', { start: 0, end: 15 }),
@@ -67,23 +68,23 @@ export class BattleArenaScene extends Phaser.Scene {
       repeat: 0
     });
   }
-  
+
   // Add player to arena
   addPlayer(playerId: string, data: PlayerData) {
     const angle = Math.random() * Math.PI * 2;
     const distance = 250;
     const x = this.centerPoint.x + Math.cos(angle) * distance;
     const y = this.centerPoint.y + Math.sin(angle) * distance;
-    
+
     const sprite = this.add.sprite(x, y, 'characters');
-    
+
     // Scale based on bet amount (fat = higher bet)
     const scale = 1 + (data.betAmount / 1000) * 0.5; // Up to 1.5x size
     sprite.setScale(scale);
-    
+
     // Set character variant
     sprite.setTint(data.characterColor);
-    
+
     // Add name label
     const nameText = this.add.text(x, y - 40, data.name, {
       fontSize: '12px',
@@ -92,19 +93,19 @@ export class BattleArenaScene extends Phaser.Scene {
       strokeThickness: 2
     });
     nameText.setOrigin(0.5);
-    
+
     // Store reference
     this.players.set(playerId, sprite);
-    
+
     // Start idle animation
     sprite.play('idle');
   }
-  
+
   // Phase 2: Move players to center
   moveToCenter(duration: number = 10000) {
     this.players.forEach((sprite, playerId) => {
       sprite.play('walk');
-      
+
       this.tweens.add({
         targets: sprite,
         x: this.centerPoint.x + (Math.random() - 0.5) * 50,
@@ -117,17 +118,17 @@ export class BattleArenaScene extends Phaser.Scene {
       });
     });
   }
-  
+
   // Phase 3: Elimination explosion
   performElimination(survivors: string[]) {
     // Create explosion effect at center
     const explosion = this.add.sprite(this.centerPoint.x, this.centerPoint.y, 'explosion');
     explosion.setScale(3);
     explosion.play('explode');
-    
+
     // Camera shake
     this.cameras.main.shake(500, 0.02);
-    
+
     // Particle effects
     const particles = this.add.particles(this.centerPoint.x, this.centerPoint.y, 'spark', {
       speed: { min: 200, max: 400 },
@@ -136,7 +137,7 @@ export class BattleArenaScene extends Phaser.Scene {
       lifespan: 600,
       quantity: 30
     });
-    
+
     // Eliminate non-survivors
     this.players.forEach((sprite, playerId) => {
       if (!survivors.includes(playerId)) {
@@ -160,21 +161,21 @@ export class BattleArenaScene extends Phaser.Scene {
         });
       }
     });
-    
+
     // Clean up explosion
     explosion.on('animationcomplete', () => {
       explosion.destroy();
       particles.destroy();
     });
   }
-  
+
   // Phase 5: Final battle animations
   performBattle(player1Id: string, player2Id: string, winnerId: string) {
     const player1 = this.players.get(player1Id);
     const player2 = this.players.get(player2Id);
-    
+
     if (!player1 || !player2) return;
-    
+
     // Move players to battle positions
     this.tweens.add({
       targets: player1,
@@ -182,7 +183,7 @@ export class BattleArenaScene extends Phaser.Scene {
       y: this.centerPoint.y,
       duration: 1000
     });
-    
+
     this.tweens.add({
       targets: player2,
       x: this.centerPoint.x + 100,
@@ -194,7 +195,7 @@ export class BattleArenaScene extends Phaser.Scene {
       }
     });
   }
-  
+
   private createBattleClash(
     player1: Phaser.GameObjects.Sprite,
     player2: Phaser.GameObjects.Sprite,
@@ -203,13 +204,13 @@ export class BattleArenaScene extends Phaser.Scene {
     // Create impact effect
     const impact = this.add.sprite(this.centerPoint.x, this.centerPoint.y, 'impact');
     impact.setScale(2);
-    
+
     // Screen flash
     this.cameras.main.flash(200, 255, 255, 255);
-    
+
     // Determine loser
     const loser = winner === player1 ? player2 : player1;
-    
+
     // Loser gets knocked back and fades
     this.tweens.add({
       targets: loser,
@@ -220,7 +221,7 @@ export class BattleArenaScene extends Phaser.Scene {
       duration: 1000,
       ease: 'Power3'
     });
-    
+
     // Winner celebrates
     this.tweens.add({
       targets: winner,
@@ -229,7 +230,7 @@ export class BattleArenaScene extends Phaser.Scene {
       yoyo: true,
       repeat: 3
     });
-    
+
     // Victory particles around winner
     this.add.particles(winner.x, winner.y, 'star', {
       speed: { min: 100, max: 200 },
@@ -277,7 +278,7 @@ import { api } from '@/convex/_generated/api';
 export function GameCanvas() {
   const gameRef = useRef<Phaser.Game | null>(null);
   const currentGame = useQuery(api.games.currentGame);
-  
+
   useEffect(() => {
     // Initialize Phaser game
     if (!gameRef.current) {
@@ -292,7 +293,7 @@ export function GameCanvas() {
         }
       });
     }
-    
+
     return () => {
       if (gameRef.current) {
         gameRef.current.destroy(true);
@@ -300,18 +301,18 @@ export function GameCanvas() {
       }
     };
   }, []);
-  
+
   // Update game based on Convex state
   useEffect(() => {
     if (!gameRef.current || !currentGame) return;
-    
+
     const scene = gameRef.current.scene.getScene('BattleArena');
-    
+
     // Update players
     currentGame.players.forEach(player => {
       scene.addPlayer(player.id, player);
     });
-    
+
     // Handle phase transitions
     switch (currentGame.phase) {
       case 'arena':
@@ -325,7 +326,7 @@ export function GameCanvas() {
         break;
     }
   }, [currentGame]);
-  
+
   return <div id="game-container" className="w-full h-full" />;
 }
 ```
@@ -409,11 +410,11 @@ import explosionAnimation from './animations/explosion.json';
 ```typescript
 class SpritePool {
   private pool: Phaser.GameObjects.Sprite[] = [];
-  
+
   get(): Phaser.GameObjects.Sprite {
     return this.pool.pop() || this.createNew();
   }
-  
+
   release(sprite: Phaser.GameObjects.Sprite) {
     sprite.setVisible(false);
     this.pool.push(sprite);
@@ -465,16 +466,16 @@ export class VisualEffects {
       quantity: amount,
       setXY: { x: 0, y: -50, stepX: 800 / amount }
     });
-    
+
     coins.children.entries.forEach(coin => {
       coin.body.setVelocityY(200 + Math.random() * 100);
       coin.body.setBounceY(0.8);
     });
   }
-  
+
   static characterGlow(sprite: Phaser.GameObjects.Sprite, color: number) {
     const fx = sprite.postFX.addGlow(color, 4, 0, false, 0.5, 10);
-    
+
     scene.tweens.add({
       targets: fx,
       outerStrength: 8,
@@ -483,10 +484,10 @@ export class VisualEffects {
       repeat: -1
     });
   }
-  
+
   static explosionRing(scene: Phaser.Scene, x: number, y: number) {
     const ring = scene.add.circle(x, y, 10, 0xffffff, 0.8);
-    
+
     scene.tweens.add({
       targets: ring,
       radius: 300,
