@@ -4,7 +4,9 @@ import { getRandomCharacter, CHARACTERS } from '../config/characters';
 
 interface Player {
     id: string;
+    container: Phaser.GameObjects.Container;
     sprite: Phaser.GameObjects.Sprite;
+    nameText: Phaser.GameObjects.Text;
     characterKey: string;
     displayName: string;
     betAmount: number;
@@ -27,6 +29,8 @@ export class Game extends Scene
 
     // Map to store which character each player is using
     private playerCharacters: Map<string, string> = new Map();
+    // Store used angles to avoid overlapping
+    private usedAngles: number[] = [];
 
     constructor ()
     {
@@ -96,6 +100,11 @@ export class Game extends Scene
         // Update phase text
         this.updatePhaseDisplay(gameState);
 
+        // Reset used angles when starting a new game
+        if (gameState.status === 'waiting' && this.players.size === 0) {
+            this.usedAngles = [];
+        }
+
         // Update players based on game phase
         if (gameState.status === 'waiting') {
             this.updatePlayersInWaiting(gameState.participants || []);
@@ -143,9 +152,22 @@ export class Game extends Scene
     }
 
     private addPlayer(participant: any, index: number) {
-        // Calculate spawn position (top of screen)
-        const spawnX = 200 + (index * 120) + (Math.random() - 0.5) * 100;
-        const spawnY = -50;
+        // Generate a random angle with some spacing from other players
+        let angle = this.getRandomAngleWithSpacing();
+
+        // Add some radius variation for more natural placement
+        const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
+        const radius = 180 + radiusVariation;
+
+        // Calculate target position with some additional randomness
+        const angleOffset = (Math.random() - 0.5) * 0.2; // Small angle variation
+        const finalAngle = angle + angleOffset;
+        const targetX = this.centerX + Math.cos(finalAngle) * radius;
+        const targetY = this.centerY + Math.sin(finalAngle) * radius;
+
+        // Spawn directly above the target position (same X)
+        const spawnX = targetX;  // Same X as final position
+        const spawnY = -50;      // Above the screen
 
         // Get random character for this player
         const character = getRandomCharacter();
@@ -154,44 +176,45 @@ export class Game extends Scene
         // Store character choice for this player
         this.playerCharacters.set(participant._id, characterKey);
 
-        // Create player sprite
-        const sprite = this.add.sprite(spawnX, spawnY, characterKey);
-        sprite.setDepth(100);
+        // Create a container to hold both sprite and name
+        const container = this.add.container(spawnX, spawnY);
+        container.setDepth(100);
+
+        // Create player sprite (position relative to container)
+        const sprite = this.add.sprite(0, 0, characterKey);
         sprite.play(`${characterKey}-idle`);
 
-        // Calculate scale based on bet amount (0.001 SOL = 100%, up to 3 SOL)
+        // Calculate scale based on bet amount
         const scale = this.calculatePlayerScale(participant.betAmount);
-        sprite.setScale(scale);
 
-        // Calculate target position in circle around center
-        const angle = (index * (Math.PI * 2)) / Math.max(8, this.gameState?.participants?.length || 1);
-        const radius = 180;
-        const targetX = this.centerX + Math.cos(angle) * radius;
-        const targetY = this.centerY + Math.sin(angle) * radius;
-
-        // Animate player dropping from top
-        this.tweens.add({
-            targets: sprite,
-            x: targetX,
-            y: targetY,
-            duration: 1000,
-            ease: 'Bounce.easeOut'
-        });
-
-        // Add player name text
-        const nameText = this.add.text(targetX, targetY + 40, participant.displayName, {
+        // Create name text (positioned below sprite, relative to container)
+        const nameText = this.add.text(0, 40, participant.displayName, {
             fontFamily: 'Arial',
             fontSize: 14,
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 2,
             align: 'center'
-        }).setOrigin(0.5).setDepth(110);
+        }).setOrigin(0.5);
+
+        // Add both sprite and text to container
+        container.add([sprite, nameText]);
+        container.setScale(scale);
+
+        // Animate container dropping straight down (sprite and text move together)
+        this.tweens.add({
+            targets: container,
+            y: targetY,  // Only animate Y, X stays the same
+            duration: 1000,
+            ease: 'Bounce.easeOut'
+        });
 
         // Store player data
         const player: Player = {
             id: participant._id,
+            container,
             sprite,
+            nameText,
             characterKey,
             displayName: participant.displayName,
             betAmount: participant.betAmount,
@@ -201,15 +224,6 @@ export class Game extends Scene
         };
 
         this.players.set(participant._id, player);
-
-        // Update name text position when sprite moves
-        this.tweens.add({
-            targets: nameText,
-            x: targetX,
-            y: targetY + 40,
-            duration: 1000,
-            ease: 'Bounce.easeOut'
-        });
     }
 
     private calculatePlayerScale(betAmountInCoins: number): number {
@@ -236,8 +250,9 @@ export class Game extends Scene
         const player = this.players.get(participant._id);
         if (player) {
             const newScale = this.calculatePlayerScale(participant.betAmount);
+            // Scale the container, which scales both sprite and text
             this.tweens.add({
-                targets: player.sprite,
+                targets: player.container,
                 scaleX: newScale,
                 scaleY: newScale,
                 duration: 300,
@@ -249,17 +264,52 @@ export class Game extends Scene
     private removePlayer(playerId: string) {
         const player = this.players.get(playerId);
         if (player) {
-            player.sprite.destroy();
+            // Destroying the container automatically destroys all children
+            player.container.destroy();
             this.players.delete(playerId);
             this.playerCharacters.delete(playerId);
         }
     }
 
+    private getRandomAngleWithSpacing(): number {
+        const minSpacing = 0.5; // Minimum radians between players (~28 degrees)
+        let attempts = 0;
+        let angle: number;
+
+        do {
+            angle = Math.random() * Math.PI * 2;
+            attempts++;
+
+            // If we've tried too many times, just use the random angle
+            if (attempts > 20) break;
+
+            // Check if angle is far enough from existing angles
+            const isFarEnough = this.usedAngles.every(usedAngle => {
+                const diff = Math.abs(angle - usedAngle);
+                // Account for wrap-around (e.g., 0 and 2π are close)
+                const minDiff = Math.min(diff, 2 * Math.PI - diff);
+                return minDiff >= minSpacing;
+            });
+
+            if (isFarEnough) break;
+        } while (attempts < 20);
+
+        // Store this angle for future spacing checks
+        this.usedAngles.push(angle);
+
+        // Clean up old angles if we have too many (in case players left)
+        if (this.usedAngles.length > this.players.size + 5) {
+            this.usedAngles = this.usedAngles.slice(-10);
+        }
+
+        return angle;
+    }
+
     private movePlayersToCenter() {
         this.players.forEach((player) => {
-            // Animate all players moving towards center
+            // Animate container moving towards center (sprite and text move together)
             this.tweens.add({
-                targets: player.sprite,
+                targets: player.container,
                 x: this.centerX + (Math.random() - 0.5) * 100,
                 y: this.centerY + (Math.random() - 0.5) * 100,
                 duration: 2000 + Math.random() * 1000,
@@ -281,10 +331,11 @@ export class Game extends Scene
             if (isTop4) {
                 // Highlight top 4
                 player.sprite.setTint(0xffd700); // Golden tint
+                player.nameText.setColor('#ffd700'); // Golden name
 
-                // Add glowing effect
+                // Add glowing effect to container (affects both sprite and text)
                 this.tweens.add({
-                    targets: player.sprite,
+                    targets: player.container,
                     alpha: { from: 1, to: 0.7 },
                     duration: 500,
                     yoyo: true,
@@ -293,19 +344,22 @@ export class Game extends Scene
             } else {
                 // Fade out eliminated players
                 player.sprite.setTint(0x666666);
-                player.sprite.setAlpha(0.3);
+                player.container.setAlpha(0.3);  // Fades both sprite and text
                 player.eliminated = true;
             }
         });
+
+        // Clear used angles when moving to betting phase
+        this.usedAngles = [];
     }
 
     private showBattlePhase() {
         // Animate battle between remaining players
         this.players.forEach((player) => {
             if (!player.eliminated) {
-                // Battle animations - rapid movement
+                // Battle animations - rapid movement of container
                 this.tweens.add({
-                    targets: player.sprite,
+                    targets: player.container,
                     x: this.centerX + (Math.random() - 0.5) * 200,
                     y: this.centerY + (Math.random() - 0.5) * 200,
                     duration: 300,
@@ -326,12 +380,13 @@ export class Game extends Scene
             if (winnerPlayer) {
                 // Winner celebration
                 winnerPlayer.sprite.setTint(0xffd700);
-                winnerPlayer.sprite.setScale(winnerPlayer.sprite.scale * 1.5);
+                winnerPlayer.nameText.setColor('#ffd700');
+                winnerPlayer.container.setScale(winnerPlayer.container.scale * 1.5);
 
-                // Victory animation
+                // Victory animation for container
                 this.tweens.add({
-                    targets: winnerPlayer.sprite,
-                    y: winnerPlayer.sprite.y - 50,
+                    targets: winnerPlayer.container,
+                    y: winnerPlayer.container.y - 50,
                     duration: 1000,
                     ease: 'Bounce.easeOut'
                 });
@@ -373,9 +428,22 @@ export class Game extends Scene
     }
 
     private addPlayerWithFanfare(participant: any, index: number) {
-        // Calculate spawn position (top of screen)
-        const spawnX = 200 + (index * 120) + (Math.random() - 0.5) * 100;
-        const spawnY = -50;
+        // Generate a random angle with some spacing from other players
+        let angle = this.getRandomAngleWithSpacing();
+
+        // Add some radius variation for more natural placement
+        const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
+        const radius = 180 + radiusVariation;
+
+        // Calculate target position with some additional randomness
+        const angleOffset = (Math.random() - 0.5) * 0.2; // Small angle variation
+        const finalAngle = angle + angleOffset;
+        const targetX = this.centerX + Math.cos(finalAngle) * radius;
+        const targetY = this.centerY + Math.sin(finalAngle) * radius;
+
+        // Spawn directly above the target position (same X)
+        const spawnX = targetX;  // Same X as final position
+        const spawnY = -50;      // Above the screen
 
         // Get random character for this player
         const character = getRandomCharacter();
@@ -384,30 +452,39 @@ export class Game extends Scene
         // Store character choice
         this.playerCharacters.set(participant._id, characterKey);
 
-        // Create player sprite
-        const sprite = this.add.sprite(spawnX, spawnY, characterKey);
-        sprite.setDepth(100);
+        // Create a container to hold both sprite and name
+        const container = this.add.container(spawnX, spawnY);
+        container.setDepth(100);
+
+        // Create player sprite (position relative to container)
+        const sprite = this.add.sprite(0, 0, characterKey);
         sprite.play(`${characterKey}-idle`);
 
         // Calculate scale
         const scale = this.calculatePlayerScale(participant.betAmount);
-        sprite.setScale(scale);
+
+        // Create name text (positioned below sprite, relative to container)
+        const nameText = this.add.text(0, 40, participant.displayName, {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5);
+
+        // Add both sprite and text to container
+        container.add([sprite, nameText]);
+        container.setScale(scale);
 
         // Flash effect for new arrival
         sprite.setTint(0xffd700);
         this.time.delayedCall(200, () => sprite.clearTint());
 
-        // Calculate target position
-        const angle = (index * (Math.PI * 2)) / Math.max(8, this.players.size + 1);
-        const radius = 180;
-        const targetX = this.centerX + Math.cos(angle) * radius;
-        const targetY = this.centerY + Math.sin(angle) * radius;
-
-        // Animate with special entrance
+        // Animate container straight down with special entrance
         this.tweens.add({
-            targets: sprite,
-            x: targetX,
-            y: targetY,
+            targets: container,
+            y: targetY,  // Only animate Y, X stays the same
             duration: 1000,
             ease: 'Bounce.easeOut',
             onStart: () => {
@@ -422,7 +499,7 @@ export class Game extends Scene
             }
         });
 
-        // Add floating "NEW PLAYER!" text
+        // Add floating "NEW PLAYER!" text (at spawn position)
         const newPlayerText = this.add.text(spawnX, spawnY - 30, 'NEW PLAYER!', {
             fontFamily: 'Arial Black',
             fontSize: 16,
@@ -440,20 +517,12 @@ export class Game extends Scene
             onComplete: () => newPlayerText.destroy()
         });
 
-        // Add player name
-        const nameText = this.add.text(targetX, targetY + 40, participant.displayName, {
-            fontFamily: 'Arial',
-            fontSize: 14,
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 2,
-            align: 'center'
-        }).setOrigin(0.5).setDepth(110);
-
         // Store player data
         const player: Player = {
             id: participant._id,
+            container,
             sprite,
+            nameText,
             characterKey,
             displayName: participant.displayName,
             betAmount: participant.betAmount,
@@ -463,15 +532,6 @@ export class Game extends Scene
         };
 
         this.players.set(participant._id, player);
-
-        // Update name position when sprite moves
-        this.tweens.add({
-            targets: nameText,
-            x: targetX,
-            y: targetY + 40,
-            duration: 1000,
-            ease: 'Bounce.easeOut'
-        });
     }
 
     changeScene ()

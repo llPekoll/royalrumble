@@ -167,7 +167,7 @@ export function GameLobby() {
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="p-8 text-center">
           <h2 className="text-2xl font-bold mb-4">🎮 Royal Rumble</h2>
-          <p className="text-gray-400 mb-4">Loading game...</p>
+          <p className="text-gray-400 mb-4">Game Creation in progress...</p>
         </Card>
       </div>
     );
