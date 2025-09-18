@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<"game" | "leaderboard">("game");
+  const [previousParticipants, setPreviousParticipants] = useState<any[]>([]);
 
   //  References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
@@ -30,9 +31,25 @@ export default function App() {
       const scene = phaserRef.current.scene;
       if (scene.scene.key === 'RoyalRumble') {
         (scene as any).updateGameState?.(currentGame);
+
+        // Detect new players joining in real-time
+        if (currentGame.status === 'waiting' && currentGame.participants) {
+          const newPlayers = currentGame.participants.filter((p: any) =>
+            !previousParticipants.some(prev => prev._id === p._id)
+          );
+
+          // Spawn each new player with special effects
+          newPlayers.forEach((player: any) => {
+            console.log('New player joined:', player.displayName);
+            (scene as any).spawnPlayerImmediately?.(player);
+          });
+
+          // Update previous participants list
+          setPreviousParticipants(currentGame.participants);
+        }
       }
     }
-  }, [currentGame]);
+  }, [currentGame, previousParticipants]);
 
   return (
     <>

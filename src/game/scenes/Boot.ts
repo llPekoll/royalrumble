@@ -14,6 +14,13 @@ export class Boot extends Scene {
   }
 
   create() {
+    // Debug: Scene name at bottom
+    this.add.text(512, 750, 'Scene: Boot', {
+      fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
+      stroke: '#000000', strokeThickness: 2,
+      align: 'center'
+    }).setOrigin(0.5).setDepth(1000);
+
     this.scene.start("Preloader");
   }
 }

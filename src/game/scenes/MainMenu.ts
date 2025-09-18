@@ -32,6 +32,13 @@ export class MainMenu extends Scene
             align: 'center'
         }).setOrigin(0.5).setDepth(100);
 
+        // Debug: Scene name at bottom
+        this.add.text(512, 750, 'Scene: MainMenu', {
+            fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
+            stroke: '#000000', strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(1000);
+
         EventBus.emit('current-scene-ready', this);
     }
 

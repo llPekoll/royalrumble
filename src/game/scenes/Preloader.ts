@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { CHARACTERS } from '../config/characters';
 
 export class Preloader extends Scene
 {
@@ -29,72 +30,63 @@ export class Preloader extends Scene
 
     preload ()
     {
-        //  Load the assets for the game - Replace with your own assets
+        //  Load the assets for the game
         this.load.setPath('assets');
-        this.load.atlas('orc', 'spriteSheets/orc.png', 'spriteSheets/orc.json');
-        this.load.atlas('soldier', 'spriteSheets/Soldier.png', 'spriteSheets/Soldier.json');
+
+        // Load all character sprites dynamically
+        CHARACTERS.forEach(character => {
+            this.load.atlas(character.key, character.spriteSheet, character.jsonPath);
+        });
 
         // Load arena backgrounds
         this.load.image('arena', 'arena.png');
         this.load.image('arena2', 'arena2.png');
+
+        // Load particle effects
+        this.load.image('star', 'star.png');
 
         this.load.image('logo', 'logo.png');
     }
 
     create ()
     {
-        // Create walk animation using frames 6-13
-        this.anims.create({
-            key: 'orc-walk',
-            frames: this.anims.generateFrameNames('orc', {
-                prefix: 'Orc ',
-                suffix: '.aseprite',
-                start: 6,
-                end: 13
-            }),
-            frameRate: 10,
-            repeat: -1
+        // Create animations for all characters dynamically
+        CHARACTERS.forEach(character => {
+            // Create idle animation
+            this.anims.create({
+                key: `${character.key}-idle`,
+                frames: this.anims.generateFrameNames(character.key, {
+                    prefix: character.prefix,
+                    suffix: character.suffix,
+                    start: character.animations.idle.start,
+                    end: character.animations.idle.end
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
+
+            // Create walk animation
+            this.anims.create({
+                key: `${character.key}-walk`,
+                frames: this.anims.generateFrameNames(character.key, {
+                    prefix: character.prefix,
+                    suffix: character.suffix,
+                    start: character.animations.walk.start,
+                    end: character.animations.walk.end
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
         });
 
-        // Create idle animation using frames 0-5
-        this.anims.create({
-            key: 'orc-idle',
-            frames: this.anims.generateFrameNames('orc', {
-                prefix: 'Orc ',
-                suffix: '.aseprite',
-                start: 0,
-                end: 5
-            }),
-            frameRate: 10,
-            repeat: -1
-        });
+        // Debug: Scene name at bottom
+        this.add.text(512, 750, 'Scene: Preloader', {
+            fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
+            stroke: '#000000', strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(1000);
 
-        // Create walk animation using frames 6-13
-        this.anims.create({
-            key: 'soldier-walk',
-            frames: this.anims.generateFrameNames('soldier', {
-                prefix: 'Soldier ',
-                suffix: '.aseprite',
-                start: 6,
-                end: 13
-            }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        // Create idle animation using frames 0-5
-        this.anims.create({
-            key: 'soldier-idle',
-            frames: this.anims.generateFrameNames('soldier', {
-                prefix: 'Soldier ',
-                suffix: '.aseprite',
-                start: 0,
-                end: 5
-            }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.scene.start('MainMenu');
+        // Start with RoyalRumble scene directly for the game view
+        this.scene.start('RoyalRumble');
     }
 }

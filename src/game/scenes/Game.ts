@@ -1,9 +1,11 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
+import { getRandomCharacter, CHARACTERS } from '../config/characters';
 
 interface Player {
     id: string;
     sprite: Phaser.GameObjects.Sprite;
+    characterKey: string;
     displayName: string;
     betAmount: number;
     eliminated: boolean;
@@ -23,9 +25,8 @@ export class Game extends Scene
     centerX: number = 512;
     centerY: number = 384;
 
-    // Available sprites to cycle through
-    private availableSprites = ['orc', 'soldier'];
-    private spriteIndex = 0;
+    // Map to store which character each player is using
+    private playerCharacters: Map<string, string> = new Map();
 
     constructor ()
     {
@@ -75,6 +76,13 @@ export class Game extends Scene
             strokeThickness: 3,
             align: 'center'
         }).setOrigin(0.5).setDepth(150);
+
+        // Debug: Scene name at bottom
+        this.add.text(this.centerX, 750, 'Scene: RoyalRumble', {
+            fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
+            stroke: '#000000', strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(1000);
 
         EventBus.emit('current-scene-ready', this);
     }
@@ -139,13 +147,17 @@ export class Game extends Scene
         const spawnX = 200 + (index * 120) + (Math.random() - 0.5) * 100;
         const spawnY = -50;
 
-        // Get sprite type
-        const spriteKey = this.availableSprites[participant.spriteIndex % this.availableSprites.length];
+        // Get random character for this player
+        const character = getRandomCharacter();
+        const characterKey = character.key;
+
+        // Store character choice for this player
+        this.playerCharacters.set(participant._id, characterKey);
 
         // Create player sprite
-        const sprite = this.add.sprite(spawnX, spawnY, spriteKey);
+        const sprite = this.add.sprite(spawnX, spawnY, characterKey);
         sprite.setDepth(100);
-        sprite.play(`${spriteKey}-idle`);
+        sprite.play(`${characterKey}-idle`);
 
         // Calculate scale based on bet amount (0.001 SOL = 100%, up to 3 SOL)
         const scale = this.calculatePlayerScale(participant.betAmount);
@@ -180,6 +192,7 @@ export class Game extends Scene
         const player: Player = {
             id: participant._id,
             sprite,
+            characterKey,
             displayName: participant.displayName,
             betAmount: participant.betAmount,
             eliminated: false,
@@ -238,6 +251,7 @@ export class Game extends Scene
         if (player) {
             player.sprite.destroy();
             this.players.delete(playerId);
+            this.playerCharacters.delete(playerId);
         }
     }
 
@@ -253,8 +267,7 @@ export class Game extends Scene
             });
 
             // Change to walking animation
-            const spriteKey = this.availableSprites[0]; // Default to first sprite
-            player.sprite.play(`${spriteKey}-walk`);
+            player.sprite.play(`${player.characterKey}-walk`);
         });
     }
 
@@ -343,6 +356,122 @@ export class Game extends Scene
                 });
             }
         }
+    }
+
+    // Public method for real-time player spawning
+    public spawnPlayerImmediately(participant: any) {
+        // Check if player already exists
+        if (this.players.has(participant._id)) {
+            // Update existing player's bet amount/scale
+            this.updatePlayerScale(participant);
+            return;
+        }
+
+        // Add new player with special effects
+        const index = this.players.size;
+        this.addPlayerWithFanfare(participant, index);
+    }
+
+    private addPlayerWithFanfare(participant: any, index: number) {
+        // Calculate spawn position (top of screen)
+        const spawnX = 200 + (index * 120) + (Math.random() - 0.5) * 100;
+        const spawnY = -50;
+
+        // Get random character for this player
+        const character = getRandomCharacter();
+        const characterKey = character.key;
+
+        // Store character choice
+        this.playerCharacters.set(participant._id, characterKey);
+
+        // Create player sprite
+        const sprite = this.add.sprite(spawnX, spawnY, characterKey);
+        sprite.setDepth(100);
+        sprite.play(`${characterKey}-idle`);
+
+        // Calculate scale
+        const scale = this.calculatePlayerScale(participant.betAmount);
+        sprite.setScale(scale);
+
+        // Flash effect for new arrival
+        sprite.setTint(0xffd700);
+        this.time.delayedCall(200, () => sprite.clearTint());
+
+        // Calculate target position
+        const angle = (index * (Math.PI * 2)) / Math.max(8, this.players.size + 1);
+        const radius = 180;
+        const targetX = this.centerX + Math.cos(angle) * radius;
+        const targetY = this.centerY + Math.sin(angle) * radius;
+
+        // Animate with special entrance
+        this.tweens.add({
+            targets: sprite,
+            x: targetX,
+            y: targetY,
+            duration: 1000,
+            ease: 'Bounce.easeOut',
+            onStart: () => {
+                // Particle effect at spawn point
+                this.add.particles(spawnX, spawnY, 'star', {
+                    lifespan: 600,
+                    speed: { min: 100, max: 200 },
+                    scale: { start: 0.5, end: 0 },
+                    tint: 0xffd700,
+                    blendMode: 'ADD'
+                });
+            }
+        });
+
+        // Add floating "NEW PLAYER!" text
+        const newPlayerText = this.add.text(spawnX, spawnY - 30, 'NEW PLAYER!', {
+            fontFamily: 'Arial Black',
+            fontSize: 16,
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5).setDepth(200);
+
+        // Animate and fade out the text
+        this.tweens.add({
+            targets: newPlayerText,
+            y: spawnY - 60,
+            alpha: 0,
+            duration: 1500,
+            onComplete: () => newPlayerText.destroy()
+        });
+
+        // Add player name
+        const nameText = this.add.text(targetX, targetY + 40, participant.displayName, {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(110);
+
+        // Store player data
+        const player: Player = {
+            id: participant._id,
+            sprite,
+            characterKey,
+            displayName: participant.displayName,
+            betAmount: participant.betAmount,
+            eliminated: false,
+            targetX,
+            targetY
+        };
+
+        this.players.set(participant._id, player);
+
+        // Update name position when sprite moves
+        this.tweens.add({
+            targets: nameText,
+            x: targetX,
+            y: targetY + 40,
+            duration: 1000,
+            ease: 'Bounce.easeOut'
+        });
     }
 
     changeScene ()
