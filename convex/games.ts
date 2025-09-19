@@ -109,7 +109,6 @@ export const joinGame = mutation({
   args: {
     walletAddress: v.string(),
     betAmount: v.number(),
-    displayName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Validate bet amount
@@ -159,12 +158,12 @@ export const joinGame = mutation({
       lastActive: Date.now(),
     });
 
-    // Create participant
+    // Create participant using player's display name from database
     const participantId = await ctx.db.insert("gameParticipants", {
       gameId: game._id,
       playerId: player._id,
       walletAddress: args.walletAddress,
-      displayName: args.displayName || `Player${args.walletAddress.slice(-4)}`,
+      displayName: player.displayName || `Player${args.walletAddress.slice(-4)}`,
       spriteIndex: Math.floor(Math.random() * 16), // Random sprite 0-15
       colorHue: Math.floor(Math.random() * 360),
       isBot: false,

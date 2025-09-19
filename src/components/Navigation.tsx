@@ -8,7 +8,7 @@ export interface NavigationProps {
 
 export function Navigation({ currentView, onViewChange }: NavigationProps) {
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 md:hidden">
       <div className="bg-black/90 backdrop-blur-sm border border-gray-700 rounded-full p-2 flex space-x-2">
         <Button
           onClick={() => onViewChange("game")}

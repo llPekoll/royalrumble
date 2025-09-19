@@ -10,7 +10,6 @@ import { Id } from "../../convex/_generated/dataModel";
 export function GameLobby() {
   const { connected, publicKey } = useWallet();
   const [betAmount, setBetAmount] = useState(100);
-  const [displayName, setDisplayName] = useState("");
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Get current game
@@ -71,7 +70,6 @@ export function GameLobby() {
       await joinGame({
         walletAddress: publicKey.toString(),
         betAmount,
-        displayName: displayName || undefined,
       });
 
       toast.success("Successfully joined the game!");
@@ -231,20 +229,6 @@ export function GameLobby() {
           </div>
 
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
-                Display Name (optional)
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-600 rounded-md text-white"
-                maxLength={20}
-              />
-            </div>
-
             <div>
               <label className="block text-xs font-medium text-gray-300 mb-1">
                 Bet Amount (10-10,000 coins)

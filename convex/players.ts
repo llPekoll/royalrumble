@@ -18,7 +18,10 @@ export const getPlayer = query({
 });
 
 export const createPlayer = mutation({
-  args: { walletAddress: v.string() },
+  args: {
+    walletAddress: v.string(),
+    displayName: v.optional(v.string())
+  },
   handler: async (ctx, args) => {
     const existingPlayer = await ctx.db
       .query("players")
@@ -31,6 +34,7 @@ export const createPlayer = mutation({
 
     const playerId = await ctx.db.insert("players", {
       walletAddress: args.walletAddress,
+      displayName: args.displayName,
       gameCoins: 0,
       pendingCoins: 0,
       lastActive: Date.now(),
@@ -105,6 +109,39 @@ export const deductGameCoins = mutation({
     });
 
     return player.gameCoins - args.amount;
+  },
+});
+
+export const updateDisplayName = mutation({
+  args: {
+    walletAddress: v.string(),
+    displayName: v.string()
+  },
+  handler: async (ctx, args) => {
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      throw new Error("Player not found");
+    }
+
+    // Validate display name
+    const trimmedName = args.displayName.trim();
+    if (trimmedName.length < 3) {
+      throw new Error("Display name must be at least 3 characters long");
+    }
+    if (trimmedName.length > 20) {
+      throw new Error("Display name must be less than 20 characters");
+    }
+
+    await ctx.db.patch(player._id, {
+      displayName: trimmedName,
+      lastActive: Date.now(),
+    });
+
+    return trimmedName;
   },
 });
 
