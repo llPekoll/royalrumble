@@ -1,6 +1,6 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
-import { getRandomCharacter, CHARACTERS } from '../config/characters';
+import { getRandomCharacter } from '../config/characters';
 
 interface Player {
     id: string;
@@ -17,10 +17,10 @@ interface Player {
 
 export class Game extends Scene
 {
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    titleText: Phaser.GameObjects.Text;
-    phaseText: Phaser.GameObjects.Text;
+    camera!: Phaser.Cameras.Scene2D.Camera;
+    background!: Phaser.GameObjects.Image;
+    titleText!: Phaser.GameObjects.Text;
+    phaseText!: Phaser.GameObjects.Text;
     players: Map<string, Player> = new Map();
     gameState: any = null;
     titleTween?: Phaser.Tweens.Tween;
@@ -144,14 +144,14 @@ export class Game extends Scene
 
         // Remove players who left
         const currentIds = new Set(participants.map((p: any) => p._id));
-        this.players.forEach((player, id) => {
+        this.players.forEach((_player, id) => {
             if (!currentIds.has(id)) {
                 this.removePlayer(id);
             }
         });
     }
 
-    private addPlayer(participant: any, index: number) {
+    private addPlayer(participant: any, _index: number) {
         // Generate a random angle with some spacing from other players
         let angle = this.getRandomAngleWithSpacing();
 
@@ -427,7 +427,7 @@ export class Game extends Scene
         this.addPlayerWithFanfare(participant, index);
     }
 
-    private addPlayerWithFanfare(participant: any, index: number) {
+    private addPlayerWithFanfare(participant: any, _index: number) {
         // Generate a random angle with some spacing from other players
         let angle = this.getRandomAngleWithSpacing();
 

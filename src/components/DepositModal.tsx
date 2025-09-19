@@ -5,13 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "./ui/card"
 interface DepositModalProps {
   onClose: () => void;
   onDeposit: (amount: number) => Promise<void>;
-  houseWallet?: string;
 }
 
 export function DepositModal({
   onClose,
   onDeposit,
-  houseWallet,
 }: DepositModalProps) {
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);

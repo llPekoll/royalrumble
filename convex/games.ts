@@ -1,4 +1,4 @@
-import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -788,7 +788,7 @@ export const gameLoop = internalMutation({
       // Only create a new game if enough time has passed (2 minutes = 120,000ms)
       // or if there was no recent game
       if (timeSinceLastGame > 120000 || recentGames.length === 0) {
-        const gameId = await ctx.db.insert("games", {
+         await ctx.db.insert("games", {
           status: "waiting",
           phase: 1,
           phaseStartTime: now,

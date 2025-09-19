@@ -48,8 +48,8 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   const pendingCoins = playerData?.pendingCoins || 0;
 
   // Track previous transaction states to detect changes
-  const prevTransactionsRef = useRef<typeof pendingTransactions>();
-  const prevPlayerDataRef = useRef<typeof playerData>();
+  const prevTransactionsRef = useRef<typeof pendingTransactions>(undefined);
+  const prevPlayerDataRef = useRef<typeof playerData>(undefined);
 
   useEffect(() => {
     if (!pendingTransactions || !prevTransactionsRef.current) {
@@ -256,7 +256,6 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
       {showDepositModal && (
         <DepositModal
           onClose={() => setShowDepositModal(false)}
-          houseWallet={houseWallet?.address}
           onDeposit={handleDeposit}
         />
       )}
