@@ -1,6 +1,5 @@
 import { internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { Id } from "../_generated/dataModel";
 import { PHASE_DURATIONS } from "./constants";
 import { addBots, eliminateToFinalists, determineWinner } from "./gameHelpers";
 import { processPayouts } from "./payouts";
@@ -109,7 +108,7 @@ export const advanceGamePhase = internalMutation({
           .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
           .filter((q: any) => q.eq(q.field("eliminated"), false))
           .collect();
-        
+
         if (arenaParticipants.length < 8) {
           // For less than 8 players, skip TOP4 and BATTLE phases
           // Go straight to determining winner
@@ -256,7 +255,7 @@ export const gameLoop = internalMutation({
       // Only create a new game if enough time has passed (2 minutes = 120,000ms)
       // or if there was no recent game
       if (timeSinceLastGame > 120000 || recentGames.length === 0) {
-         await ctx.db.insert("games", {
+        await ctx.db.insert("games", {
           status: "waiting",
           phase: 1,
           phaseStartTime: now,
@@ -344,7 +343,7 @@ export const gameLoop = internalMutation({
             .withIndex("by_game", (q: any) => q.eq("gameId", activeGame._id))
             .filter((q: any) => q.eq(q.field("eliminated"), false))
             .collect();
-          
+
           if (arenaParticipants.length < 8) {
             // For less than 8 players, skip TOP4 and BATTLE phases
             // Go straight to determining winner

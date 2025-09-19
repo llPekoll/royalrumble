@@ -35,8 +35,6 @@ export function GameLobby() {
 
   // Get finalists for betting phase
   const finalists = currentGame?.participants?.filter(p => !p.eliminated) || [];
-  const totalParticipants = currentGame?.participants?.length || 0;
-  const finalistCount = totalParticipants === 4 ? 2 : 4;
 
   const handleJoinGame = async () => {
     if (!connected || !publicKey) {
@@ -279,15 +277,13 @@ export function GameLobby() {
           {currentGame.participants?.map((participant) => (
             <div
               key={participant._id}
-              className={`p-2 rounded border ${
-                participant.eliminated
-                  ? "bg-red-900/20 border-red-500/30"
-                  : "bg-blue-900/20 border-blue-500/30"
-              } ${
-                participant.walletAddress === publicKey?.toString()
+              className={`p-2 rounded border ${participant.eliminated
+                ? "bg-red-900/20 border-red-500/30"
+                : "bg-blue-900/20 border-blue-500/30"
+                } ${participant.walletAddress === publicKey?.toString()
                   ? "ring-1 ring-green-500"
                   : ""
-              }`}
+                }`}
             >
               <div className="flex items-center space-x-2">
                 <div className="text-lg">
