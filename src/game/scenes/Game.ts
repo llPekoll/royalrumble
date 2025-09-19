@@ -23,6 +23,8 @@ export class Game extends Scene
     phaseText!: Phaser.GameObjects.Text;
     timerText!: Phaser.GameObjects.Text;
     timerBackground!: Phaser.GameObjects.Rectangle;
+    playerCountText!: Phaser.GameObjects.Text;
+    potAmountText!: Phaser.GameObjects.Text;
     players: Map<string, Player> = new Map();
     gameState: any = null;
     titleTween?: Phaser.Tweens.Tween;
@@ -98,6 +100,26 @@ export class Game extends Scene
             align: 'center'
         }).setOrigin(0.5).setDepth(151);
 
+        // Player count display (bottom left)
+        this.playerCountText = this.add.text(this.centerX - 150, 700, 'Players: 0', {
+            fontFamily: 'Arial Black',
+            fontSize: 24,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3,
+            align: 'left'
+        }).setOrigin(0.5).setDepth(150);
+
+        // Pot amount display (bottom right)
+        this.potAmountText = this.add.text(this.centerX + 150, 700, 'Pot: 0 SOL', {
+            fontFamily: 'Arial Black',
+            fontSize: 24,
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 3,
+            align: 'right'
+        }).setOrigin(0.5).setDepth(150);
+
         // Debug: Scene name at bottom
         this.add.text(this.centerX, 750, 'Scene: RoyalRumble', {
             fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
@@ -117,6 +139,8 @@ export class Game extends Scene
         // Update phase text and timer
         this.updatePhaseDisplay(gameState);
         this.updateTimer();
+        this.updatePlayerCount(gameState);
+        this.updatePotAmount(gameState);
 
         // Reset used angles when starting a new game
         if (gameState.status === 'waiting' && this.players.size === 0) {
@@ -141,13 +165,38 @@ export class Game extends Scene
         const phaseNames: { [key: string]: string } = {
             'waiting': '⏳ Waiting for Players',
             'arena': '🏃‍♂️ Running to Center',
-            'betting': '💰 Betting on Top 4',
+            'betting': '💰 Betting on Finalists',
             'battle': '⚔️ Final Battle',
             'results': '🏆 Results'
         };
 
         const phaseName = phaseNames[gameState.status] || 'Game Phase';
-        this.phaseText.setText(`${phaseName} (${gameState.phase}/5)`);
+        const participantCount = gameState.participants?.length || 0;
+        const maxPhases = participantCount < 8 ? 3 : 5;
+        
+        // Adjust phase number for display in 3-phase games
+        let displayPhase = gameState.phase;
+        if (participantCount < 8 && gameState.phase === 3) {
+            displayPhase = 3; // Results is phase 3 in 3-phase games
+        }
+        
+        this.phaseText.setText(`${phaseName} (${displayPhase}/${maxPhases})`);
+    }
+
+    private updatePlayerCount(gameState: any) {
+        const participantCount = gameState.participants?.length || 0;
+        this.playerCountText.setText(`Players: ${participantCount}`);
+    }
+
+    private updatePotAmount(gameState: any) {
+        // Calculate total pot from all participants' bet amounts
+        const totalPotInCoins = gameState.participants?.reduce((sum: number, participant: any) => {
+            return sum + (participant.betAmount || 0);
+        }, 0) || 0;
+        
+        // Convert coins to SOL (1000 coins = 1 SOL)
+        const totalPotInSol = (totalPotInCoins / 1000).toFixed(3);
+        this.potAmountText.setText(`Pot: ${totalPotInSol} SOL`);
     }
 
     private updatePlayersInWaiting(participants: any[]) {
@@ -171,7 +220,7 @@ export class Game extends Scene
 
     private addPlayer(participant: any, _index: number) {
         // Generate a random angle with some spacing from other players
-        let angle = this.getRandomAngleWithSpacing();
+        const angle = this.getRandomAngleWithSpacing();
 
         // Add some radius variation for more natural placement
         const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
@@ -217,7 +266,9 @@ export class Game extends Scene
 
         // Add both sprite and text to container
         container.add([sprite, nameText]);
-        container.setScale(scale);
+        
+        // Scale only the sprite, not the text
+        sprite.setScale(scale);
 
         // Animate container dropping straight down (sprite and text move together)
         this.tweens.add({
@@ -268,9 +319,9 @@ export class Game extends Scene
         const player = this.players.get(participant._id);
         if (player) {
             const newScale = this.calculatePlayerScale(participant.betAmount);
-            // Scale the container, which scales both sprite and text
+            // Scale only the sprite, not the text
             this.tweens.add({
-                targets: player.container,
+                targets: player.sprite,
                 scaleX: newScale,
                 scaleY: newScale,
                 duration: 300,
@@ -386,14 +437,14 @@ export class Game extends Scene
     }
 
     private showTop4Players(survivors: any[]) {
-        // Highlight the top 4 survivors
-        const top4 = survivors.slice(0, 4);
+        // Highlight the top 4 finalists (only called when 8+ players)
+        const finalists = survivors.slice(0, 4);
 
         this.players.forEach((player, id) => {
-            const isTop4 = top4.some((s: any) => s._id === id);
+            const isFinalist = finalists.some((s: any) => s._id === id);
 
-            if (isTop4) {
-                // Highlight top 4
+            if (isFinalist) {
+                // Highlight finalists
                 player.sprite.setTint(0xffd700); // Golden tint
                 player.nameText.setColor('#ffd700'); // Golden name
 
@@ -436,44 +487,167 @@ export class Game extends Scene
     }
 
     private showResults(gameState: any) {
-        // Find winner
-        const winner = gameState.participants?.find((p: any) => p.winner);
+        // Find winner - check for winnerId in game state
+        const winnerId = gameState.winnerId;
+        const winner = gameState.participants?.find((p: any) => p._id === winnerId);
 
         if (winner) {
+            // Hide all other players first
+            this.players.forEach((player, id) => {
+                if (id !== winner._id) {
+                    // Fade out losers
+                    this.tweens.add({
+                        targets: player.container,
+                        alpha: 0,
+                        duration: 500,
+                        onComplete: () => {
+                            player.container.setVisible(false);
+                        }
+                    });
+                }
+            });
+
             const winnerPlayer = this.players.get(winner._id);
             if (winnerPlayer) {
-                // Winner celebration
-                winnerPlayer.sprite.setTint(0xffd700);
-                winnerPlayer.nameText.setColor('#ffd700');
-                winnerPlayer.container.setScale(winnerPlayer.container.scale * 1.5);
-
-                // Victory animation for container
+                // Move winner to center of screen
                 this.tweens.add({
                     targets: winnerPlayer.container,
-                    y: winnerPlayer.container.y - 50,
+                    x: this.centerX,
+                    y: this.centerY,
                     duration: 1000,
-                    ease: 'Bounce.easeOut'
+                    ease: 'Power2.easeInOut',
+                    onComplete: () => {
+                        // After moving to center, add celebration effects
+                        this.addWinnerCelebration(winnerPlayer, winner);
+                    }
                 });
 
-                // Victory text
-                const victoryText = this.add.text(this.centerX, 200, `🏆 ${winner.displayName} WINS! 🏆`, {
-                    fontFamily: 'Arial Black',
-                    fontSize: 36,
-                    color: '#ffd700',
-                    stroke: '#000000',
-                    strokeThickness: 4,
-                    align: 'center'
-                }).setOrigin(0.5).setDepth(200);
-
-                // Animate victory text
-                victoryText.setScale(0);
+                // Scale up the winner sprite
                 this.tweens.add({
-                    targets: victoryText,
-                    scale: { from: 0, to: 1 },
-                    duration: 500,
+                    targets: winnerPlayer.sprite,
+                    scaleX: winnerPlayer.sprite.scaleX * 2,
+                    scaleY: winnerPlayer.sprite.scaleY * 2,
+                    duration: 1000,
                     ease: 'Back.easeOut'
                 });
+
+                // Make winner golden
+                winnerPlayer.sprite.setTint(0xffd700);
+                winnerPlayer.nameText.setColor('#ffd700');
+                winnerPlayer.nameText.setFontSize(20);
+                winnerPlayer.nameText.setStroke('#000000', 4);
             }
+        }
+    }
+
+    private addWinnerCelebration(winnerPlayer: any, winner: any) {
+        // Victory text above winner
+        const victoryText = this.add.text(this.centerX, this.centerY - 120, '🏆 WINNER! 🏆', {
+            fontFamily: 'Arial Black',
+            fontSize: 48,
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 6,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(200);
+
+        // Winner name below
+        const nameText = this.add.text(this.centerX, this.centerY + 100, winner.displayName, {
+            fontFamily: 'Arial Black',
+            fontSize: 32,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(200);
+
+        // Bet amount text
+        const betText = this.add.text(this.centerX, this.centerY + 140, `Bet: ${winner.betAmount} coins`, {
+            fontFamily: 'Arial',
+            fontSize: 20,
+            color: '#00ff00',
+            stroke: '#000000',
+            strokeThickness: 3,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(200);
+
+        // Animate victory text
+        victoryText.setScale(0);
+        this.tweens.add({
+            targets: victoryText,
+            scale: { from: 0, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut'
+        });
+
+        // Pulse animation for victory text
+        this.tweens.add({
+            targets: victoryText,
+            scale: { from: 1, to: 1.2 },
+            duration: 1000,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 500
+        });
+
+        // Animate name and bet text
+        nameText.setAlpha(0);
+        betText.setAlpha(0);
+        
+        this.tweens.add({
+            targets: nameText,
+            alpha: 1,
+            duration: 500,
+            delay: 300
+        });
+        
+        this.tweens.add({
+            targets: betText,
+            alpha: 1,
+            duration: 500,
+            delay: 500
+        });
+
+        // Bounce animation for winner sprite
+        this.tweens.add({
+            targets: winnerPlayer.container,
+            y: this.centerY - 20,
+            duration: 500,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Add confetti particles
+        this.createConfetti();
+    }
+
+    private createConfetti() {
+        // Create confetti particle effect
+        const colors = [0xffd700, 0xff0000, 0x00ff00, 0x0000ff, 0xff00ff, 0xffff00];
+        
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * this.game.config.width as number;
+            const startY = -50;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const confetti = this.add.rectangle(x, startY, 8, 12, color);
+            confetti.setDepth(250);
+            
+            // Animate confetti falling
+            this.tweens.add({
+                targets: confetti,
+                y: (this.game.config.height as number) + 50,
+                x: x + (Math.random() - 0.5) * 200,
+                angle: Math.random() * 720,
+                duration: 2000 + Math.random() * 2000,
+                ease: 'Linear',
+                delay: Math.random() * 1000,
+                onComplete: () => {
+                    confetti.destroy();
+                }
+            });
         }
     }
 
@@ -493,7 +667,7 @@ export class Game extends Scene
 
     private addPlayerWithFanfare(participant: any, _index: number) {
         // Generate a random angle with some spacing from other players
-        let angle = this.getRandomAngleWithSpacing();
+        const angle = this.getRandomAngleWithSpacing();
 
         // Add some radius variation for more natural placement
         const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
@@ -539,7 +713,9 @@ export class Game extends Scene
 
         // Add both sprite and text to container
         container.add([sprite, nameText]);
-        container.setScale(scale);
+        
+        // Scale only the sprite, not the text
+        sprite.setScale(scale);
 
         // Flash effect for new arrival
         sprite.setTint(0xffd700);

@@ -33,8 +33,10 @@ export function GameLobby() {
     p => p.walletAddress === publicKey?.toString()
   );
 
-  // Get top 4 for betting phase
-  const top4 = currentGame?.participants?.filter(p => !p.eliminated) || [];
+  // Get finalists for betting phase
+  const finalists = currentGame?.participants?.filter(p => !p.eliminated) || [];
+  const totalParticipants = currentGame?.participants?.length || 0;
+  const finalistCount = totalParticipants === 4 ? 2 : 4;
 
   const handleJoinGame = async () => {
     if (!connected || !publicKey) {
@@ -116,7 +118,7 @@ export function GameLobby() {
       case "arena":
         return "🏃‍♂️ Players running to center";
       case "betting":
-        return "💰 Betting on top 4 survivors";
+        return `💰 Betting on top 4 survivors`;
       case "battle":
         return "⚔️ Final battle in progress";
       case "results":
@@ -165,26 +167,13 @@ export function GameLobby() {
           </div>
           <div className="text-right">
             <div className="text-lg font-bold text-purple-400">
-              Phase {currentGame.phase}/5
+              {/* Show phase count based on player count */}
+              Phase {currentGame.phase}/{(currentGame.participants?.length || 0) < 8 ? '3' : '5'}
             </div>
             <div className="text-xs text-gray-400">{getPhaseName(currentGame)}</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center">
-            <div className="text-lg font-bold text-blue-400">
-              {currentGame.playerCount}
-            </div>
-            <div className="text-xs text-gray-400">Players</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-green-400">
-              {currentGame.totalPot.toLocaleString()}
-            </div>
-            <div className="text-xs text-gray-400">Total Pot</div>
-          </div>
-        </div>
       </Card>
 
       {/* Join Game or Spectator Betting */}
@@ -232,8 +221,8 @@ export function GameLobby() {
         </Card>
       )}
 
-      {/* Top 4 Betting Phase */}
-      {currentGame.status === "betting" && top4.length > 0 && !playerInGame && connected && (
+      {/* Finalists Betting Phase */}
+      {currentGame.status === "betting" && finalists.length > 0 && !playerInGame && connected && (
         <Card className="p-6 border-yellow-500/30 bg-yellow-900/20">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-yellow-400">🎲 Bet on the Winner!</h2>
@@ -254,7 +243,7 @@ export function GameLobby() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {top4.map((participant) => (
+            {finalists.map((participant) => (
               <Card key={participant._id} className="p-4 bg-gray-800/50 border-gray-600">
                 <div className="text-center">
                   <div className="text-4xl mb-2">
