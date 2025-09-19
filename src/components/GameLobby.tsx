@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
@@ -10,7 +10,6 @@ import { Id } from "../../convex/_generated/dataModel";
 export function GameLobby() {
   const { connected, publicKey } = useWallet();
   const [betAmount, setBetAmount] = useState(100);
-  const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Get current game
   const currentGame = useQuery(api.games.getCurrentGame);
@@ -28,14 +27,6 @@ export function GameLobby() {
 
   const gameCoins = playerData?.gameCoins || 0;
 
-  // Real-time countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000); // Update every second
-
-    return () => clearInterval(timer);
-  }, []);
 
   // Check if player is in current game
   const playerInGame = currentGame?.participants?.find(
@@ -117,14 +108,6 @@ export function GameLobby() {
     }
   };
 
-  const formatTime = (nextPhaseTime: number) => {
-    const timeRemaining = Math.max(0, nextPhaseTime - currentTime);
-    const seconds = Math.ceil(timeRemaining / 1000);
-    return `${seconds}s`;
-  };
-
-  // Calculate real-time remaining time
-  const timeRemaining = currentGame ? Math.max(0, currentGame.nextPhaseTime - currentTime) : 0;
 
   const getPhaseDescription = (game: any) => {
     switch (game.status) {
@@ -181,16 +164,14 @@ export function GameLobby() {
             <p className="text-sm text-purple-200">{getPhaseDescription(currentGame)}</p>
           </div>
           <div className="text-right">
-            <div className={`text-xl font-mono ${
-              timeRemaining <= 10000 ? 'text-red-400 animate-pulse' : 'text-green-400'
-            }`}>
-              ⏱️ {formatTime(currentGame.nextPhaseTime)}
+            <div className="text-lg font-bold text-purple-400">
+              Phase {currentGame.phase}/5
             </div>
-            <div className="text-xs text-gray-400">Time remaining</div>
+            <div className="text-xs text-gray-400">{getPhaseName(currentGame)}</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <div className="text-lg font-bold text-blue-400">
               {currentGame.playerCount}
@@ -203,29 +184,14 @@ export function GameLobby() {
             </div>
             <div className="text-xs text-gray-400">Total Pot</div>
           </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-purple-400">
-              {currentGame.phase}/5
-            </div>
-            <div className="text-xs text-gray-400">{getPhaseName(currentGame)}</div>
-          </div>
         </div>
       </Card>
 
       {/* Join Game or Spectator Betting */}
       {currentGame.status === "waiting" && !playerInGame && connected && (
         <Card className="p-4 border-green-500/30 bg-green-900/20">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3">
             <h2 className="text-lg font-bold text-green-400">🎯 Join the Battle!</h2>
-            <div className={`text-sm font-mono font-bold px-2 py-1 rounded ${
-              timeRemaining <= 5000
-                ? 'text-red-300 bg-red-900/50 animate-pulse'
-                : timeRemaining <= 10000
-                ? 'text-yellow-300 bg-yellow-900/50'
-                : 'text-green-300 bg-green-900/50'
-            }`}>
-              ⏰ {formatTime(currentGame.nextPhaseTime)}
-            </div>
           </div>
 
           <div className="space-y-3">
@@ -269,17 +235,8 @@ export function GameLobby() {
       {/* Top 4 Betting Phase */}
       {currentGame.status === "betting" && top4.length > 0 && !playerInGame && connected && (
         <Card className="p-6 border-yellow-500/30 bg-yellow-900/20">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-xl font-bold text-yellow-400">🎲 Bet on the Winner!</h2>
-            <div className={`text-lg font-mono font-bold px-3 py-1 rounded ${
-              timeRemaining <= 5000
-                ? 'text-red-300 bg-red-900/50 animate-pulse'
-                : timeRemaining <= 10000
-                ? 'text-yellow-300 bg-yellow-900/50'
-                : 'text-green-300 bg-green-900/50'
-            }`}>
-              ⏰ {formatTime(currentGame.nextPhaseTime)}
-            </div>
           </div>
 
           <div className="mb-4">

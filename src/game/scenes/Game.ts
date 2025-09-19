@@ -21,6 +21,8 @@ export class Game extends Scene
     background!: Phaser.GameObjects.Image;
     titleText!: Phaser.GameObjects.Text;
     phaseText!: Phaser.GameObjects.Text;
+    timerText!: Phaser.GameObjects.Text;
+    timerBackground!: Phaser.GameObjects.Rectangle;
     players: Map<string, Player> = new Map();
     gameState: any = null;
     titleTween?: Phaser.Tweens.Tween;
@@ -81,6 +83,21 @@ export class Game extends Scene
             align: 'center'
         }).setOrigin(0.5).setDepth(150);
 
+        // Timer background
+        this.timerBackground = this.add.rectangle(this.centerX, 100, 140, 50, 0x000000, 0.7);
+        this.timerBackground.setStrokeStyle(3, 0xffd700);
+        this.timerBackground.setDepth(149);
+
+        // Timer display
+        this.timerText = this.add.text(this.centerX, 100, '0:00', {
+            fontFamily: 'Arial Black',
+            fontSize: 32,
+            color: '#00ff00',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(151);
+
         // Debug: Scene name at bottom
         this.add.text(this.centerX, 750, 'Scene: RoyalRumble', {
             fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
@@ -97,8 +114,9 @@ export class Game extends Scene
 
         if (!gameState) return;
 
-        // Update phase text
+        // Update phase text and timer
         this.updatePhaseDisplay(gameState);
+        this.updateTimer();
 
         // Reset used angles when starting a new game
         if (gameState.status === 'waiting' && this.players.size === 0) {
@@ -578,6 +596,43 @@ export class Game extends Scene
         };
 
         this.players.set(participant._id, player);
+    }
+
+    // Add update method to continuously update the timer
+    update() {
+        this.updateTimer();
+    }
+
+    private updateTimer() {
+        if (!this.gameState || !this.gameState.nextPhaseTime) return;
+
+        const currentTime = Date.now();
+        const timeRemaining = Math.max(0, this.gameState.nextPhaseTime - currentTime);
+        const seconds = Math.ceil(timeRemaining / 1000);
+        
+        // Format time as M:SS
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        const timeText = `${minutes}:${secs.toString().padStart(2, '0')}`;
+        
+        this.timerText.setText(timeText);
+        
+        // Change color based on time remaining
+        if (seconds <= 5) {
+            this.timerText.setColor('#ff0000'); // Red for urgent
+            this.timerBackground.setStrokeStyle(3, 0xff0000);
+            // Pulse effect for last 5 seconds
+            const scale = 1 + Math.sin(currentTime * 0.01) * 0.1;
+            this.timerText.setScale(scale);
+        } else if (seconds <= 10) {
+            this.timerText.setColor('#ffff00'); // Yellow for warning
+            this.timerBackground.setStrokeStyle(3, 0xffff00);
+            this.timerText.setScale(1);
+        } else {
+            this.timerText.setColor('#00ff00'); // Green for normal
+            this.timerBackground.setStrokeStyle(3, 0x00ff00);
+            this.timerText.setScale(1);
+        }
     }
 
     changeScene ()
