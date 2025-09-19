@@ -45,6 +45,9 @@ export class Preloader extends Scene
         // Load particle effects
         this.load.image('star', 'star.png');
 
+        // Load explosion sprite sheet
+        this.load.atlas('explosion', 'spriteSheets/Explosion.png', 'spriteSheets/Explosion.json');
+
         this.load.image('logo', 'logo.png');
     }
 
@@ -77,6 +80,19 @@ export class Preloader extends Scene
                 frameRate: 10,
                 repeat: -1
             });
+        });
+
+        // Create explosion animation
+        this.anims.create({
+            key: 'explosion',
+            frames: this.anims.generateFrameNames('explosion', {
+                prefix: 'Explosion 2 SpriteSheet ',
+                suffix: '.png',
+                start: 0,
+                end: 17
+            }),
+            frameRate: 18,
+            repeat: 0
         });
 
         // Debug: Scene name at bottom

@@ -319,6 +319,52 @@ export class Game extends Scene
             // Change to walking animation
             player.sprite.play(`${player.characterKey}-walk`);
         });
+
+        // Schedule explosions 6 seconds before the arena phase ends
+        // Arena phase is 10 seconds, so trigger at 4 seconds (4000ms)
+        this.time.delayedCall(4000, () => {
+            this.createExplosionsSequence();
+        });
+    }
+
+    private createExplosionsSequence() {
+        const createExplosion = (delay: number = 0) => {
+            this.time.delayedCall(delay, () => {
+                // Random position around center
+                const offsetX = (Math.random() - 0.5) * 150;
+                const offsetY = (Math.random() - 0.5) * 150;
+                
+                const explosion = this.add.sprite(
+                    this.centerX + offsetX, 
+                    this.centerY + offsetY, 
+                    'explosion'
+                );
+                
+                // Scale up the explosion for dramatic effect
+                explosion.setScale(2 + Math.random());
+                explosion.setDepth(150);
+                
+                // Play explosion animation
+                explosion.play('explosion');
+                
+                // Remove sprite after animation completes
+                explosion.once('animationcomplete', () => {
+                    explosion.destroy();
+                });
+                
+                // Screen shake for impact
+                if (delay === 0) {
+                    this.cameras.main.shake(200, 0.01);
+                }
+            });
+        };
+        
+        // Create multiple explosions over time
+        createExplosion(0);
+        createExplosion(300);
+        createExplosion(600);
+        createExplosion(900);
+        createExplosion(1200);
     }
 
     private showTop4Players(survivors: any[]) {
