@@ -16,15 +16,30 @@ export const getCurrentGame = query({
 
     if (!game) return null;
 
+    // Get map data
+    const map = await ctx.db.get(game.mapId);
+
     // Get participants
     const participants = await ctx.db
       .query("gameParticipants")
       .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
       .collect();
 
+    // Get character data for each participant
+    const participantsWithCharacters = await Promise.all(
+      participants.map(async (participant) => {
+        const character = await ctx.db.get(participant.characterId);
+        return {
+          ...participant,
+          character,
+        };
+      })
+    );
+
     return {
       ...game,
-      participants,
+      map,
+      participants: participantsWithCharacters,
       timeRemaining: Math.max(0, game.nextPhaseTime - Date.now())
     };
   },

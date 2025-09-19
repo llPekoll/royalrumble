@@ -1,9 +1,37 @@
 import { Id } from "../_generated/dataModel";
 import { BOT_NAMES } from "./constants";
 
+// Helper function to select a random active character
+async function selectRandomCharacter(ctx: any) {
+  const activeCharacters = await ctx.db
+    .query("characters")
+    .withIndex("by_active")
+    .filter((q: any) => q.eq(q.field("isActive"), true))
+    .collect();
+
+  if (activeCharacters.length === 0) {
+    throw new Error("No active characters available");
+  }
+
+  // For now, simple random selection (could add rarity-based weights later)
+  const randomIndex = Math.floor(Math.random() * activeCharacters.length);
+  return activeCharacters[randomIndex];
+}
+
 // Helper: Add bots to game
 export async function addBots(ctx: any, gameId: Id<"games">, count: number) {
+  const game = await ctx.db.get(gameId);
+  if (!game) throw new Error("Game not found");
+
   const usedNames = new Set<string>();
+  
+  // Get existing participants to see which spawn positions are taken
+  const existingParticipants = await ctx.db
+    .query("gameParticipants")
+    .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+    .collect();
+  
+  const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
 
   for (let i = 0; i < count; i++) {
     let botName: string;
@@ -13,18 +41,32 @@ export async function addBots(ctx: any, gameId: Id<"games">, count: number) {
     usedNames.add(botName);
 
     const betAmount = Math.floor(Math.random() * 500) + 50; // 50-550 coins
+    
+    // Select a random character
+    const character = await selectRandomCharacter(ctx);
+    
+    // Find next available spawn position
+    let spawnIndex = 0;
+    while (usedSpawnIndices.has(spawnIndex) && spawnIndex < game.spawnPositions.length) {
+      spawnIndex++;
+    }
+    
+    if (spawnIndex >= game.spawnPositions.length) {
+      throw new Error("No available spawn positions for bot");
+    }
+    
+    usedSpawnIndices.add(spawnIndex);
+    const spawnPos = game.spawnPositions[spawnIndex];
 
     await ctx.db.insert("gameParticipants", {
       gameId,
       displayName: botName,
-      spriteIndex: Math.floor(Math.random() * 16),
+      characterId: character._id,
       colorHue: Math.floor(Math.random() * 360),
       isBot: true,
       betAmount,
-      position: {
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-      },
+      spawnIndex,
+      position: { x: spawnPos.x, y: spawnPos.y },
       eliminated: false,
     });
   }

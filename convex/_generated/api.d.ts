@@ -24,6 +24,7 @@ import type * as games_queries from "../games/queries.js";
 import type * as games from "../games.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as players from "../players.js";
+import type * as seedData from "../seedData.js";
 import type * as solana_operations from "../solana/operations.js";
 import type * as solana_processor from "../solana/processor.js";
 import type * as solana_verification from "../solana/verification.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   games: typeof games;
   leaderboard: typeof leaderboard;
   players: typeof players;
+  seedData: typeof seedData;
   "solana/operations": typeof solana_operations;
   "solana/processor": typeof solana_processor;
   "solana/verification": typeof solana_verification;

@@ -4,6 +4,63 @@ import { PHASE_DURATIONS } from "./constants";
 import { addBots, eliminateToFinalists, determineWinner } from "./gameHelpers";
 import { processPayouts } from "./payouts";
 
+// Helper function to generate spawn positions for a map
+async function generateSpawnPositions(ctx: any, mapId: any) {
+  const map = await ctx.db.get(mapId);
+  if (!map) throw new Error("Map not found");
+
+  const spawnPositions = [];
+  const { spawnRadius, minSpacing, maxPlayers } = map.spawnConfiguration;
+  const { centerX, centerY } = map;
+
+  // Generate up to maxPlayers spawn positions
+  for (let i = 0; i < maxPlayers; i++) {
+    // Calculate evenly distributed angles with some randomness
+    const baseAngle = (i * (Math.PI * 2)) / maxPlayers;
+    const angleVariation = (Math.random() - 0.5) * (minSpacing * 0.5); // Small random variation
+    const angle = baseAngle + angleVariation;
+
+    // Add radius variation for more natural placement
+    const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
+    const radius = spawnRadius + radiusVariation;
+
+    // Calculate final position
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+
+    spawnPositions.push({ angle, radius, x, y });
+  }
+
+  return spawnPositions;
+}
+
+// Helper function to select a random active map
+async function selectRandomMap(ctx: any) {
+  const activeMaps = await ctx.db
+    .query("maps")
+    .withIndex("by_active")
+    .filter((q: any) => q.eq(q.field("isActive"), true))
+    .collect();
+
+  if (activeMaps.length === 0) {
+    throw new Error("No active maps available");
+  }
+
+  // Weighted random selection
+  const totalWeight = activeMaps.reduce((sum: number, map: any) => sum + map.weight, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const map of activeMaps) {
+    random -= map.weight;
+    if (random <= 0) {
+      return map;
+    }
+  }
+
+  // Fallback to first map
+  return activeMaps[0];
+}
+
 // Create a new game (internal, called by cron)
 export const createNewGame = internalMutation({
   args: {},
@@ -20,6 +77,12 @@ export const createNewGame = internalMutation({
       return null;
     }
 
+    // Select a random map
+    const selectedMap = await selectRandomMap(ctx);
+
+    // Generate spawn positions for this game
+    const spawnPositions = await generateSpawnPositions(ctx, selectedMap._id);
+
     const now = Date.now();
     const gameId = await ctx.db.insert("games", {
       status: "waiting",
@@ -31,6 +94,8 @@ export const createNewGame = internalMutation({
       totalPot: 0,
       isDemo: false,
       isSinglePlayer: false,
+      mapId: selectedMap._id,
+      spawnPositions,
     });
 
     return gameId;
@@ -50,8 +115,7 @@ export const advanceGamePhase = internalMutation({
     let nextPhaseTime = now;
 
     switch (game.status) {
-      case "waiting":
-        // Check if we have players
+      case "waiting": {
         const participants = await ctx.db
           .query("gameParticipants")
           .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
@@ -99,10 +163,12 @@ export const advanceGamePhase = internalMutation({
             nextPhaseTime,
           });
         }
+
+      }
+        // Check if we have players
         break;
 
-      case "arena":
-        // Get participant count to decide next phase
+      case "arena": {
         const arenaParticipants = await ctx.db
           .query("gameParticipants")
           .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
@@ -123,6 +189,9 @@ export const advanceGamePhase = internalMutation({
           nextPhase = 3;
           nextPhaseTime = now + (PHASE_DURATIONS.TOP4 * 1000);
         }
+
+      }
+        // Get participant count to decide next phase
         break;
 
       case "betting":
@@ -255,6 +324,12 @@ export const gameLoop = internalMutation({
       // Only create a new game if enough time has passed (2 minutes = 120,000ms)
       // or if there was no recent game
       if (timeSinceLastGame > 120000 || recentGames.length === 0) {
+        // Select a random map
+        const selectedMap = await selectRandomMap(ctx);
+
+        // Generate spawn positions for this game
+        const spawnPositions = await generateSpawnPositions(ctx, selectedMap._id);
+
         await ctx.db.insert("games", {
           status: "waiting",
           phase: 1,
@@ -265,6 +340,8 @@ export const gameLoop = internalMutation({
           totalPot: 0,
           isDemo: false,
           isSinglePlayer: false,
+          mapId: selectedMap._id,
+          spawnPositions,
         });
 
         console.log("Created new game");
@@ -282,8 +359,7 @@ export const gameLoop = internalMutation({
       let nextPhaseTime = now;
 
       switch (activeGame.status) {
-        case "waiting":
-          // Check if we have players
+        case "waiting": {
           const participants = await ctx.db
             .query("gameParticipants")
             .withIndex("by_game", (q: any) => q.eq("gameId", activeGame._id))
@@ -334,10 +410,12 @@ export const gameLoop = internalMutation({
               nextPhaseTime,
             });
           }
+
+        }
+          // Check if we have players
           break;
 
-        case "arena":
-          // Get participant count to decide next phase
+        case "arena": {
           const arenaParticipants = await ctx.db
             .query("gameParticipants")
             .withIndex("by_game", (q: any) => q.eq("gameId", activeGame._id))
@@ -358,6 +436,9 @@ export const gameLoop = internalMutation({
             nextPhase = 3;
             nextPhaseTime = now + (PHASE_DURATIONS.TOP4 * 1000);
           }
+
+        }
+          // Get participant count to decide next phase
           break;
 
         case "betting":

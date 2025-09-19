@@ -26,9 +26,8 @@ export class Game extends Scene {
     this.camera = this.cameras.main;
     this.camera.setBackgroundColor(0x1a1a2e);
 
-    // Randomly select arena background
-    const arenaKey = Math.random() < 0.5 ? 'arena' : 'arena2';
-    this.background = this.add.image(this.centerX, this.centerY, arenaKey);
+    // Background will be set when gameState is first updated
+    this.background = this.add.image(this.centerX, this.centerY, 'arena');
     this.background.setAlpha(0.8);
 
     // Initialize managers
@@ -48,6 +47,18 @@ export class Game extends Scene {
     this.gameState = gameState;
 
     if (!gameState) return;
+
+    // Update map background based on game data
+    if (gameState.map && gameState.map.background) {
+      this.background.setTexture(gameState.map.background);
+      
+      // Update center position if map specifies it
+      if (gameState.map.centerX && gameState.map.centerY) {
+        this.centerX = gameState.map.centerX;
+        this.centerY = gameState.map.centerY;
+        this.background.setPosition(this.centerX, this.centerY);
+      }
+    }
 
     // Update UI
     this.uiManager.updateGameState(gameState);

@@ -56,26 +56,37 @@ export class PlayerManager {
     }
 
     addPlayer(participant: any, _index: number) {
-        // Generate a random angle with some spacing from other players
-        const angle = this.getRandomAngleWithSpacing();
+        // Use spawn position from database if available
+        let targetX, targetY, spawnX, spawnY;
+        
+        if (participant.position) {
+            // Use database position
+            targetX = participant.position.x;
+            targetY = participant.position.y;
+            spawnX = targetX;  // Same X as final position
+            spawnY = -50;      // Above the screen
+        } else {
+            // Fallback to old random logic
+            const angle = this.getRandomAngleWithSpacing();
+            const radiusVariation = (Math.random() - 0.5) * 40;
+            const radius = 180 + radiusVariation;
+            const angleOffset = (Math.random() - 0.5) * 0.2;
+            const finalAngle = angle + angleOffset;
+            targetX = this.centerX + Math.cos(finalAngle) * radius;
+            targetY = this.centerY + Math.sin(finalAngle) * radius;
+            spawnX = targetX;
+            spawnY = -50;
+        }
 
-        // Add some radius variation for more natural placement
-        const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
-        const radius = 180 + radiusVariation;
-
-        // Calculate target position with some additional randomness
-        const angleOffset = (Math.random() - 0.5) * 0.2; // Small angle variation
-        const finalAngle = angle + angleOffset;
-        const targetX = this.centerX + Math.cos(finalAngle) * radius;
-        const targetY = this.centerY + Math.sin(finalAngle) * radius;
-
-        // Spawn directly above the target position (same X)
-        const spawnX = targetX;  // Same X as final position
-        const spawnY = -50;      // Above the screen
-
-        // Get random character for this player
-        const character = getRandomCharacter();
-        const characterKey = character.key;
+        // Get character from database or fallback to random
+        let characterKey;
+        if (participant.character && participant.character.spriteKey) {
+            characterKey = participant.character.spriteKey;
+        } else {
+            // Fallback to old random character selection
+            const character = getRandomCharacter();
+            characterKey = character.key;
+        }
 
         // Store character choice for this player
         this.playerCharacters.set(participant._id, characterKey);

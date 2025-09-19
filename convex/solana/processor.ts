@@ -8,7 +8,7 @@ export const processTransactionQueue = action({
   args: {},
   handler: async (ctx) => {
     // Get queued transactions
-    const queuedTransactions = await ctx.runQuery(api.transactions.getQueuedTransactions);
+    const queuedTransactions = await ctx.runQuery(api.transactions.getQueuedTransactions as any);
 
     if (queuedTransactions.length === 0) {
       return { processed: 0, message: "No transactions to process" };

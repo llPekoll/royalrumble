@@ -3,6 +3,13 @@ import { api, internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+// One-time seed data creation (runs once at startup)
+crons.interval(
+  "seed initial data",
+  { seconds: 30 },
+  internal.seedData.seedInitialData
+);
+
 // Main game loop - check for new games every 10 seconds
 crons.interval(
   "game loop",

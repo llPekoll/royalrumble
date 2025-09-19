@@ -1,11 +1,29 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 
+// Helper function to select a random active character
+async function selectRandomCharacter(ctx: any) {
+  const activeCharacters = await ctx.db
+    .query("characters")
+    .withIndex("by_active")
+    .filter((q: any) => q.eq(q.field("isActive"), true))
+    .collect();
+
+  if (activeCharacters.length === 0) {
+    throw new Error("No active characters available");
+  }
+
+  // For now, simple random selection (could add rarity-based weights later)
+  const randomIndex = Math.floor(Math.random() * activeCharacters.length);
+  return activeCharacters[randomIndex];
+}
+
 // Join game and place initial bet
 export const joinGame = mutation({
   args: {
     walletAddress: v.string(),
     betAmount: v.number(),
+    characterId: v.optional(v.id("characters")), // Optional - random if not provided
   },
   handler: async (ctx, args) => {
     // Validate bet amount
@@ -49,6 +67,37 @@ export const joinGame = mutation({
       throw new Error("Insufficient game coins");
     }
 
+    // Get or select character
+    let character;
+    if (args.characterId) {
+      character = await ctx.db.get(args.characterId);
+      if (!character || !character.isActive) {
+        throw new Error("Invalid or inactive character selected");
+      }
+    } else {
+      character = await selectRandomCharacter(ctx);
+    }
+
+    // Get existing participants to see which spawn positions are taken
+    const existingParticipants = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
+      .collect();
+    
+    const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
+
+    // Find next available spawn position
+    let spawnIndex = 0;
+    while (usedSpawnIndices.has(spawnIndex) && spawnIndex < game.spawnPositions.length) {
+      spawnIndex++;
+    }
+    
+    if (spawnIndex >= game.spawnPositions.length) {
+      throw new Error("Game is full - no available spawn positions");
+    }
+    
+    const spawnPos = game.spawnPositions[spawnIndex];
+
     // Deduct coins
     await ctx.db.patch(player._id, {
       gameCoins: player.gameCoins - args.betAmount,
@@ -61,14 +110,12 @@ export const joinGame = mutation({
       playerId: player._id,
       walletAddress: args.walletAddress,
       displayName: player.displayName || `Player${args.walletAddress.slice(-4)}`,
-      spriteIndex: Math.floor(Math.random() * 16), // Random sprite 0-15
+      characterId: character._id,
       colorHue: Math.floor(Math.random() * 360),
       isBot: false,
       betAmount: args.betAmount,
-      position: {
-        x: Math.random() * 800, // Random starting position
-        y: Math.random() * 600
-      },
+      spawnIndex,
+      position: { x: spawnPos.x, y: spawnPos.y },
       eliminated: false,
     });
 
