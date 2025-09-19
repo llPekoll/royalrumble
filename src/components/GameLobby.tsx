@@ -366,7 +366,7 @@ export function GameLobby() {
 
         {(!currentGame.participants || currentGame.participants.length === 0) && (
           <div className="text-center text-gray-400 py-8">
-            No players yet. Be the first to join!
+            Be the first to join! and get more chance to win!
           </div>
         )}
       </Card>
