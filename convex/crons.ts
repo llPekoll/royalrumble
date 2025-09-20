@@ -6,7 +6,7 @@ const crons = cronJobs();
 // Main game loop - check for new games every 10 seconds
 crons.interval(
   "game loop",
-  { seconds: 2 },
+  { seconds: 3 },
   internal.games.gameLoop
 );
 

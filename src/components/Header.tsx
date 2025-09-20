@@ -3,7 +3,7 @@ import { WalletError } from "@solana/wallet-adapter-base";
 import { UnifiedWalletButton } from "@jup-ag/wallet-adapter";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "./ui/button";
 import { getSolanaRpcUrl } from "../lib/utils";
 import {
@@ -102,6 +102,14 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
   // Create player with random name on first connect
   useEffect(() => {
+    // Debug logging
+    console.log("Player creation check:", {
+      connected,
+      publicKey: publicKey?.toString(),
+      playerData,
+      hasAttemptedCreation
+    });
+    
     // Only create player when:
     // 1. Wallet is connected
     // 2. We have a public key
@@ -111,10 +119,10 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
     if (connected && publicKey && playerData === null && !hasAttemptedCreation) {
       const randomName = generateRandomName();
       const walletAddr = publicKey.toString();
-      
+
       console.log("Creating new player for wallet:", walletAddr, "with name:", randomName);
       setHasAttemptedCreation(true);
-      
+
       createPlayer({
         walletAddress: walletAddr,
         displayName: randomName
@@ -128,12 +136,12 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
         setHasAttemptedCreation(false);
       });
     }
-    
+
     // Reset the flag when wallet disconnects
     if (!connected) {
       setHasAttemptedCreation(false);
     }
-  }, [connected, publicKey, playerData, hasAttemptedCreation]);
+  }, [connected, publicKey, playerData, hasAttemptedCreation, createPlayer]);
 
   const handleDeposit = async (amount: number): Promise<void> => {
     if (publicKey && sendTransaction && houseWallet?.address) {
@@ -209,11 +217,10 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 <Button
                   onClick={() => onViewChange("game")}
                   variant={currentView === "game" ? "default" : "ghost"}
-                  className={`px-4 py-2 transition-all ${
-                    currentView === "game"
-                      ? "bg-purple-600 hover:bg-purple-700 text-white"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800"
-                  }`}
+                  className={`px-4 py-2 transition-all ${currentView === "game"
+                    ? "bg-purple-600 hover:bg-purple-700 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800"
+                    }`}
                 >
                   🎮 Game
                 </Button>
@@ -221,11 +228,10 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 <Button
                   onClick={() => onViewChange("leaderboard")}
                   variant={currentView === "leaderboard" ? "default" : "ghost"}
-                  className={`px-4 py-2 transition-all ${
-                    currentView === "leaderboard"
-                      ? "bg-purple-600 hover:bg-purple-700 text-white"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800"
-                  }`}
+                  className={`px-4 py-2 transition-all ${currentView === "leaderboard"
+                    ? "bg-purple-600 hover:bg-purple-700 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800"
+                    }`}
                 >
                   🏆 Leaderboard
                 </Button>

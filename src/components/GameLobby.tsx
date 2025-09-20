@@ -10,11 +10,11 @@ import { Id } from "../../convex/_generated/dataModel";
 import { CharacterSelection } from "./CharacterSelection";
 import { MultiParticipantPanel } from "./MultiParticipantPanel";
 import { generateRandomName } from "../lib/nameGenerator";
-import { 
-  Clock, 
-  Users, 
-  Coins, 
-  Trophy, 
+import {
+  Clock,
+  Users,
+  Coins,
+  Trophy,
   Target,
   Map,
   Gamepad2
@@ -28,7 +28,7 @@ export function GameLobby() {
   // Get current game
   const currentGame = useQuery(api.games.getCurrentGame);
 
-  // Get player data  
+  // Get player data
   const playerData = useQuery(
     api.players.getPlayerWithCharacter,
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
@@ -60,7 +60,7 @@ export function GameLobby() {
     if (!currentGame) return { name: "Loading...", description: "" };
 
     const isSmallGame = currentGame.isSmallGame || currentGame.participantCount < 8;
-    
+
     switch (currentGame.status) {
       case "waiting":
         return {
@@ -69,7 +69,7 @@ export function GameLobby() {
         };
       case "selection":
         return {
-          name: "Selection Phase", 
+          name: "Selection Phase",
           description: "Final character selection and preparation"
         };
       case "arena":
@@ -89,7 +89,7 @@ export function GameLobby() {
         };
       case "battle":
         return {
-          name: "Battle Phase", 
+          name: "Battle Phase",
           description: "Final showdown between survivors"
         };
       case "results":
@@ -119,8 +119,8 @@ export function GameLobby() {
     try {
       const randomName = generateRandomName();
       console.log("Manual player creation for wallet:", publicKey.toString(), "with name:", randomName);
-      
-      await createPlayer({ 
+
+      await createPlayer({
         walletAddress: publicKey.toString(),
         displayName: randomName
       });
@@ -208,7 +208,7 @@ export function GameLobby() {
       </div>
     );
   }
-  
+
   // If wallet is connected but playerData is undefined, query is still loading
   if (connected && playerData === undefined) {
     return (
@@ -217,7 +217,7 @@ export function GameLobby() {
       </div>
     );
   }
-  
+
   // If not connected or no player data, show connect wallet message
   if (!connected || !playerData) {
     return (
@@ -247,15 +247,8 @@ export function GameLobby() {
               <p className="text-sm text-gray-400">{phaseInfo.description}</p>
             </div>
           </div>
-          
-          {currentGame?.timeRemaining && (
-            <div className="text-right">
-              <div className="text-2xl font-bold text-yellow-400">
-                {formatTimeRemaining(currentGame.timeRemaining)}
-              </div>
-              <div className="text-xs text-gray-400">remaining</div>
-            </div>
-          )}
+
+
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -264,19 +257,19 @@ export function GameLobby() {
             <div className="text-sm text-gray-400">Participants</div>
             <div className="font-bold">{currentGame?.participantCount || 0}</div>
           </div>
-          
+
           <div className="text-center">
             <Coins className="w-5 h-5 mx-auto mb-1 text-yellow-400" />
             <div className="text-sm text-gray-400">Total Pool</div>
             <div className="font-bold text-yellow-400">{currentGame?.totalPot || 0}</div>
           </div>
-          
+
           <div className="text-center">
             <Map className="w-5 h-5 mx-auto mb-1 text-green-400" />
             <div className="text-sm text-gray-400">Map</div>
             <div className="font-bold text-green-400">{currentGame?.map?.name || "Loading"}</div>
           </div>
-          
+
           <div className="text-center">
             <Trophy className="w-5 h-5 mx-auto mb-1 text-purple-400" />
             <div className="text-sm text-gray-400">Your Coins</div>
@@ -308,16 +301,16 @@ export function GameLobby() {
           </h3>
           <div className="grid gap-3">
             {playerParticipants.map((participant: any) => (
-              <div 
+              <div
                 key={participant._id}
                 className="flex items-center justify-between p-3 bg-gray-800 rounded border"
               >
                 <div className="flex items-center gap-3">
-                  <div 
+                  <div
                     className="w-4 h-4 rounded-full border"
-                    style={{ 
-                      backgroundColor: participant.colorHue !== undefined 
-                        ? `hsl(${participant.colorHue}, 80%, 60%)` 
+                    style={{
+                      backgroundColor: participant.colorHue !== undefined
+                        ? `hsl(${participant.colorHue}, 80%, 60%)`
                         : '#666'
                     }}
                   />
@@ -328,11 +321,11 @@ export function GameLobby() {
                     </div>
                   </div>
                 </div>
-                
+
                 {participant.eliminated && (
                   <div className="text-red-400 text-sm font-semibold">ELIMINATED</div>
                 )}
-                
+
                 {participant.finalPosition && (
                   <div className="text-yellow-400 text-sm font-semibold">
                     #{participant.finalPosition}
@@ -351,7 +344,7 @@ export function GameLobby() {
             <Target className="w-5 h-5" />
             Spectator Betting
           </h3>
-          
+
           <div className="space-y-4">
             <div className="grid gap-3">
               {survivors.map((participant: any) => {
@@ -360,26 +353,25 @@ export function GameLobby() {
                 const stats = bettingStats?.participantStats?.find(
                   (s: any) => s.participantId === participant._id
                 );
-                
+
                 return (
-                  <div 
+                  <div
                     key={participant._id}
-                    className={`p-3 rounded border cursor-pointer transition-all ${
-                      selectedParticipantId === participant._id
+                    className={`p-3 rounded border cursor-pointer transition-all ${selectedParticipantId === participant._id
                         ? 'border-blue-500 bg-blue-900/20'
                         : isOwnParticipant
-                        ? 'border-gray-600 bg-gray-700/50 cursor-not-allowed opacity-50'
-                        : 'border-gray-600 hover:border-gray-500'
-                    }`}
+                          ? 'border-gray-600 bg-gray-700/50 cursor-not-allowed opacity-50'
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
                     onClick={() => !isOwnParticipant && setSelectedParticipantId(participant._id)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div 
+                        <div
                           className="w-4 h-4 rounded-full border"
-                          style={{ 
-                            backgroundColor: participant.colorHue !== undefined 
-                              ? `hsl(${participant.colorHue}, 80%, 60%)` 
+                          style={{
+                            backgroundColor: participant.colorHue !== undefined
+                              ? `hsl(${participant.colorHue}, 80%, 60%)`
                               : '#666'
                           }}
                         />
@@ -390,7 +382,7 @@ export function GameLobby() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
                         {stats && (
                           <div className="text-sm">
@@ -436,11 +428,11 @@ export function GameLobby() {
           <div className="text-center">
             <Trophy className="w-12 h-12 mx-auto mb-3 text-yellow-400" />
             <h3 className="text-xl font-bold mb-2">Game Complete!</h3>
-            
+
             {(() => {
               const winner = currentGame.participants?.find((p: any) => p._id === currentGame.winnerId);
               const isPlayerWinner = winner && playerParticipants.some((p: any) => p._id === winner._id);
-              
+
               return (
                 <div>
                   <p className="text-lg mb-2">

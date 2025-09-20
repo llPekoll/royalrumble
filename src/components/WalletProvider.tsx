@@ -15,24 +15,30 @@ export const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }
     import.meta.env.VITE_SOLANA_RPC_URL || getSolanaRpcUrl(), []
   );
 
+  const wallets = useMemo(() => [], []);
+
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <UnifiedWalletProvider
-        wallets={[]}
-        config={{
-          autoConnect: true,
-          env: 'mainnet-beta',
-          metadata: {
-            name: 'Royal Rumble',
-            description: 'Battle royale betting game on Solana',
-            url: typeof window !== 'undefined' ? window.location.origin : '',
-            iconUrls: ['favicon.ico'],
-          },
-          theme: 'dark',
-        }}
-      >
-        {children}
-      </UnifiedWalletProvider>
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          <UnifiedWalletProvider
+            wallets={[]}
+            config={{
+              autoConnect: true,
+              env: 'mainnet-beta',
+              metadata: {
+                name: 'Royal Rumble',
+                description: 'Battle royale betting game on Solana',
+                url: typeof window !== 'undefined' ? window.location.origin : '',
+                iconUrls: ['favicon.ico'],
+              },
+              theme: 'dark',
+            }}
+          >
+            {children}
+          </UnifiedWalletProvider>
+        </WalletModalProvider>
+      </WalletProvider>
     </ConnectionProvider>
   );
 };

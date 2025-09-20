@@ -7,6 +7,7 @@ export default defineSchema({
     name: v.string(), // "Warrior", "Mage", "Archer", etc.
     spriteKey: v.string(), // "warrior", "mage", "archer" - matches Phaser asset keys
     description: v.optional(v.string()),
+    assetPath: v.string(), // Path to the image file, e.g., "maps/arena_classic.png"
     animations: v.object({
       idle: v.string(), // Animation key for idle
       walk: v.string(), // Animation key for walking
