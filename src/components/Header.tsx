@@ -1,6 +1,6 @@
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletError } from "@solana/wallet-adapter-base";
+import { UnifiedWalletButton } from "@jup-ag/wallet-adapter";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect, useRef } from "react";
@@ -28,6 +28,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   const { connected, publicKey, sendTransaction } = useWallet();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
 
   const initiateDeposit = useMutation(api.solana.initiateDeposit);
   const createPlayer = useMutation(api.players.createPlayer);
@@ -101,18 +102,38 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
   // Create player with random name on first connect
   useEffect(() => {
-    if (connected && publicKey && playerData === null) {
+    // Only create player when:
+    // 1. Wallet is connected
+    // 2. We have a public key
+    // 3. Player query has completed (playerData is not undefined)
+    // 4. Player doesn't exist (playerData is null)
+    // 5. We haven't already attempted creation
+    if (connected && publicKey && playerData === null && !hasAttemptedCreation) {
       const randomName = generateRandomName();
+      const walletAddr = publicKey.toString();
+      
+      console.log("Creating new player for wallet:", walletAddr, "with name:", randomName);
+      setHasAttemptedCreation(true);
+      
       createPlayer({
-        walletAddress: publicKey.toString(),
+        walletAddress: walletAddr,
         displayName: randomName
-      }).then(() => {
+      }).then((playerId) => {
         toast.success(`Welcome! Your display name is: ${randomName}`);
+        console.log("Player created successfully with ID:", playerId);
       }).catch((error) => {
         console.error("Failed to create player:", error);
+        toast.error("Failed to create player profile. Please refresh the page and try again.");
+        // Reset the flag to allow retry on next wallet connect
+        setHasAttemptedCreation(false);
       });
     }
-  }, [connected, publicKey, playerData, createPlayer]);
+    
+    // Reset the flag when wallet disconnects
+    if (!connected) {
+      setHasAttemptedCreation(false);
+    }
+  }, [connected, publicKey, playerData, hasAttemptedCreation]);
 
   const handleDeposit = async (amount: number): Promise<void> => {
     if (publicKey && sendTransaction && houseWallet?.address) {
@@ -246,7 +267,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                   </div>
                 </>
               )}
-              <WalletMultiButton className="!bg-purple-600 hover:!bg-purple-700 transition-colors" />
+              <UnifiedWalletButton />
             </div>
           </div>
         </div>

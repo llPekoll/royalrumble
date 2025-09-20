@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { CharacterSelection } from "./CharacterSelection";
 import { MultiParticipantPanel } from "./MultiParticipantPanel";
+import { generateRandomName } from "../lib/nameGenerator";
 import { 
   Clock, 
   Users, 
@@ -116,11 +117,14 @@ export function GameLobby() {
     }
 
     try {
+      const randomName = generateRandomName();
+      console.log("Manual player creation for wallet:", publicKey.toString(), "with name:", randomName);
+      
       await createPlayer({ 
         walletAddress: publicKey.toString(),
-        displayName: `Player ${Math.floor(Math.random() * 1000)}`
+        displayName: randomName
       });
-      toast.success("Player created! You've been given a random character and 1000 starting coins.");
+      toast.success(`Player created! Your display name is: ${randomName}. You've been given a random character and 1000 starting coins.`);
     } catch (error) {
       console.error("Failed to create player:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create player");
@@ -184,7 +188,11 @@ export function GameLobby() {
     );
   }
 
-  if (!playerData) {
+  // Show create player UI only when:
+  // - Wallet is connected
+  // - Query has completed (playerData is not undefined)
+  // - Player doesn't exist (playerData is null)
+  if (connected && playerData === null) {
     return (
       <div className="space-y-4">
         <Card className="p-6 text-center">
@@ -196,6 +204,30 @@ export function GameLobby() {
           <Button onClick={handleCreatePlayer} size="lg">
             Create Player Profile
           </Button>
+        </Card>
+      </div>
+    );
+  }
+  
+  // If wallet is connected but playerData is undefined, query is still loading
+  if (connected && playerData === undefined) {
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+  
+  // If not connected or no player data, show connect wallet message
+  if (!connected || !playerData) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-6 text-center">
+          <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <h2 className="text-xl font-bold mb-2">Connect Your Wallet</h2>
+          <p className="text-gray-400">
+            Please connect your wallet to start playing
+          </p>
         </Card>
       </div>
     );

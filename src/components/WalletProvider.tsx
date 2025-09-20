@@ -1,11 +1,8 @@
 import { FC, ReactNode, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import {
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-} from '@solana/wallet-adapter-wallets';
 import { getSolanaRpcUrl } from '../lib/utils';
+import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
 
@@ -18,19 +15,24 @@ export const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }
     import.meta.env.VITE_SOLANA_RPC_URL || getSolanaRpcUrl(), []
   );
 
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
-    []
-  );
-
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
-      </WalletProvider>
+      <UnifiedWalletProvider
+        wallets={[]}
+        config={{
+          autoConnect: true,
+          env: 'mainnet-beta',
+          metadata: {
+            name: 'Royal Rumble',
+            description: 'Battle royale betting game on Solana',
+            url: typeof window !== 'undefined' ? window.location.origin : '',
+            iconUrls: ['favicon.ico'],
+          },
+          theme: 'dark',
+        }}
+      >
+        {children}
+      </UnifiedWalletProvider>
     </ConnectionProvider>
   );
 };

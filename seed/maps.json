@@ -1,8 +1,8 @@
-{
-  "maps": [
+[
     {
       "name": "Classic Arena",
       "background": "arena_classic",
+      "assetPath": "/maps/arena_classic.png",
       "description": "The original battleground where legends are made",
       "spawnConfiguration": {
         "maxPlayers": 20,
@@ -11,20 +11,11 @@
       },
       "isActive": true
     },
-    {
-      "name": "Desert Storm",
-      "background": "arena_desert",
-      "description": "A scorching wasteland with shifting sands",
-      "spawnConfiguration": {
-        "maxPlayers": 16,
-        "spawnRadius": 220,
-        "minSpacing": 0.393
-      },
-      "isActive": true
-    },
+
     {
       "name": "Mystic Forest",
       "background": "arena_forest",
+      "assetPath": "/maps/arena_forest.png",
       "description": "An enchanted woodland filled with ancient magic",
       "spawnConfiguration": {
         "maxPlayers": 24,
@@ -36,6 +27,7 @@
     {
       "name": "Frozen Tundra",
       "background": "arena_ice",
+      "assetPath": "/maps/arena_ice.png",
       "description": "A frozen wasteland where only the strongest survive",
       "spawnConfiguration": {
         "maxPlayers": 18,
@@ -47,6 +39,7 @@
     {
       "name": "Volcanic Crater",
       "background": "arena_volcano",
+      "assetPath": "/maps/arena_volcano.png",
       "description": "A dangerous arena surrounded by molten lava",
       "spawnConfiguration": {
         "maxPlayers": 14,
@@ -57,6 +50,7 @@
     },
     {
       "name": "Underwater Temple",
+      "assetPath": "/maps/arena_underwater.png",
       "background": "arena_underwater",
       "description": "An ancient temple submerged beneath the waves",
       "spawnConfiguration": {
@@ -69,6 +63,7 @@
     {
       "name": "Sky Fortress",
       "background": "arena_sky",
+      "assetPath": "/maps/arena_sky.png",
       "description": "A floating citadel high above the clouds",
       "spawnConfiguration": {
         "maxPlayers": 16,
@@ -76,32 +71,5 @@
         "minSpacing": 0.393
       },
       "isActive": true
-    },
-    {
-      "name": "Cosmic Void",
-      "background": "arena_space",
-      "description": "A battlefield among the stars and galaxies",
-      "spawnConfiguration": {
-        "maxPlayers": 30,
-        "spawnRadius": 320,
-        "minSpacing": 0.209
-      },
-      "isActive": true
     }
-  ],
-  "mapFeatures": {
-    "spawnRadius": "Distance from center point where players spawn (in pixels)",
-    "minSpacing": "Minimum angle between spawn points (in radians)",
-    "maxPlayers": "Maximum participants this map can accommodate"
-  },
-  "backgroundAssets": {
-    "arena_classic": "/assets/maps/arena_classic.png",
-    "arena_desert": "/assets/maps/arena_desert.png", 
-    "arena_forest": "/assets/maps/arena_forest.png",
-    "arena_ice": "/assets/maps/arena_ice.png",
-    "arena_volcano": "/assets/maps/arena_volcano.png",
-    "arena_underwater": "/assets/maps/arena_underwater.png",
-    "arena_sky": "/assets/maps/arena_sky.png",
-    "arena_space": "/assets/maps/arena_space.png"
-  }
-}
+  ]

@@ -319,7 +319,7 @@ export const processPendingCoins = mutation({
     }
 
     const amountToProcess = args.amount || player.pendingCoins;
-    
+
     if (player.pendingCoins < amountToProcess) {
       throw new Error("Insufficient pending coins");
     }
