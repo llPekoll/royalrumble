@@ -9,6 +9,7 @@ import { Label } from "./ui/label";
 import { toast } from "sonner";
 import { Plus, Minus, Users, Coins } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
+import { CharacterSelection } from "./CharacterSelection";
 
 interface ParticipantForm {
   characterId: string;
@@ -17,17 +18,30 @@ interface ParticipantForm {
   colorHue: number;
 }
 
+interface Character {
+  _id: string;
+  name: string;
+  spriteKey: string;
+  description?: string;
+  baseStats?: {
+    power: number;
+    speed: number;
+    luck: number;
+  };
+}
+
 export function MultiParticipantPanel() {
   const { connected, publicKey } = useWallet();
   const [participants, setParticipants] = useState<ParticipantForm[]>([]);
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get current game
   const currentGame = useQuery(api.games.getCurrentGame);
-  
+
   // Get player data
   const playerData = useQuery(
-    api.players.getPlayerWithCharacter,
+    api.players.getPlayer,
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
   );
 
@@ -46,30 +60,24 @@ export function MultiParticipantPanel() {
   const addParticipant = useMutation(api.gameParticipants.addParticipant);
 
   const gameCoins = playerData?.gameCoins || 0;
-  const currentCharacter = playerData?.currentCharacter;
   const canAddParticipants = currentGame?.status === "waiting";
   const maxParticipants = currentGame?.map?.spawnConfiguration?.maxPlayers || 20;
   const currentParticipantCount = currentGame?.participantCount || 0;
 
-  // Initialize with one participant using current character
-  useEffect(() => {
-    if (currentCharacter && participants.length === 0) {
-      setParticipants([{
-        characterId: currentCharacter._id,
-        betAmount: 100,
-        displayName: playerData?.displayName || "Player",
-        colorHue: Math.random() * 360,
-      }]);
-    }
-  }, [currentCharacter, participants.length, playerData?.displayName]);
+  const handleCharacterSelect = (character: Character) => {
+    setSelectedCharacter(character);
+  };
 
   const addNewParticipant = () => {
-    if (!currentCharacter) return;
-    
+    if (!selectedCharacter) {
+      toast.error("Please select a character first");
+      return;
+    }
+
     setParticipants(prev => [...prev, {
-      characterId: currentCharacter._id,
+      characterId: selectedCharacter._id,
       betAmount: 100,
-      displayName: `${playerData?.displayName || "Player"} #${prev.length + 1}`,
+      displayName: `${playerData?.displayName || "Player"} ${prev.length > 0 ? `#${prev.length + 1}` : ''}`,
       colorHue: Math.random() * 360,
     }]);
   };
@@ -79,7 +87,7 @@ export function MultiParticipantPanel() {
   };
 
   const updateParticipant = (index: number, field: keyof ParticipantForm, value: any) => {
-    setParticipants(prev => prev.map((p, i) => 
+    setParticipants(prev => prev.map((p, i) =>
       i === index ? { ...p, [field]: value } : p
     ));
   };
@@ -138,7 +146,7 @@ export function MultiParticipantPanel() {
       }
 
       toast.success(`Added ${participants.length} participant(s) to the game!`);
-      
+
       // Reset form
       setParticipants([]);
     } catch (error) {
@@ -175,6 +183,14 @@ export function MultiParticipantPanel() {
 
   return (
     <div className="space-y-4">
+      {/* Character Selection */}
+      {connected && (
+        <CharacterSelection
+          onCharacterSelect={handleCharacterSelect}
+          selectedCharacter={selectedCharacter}
+        />
+      )}
+
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold flex items-center gap-2">
@@ -276,7 +292,7 @@ export function MultiParticipantPanel() {
                       >
                         {characters?.map((char: any) => (
                           <option key={char._id} value={char._id}>
-                            {char.name} ({char.rarity})
+                            {char.name}
                           </option>
                         ))}
                       </select>
@@ -315,18 +331,20 @@ export function MultiParticipantPanel() {
                 <Button
                   onClick={addNewParticipant}
                   variant="outline"
-                  disabled={participants.length >= 5} // Reasonable limit per player
+                  disabled={participants.length >= 5 || !selectedCharacter} // Reasonable limit per player
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Another
+                  {participants.length === 0 ? 'Add Participant' : 'Add Another'}
                 </Button>
 
-                <Button
-                  onClick={validateAndSubmit}
-                  disabled={isSubmitting || participants.length === 0 || getTotalBetAmount() > gameCoins}
-                >
-                  {isSubmitting ? 'Adding...' : `Join Game (${participants.length} participants)`}
-                </Button>
+                {participants.length > 0 && (
+                  <Button
+                    onClick={validateAndSubmit}
+                    disabled={isSubmitting || getTotalBetAmount() > gameCoins}
+                  >
+                    {isSubmitting ? 'Adding...' : `Join Game (${participants.length} participants)`}
+                  </Button>
+                )}
               </div>
             </div>
           </>

@@ -40,9 +40,6 @@ export default defineSchema({
     pendingCoins: v.number(), // Coins pending from deposits/transactions
     lastActive: v.number(),
     displayName: v.optional(v.string()), // Optional custom display name
-    currentCharacterId: v.optional(v.id("characters")), // Current random character
-    characterRerolls: v.number(), // Number of rerolls used today
-    lastRerollTime: v.optional(v.number()), // Last reroll timestamp
     totalGamesPlayed: v.number(),
     totalWins: v.number(),
     totalEarnings: v.number(), // Lifetime earnings in game coins

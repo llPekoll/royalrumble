@@ -105,11 +105,6 @@ export function GameLobby() {
     }
   };
 
-  const formatTimeRemaining = (ms: number) => {
-    const seconds = Math.ceil(ms / 1000);
-    return `${seconds}s`;
-  };
-
   const handleCreatePlayer = async () => {
     if (!connected || !publicKey) {
       toast.error("Please connect your wallet first");
@@ -358,10 +353,10 @@ export function GameLobby() {
                   <div
                     key={participant._id}
                     className={`p-3 rounded border cursor-pointer transition-all ${selectedParticipantId === participant._id
-                        ? 'border-blue-500 bg-blue-900/20'
-                        : isOwnParticipant
-                          ? 'border-gray-600 bg-gray-700/50 cursor-not-allowed opacity-50'
-                          : 'border-gray-600 hover:border-gray-500'
+                      ? 'border-blue-500 bg-blue-900/20'
+                      : isOwnParticipant
+                        ? 'border-gray-600 bg-gray-700/50 cursor-not-allowed opacity-50'
+                        : 'border-gray-600 hover:border-gray-500'
                       }`}
                     onClick={() => !isOwnParticipant && setSelectedParticipantId(participant._id)}
                   >

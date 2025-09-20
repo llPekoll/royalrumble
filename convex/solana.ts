@@ -39,7 +39,6 @@ export const initiateDeposit = mutation({
         gameCoins: 0,
         pendingCoins: 0,
         lastActive: Date.now(),
-        characterRerolls: 0,
         totalGamesPlayed: 0,
         totalWins: 0,
         totalEarnings: 0,

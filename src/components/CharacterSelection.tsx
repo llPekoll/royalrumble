@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
@@ -20,57 +20,59 @@ interface Character {
   rarity?: string;
 }
 
-export function CharacterSelection() {
-  const { connected, publicKey } = useWallet();
-  const [isRerolling, setIsRerolling] = useState(false);
+interface CharacterSelectionProps {
+  onCharacterSelect: (character: Character) => void;
+  selectedCharacter?: Character | null;
+}
 
-  // Get player with current character
+export function CharacterSelection({ onCharacterSelect, selectedCharacter }: CharacterSelectionProps) {
+  const { connected, publicKey } = useWallet();
+  const [currentCharacter, setCurrentCharacter] = useState<Character | null>(selectedCharacter || null);
+
+  // Get player data
   const playerData = useQuery(
-    api.players.getPlayerWithCharacter,
+    api.players.getPlayer,
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
   );
 
-  // Get all available characters for reference
+  // Get all available characters
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // Mutations
-  const rerollCharacter = useMutation(api.players.rerollCharacter);
-
-  const currentCharacter = playerData?.currentCharacter;
-  const rerollsRemaining = playerData ? Math.max(0, 3 - (playerData.characterRerolls || 0)) : 0;
   const gameCoins = playerData?.gameCoins || 0;
-  const rerollCost = 100;
 
-  const handleReroll = async () => {
-    if (!connected || !publicKey) {
-      toast.error("Please connect your wallet first");
+  // Initialize with random character when characters load
+  useEffect(() => {
+    if (allCharacters && allCharacters.length > 0 && !currentCharacter) {
+      const randomChar = allCharacters[Math.floor(Math.random() * allCharacters.length)];
+      setCurrentCharacter(randomChar);
+      onCharacterSelect(randomChar);
+    }
+  }, [allCharacters, currentCharacter, onCharacterSelect]);
+
+  // Update when selectedCharacter prop changes
+  useEffect(() => {
+    if (selectedCharacter) {
+      setCurrentCharacter(selectedCharacter);
+    }
+  }, [selectedCharacter]);
+
+  const handleReroll = () => {
+    if (!allCharacters || allCharacters.length === 0) {
+      toast.error("No characters available");
       return;
     }
 
-    if (rerollsRemaining <= 0) {
-      toast.error("No rerolls remaining today");
+    // Get a random character different from current
+    const availableCharacters = allCharacters.filter(c => c._id !== currentCharacter?._id);
+    if (availableCharacters.length === 0) {
+      toast.error("No other characters available");
       return;
     }
 
-    if (gameCoins < rerollCost) {
-      toast.error(`Insufficient coins. Need ${rerollCost} coins to reroll.`);
-      return;
-    }
-
-    setIsRerolling(true);
-    try {
-      const result = await rerollCharacter({
-        walletAddress: publicKey.toString(),
-        cost: rerollCost,
-      });
-
-      toast.success(`New character: ${result.newCharacter.name}!`);
-    } catch (error) {
-      console.error("Failed to reroll character:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to reroll character");
-    } finally {
-      setIsRerolling(false);
-    }
+    const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+    setCurrentCharacter(randomChar);
+    onCharacterSelect(randomChar);
+    toast.success(`New character: ${randomChar.name}!`);
   };
 
   const getRarityColor = (rarity?: string) => {
@@ -142,17 +144,16 @@ export function CharacterSelection() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-400">
-              <div>Rerolls remaining: <span className="text-white">{rerollsRemaining}/3</span></div>
-              <div>Cost: <span className="text-yellow-400">{rerollCost} coins</span></div>
+              <div>Free rerolls before joining game</div>
             </div>
 
             <Button
               onClick={handleReroll}
-              disabled={isRerolling || rerollsRemaining <= 0 || gameCoins < rerollCost}
+              disabled={!allCharacters || allCharacters.length <= 1}
               className="flex items-center gap-2"
             >
-              <Dice6 className={`w-4 h-4 ${isRerolling ? 'animate-spin' : ''}`} />
-              {isRerolling ? 'Rolling...' : 'Reroll Character'}
+              <Dice6 className="w-4 h-4" />
+              Reroll Character
             </Button>
           </div>
         </div>
