@@ -1,18 +1,5 @@
-import { mutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
 import { v } from "convex/values";
-
-// Get all active maps
-export const getActiveMaps = query({
-  args: {},
-  handler: async (ctx) => {
-    const maps = await ctx.db
-      .query("maps")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
-      .collect();
-
-    return maps;
-  },
-});
 
 // Get map by ID
 export const getMap = query({
@@ -21,25 +8,6 @@ export const getMap = query({
     return await ctx.db.get(args.mapId);
   },
 });
-
-// Get random map for new game
-export const getRandomMap = query({
-  args: {},
-  handler: async (ctx) => {
-    const maps = await ctx.db
-      .query("maps")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
-      .collect();
-
-    if (maps.length === 0) {
-      return null;
-    }
-
-    const randomIndex = Math.floor(Math.random() * maps.length);
-    return maps[randomIndex];
-  },
-});
-
 // Calculate spawn positions for a map
 export const calculateSpawnPositions = query({
   args: {

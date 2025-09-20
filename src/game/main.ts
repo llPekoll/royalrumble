@@ -3,11 +3,11 @@ import { Game as MainGame } from './scenes/Game';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 
-// Global storage for map data from database
-export let mapsData: any[] = [];
+// Global storage for current game's map data
+export let currentMapData: any = null;
 
-export const setMapsData = (maps: any[]) => {
-  mapsData = maps;
+export const setCurrentMapData = (map: any) => {
+  currentMapData = map;
 };
 
 //  Find out more information about the Game Config at:
@@ -26,9 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 const StartGame = (parent: string) => {
-
   return new Game({ ...config, parent });
-
 }
 
 export default StartGame;
