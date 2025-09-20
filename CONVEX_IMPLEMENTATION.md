@@ -17,39 +17,73 @@
 // schema.ts
 defineSchema({
   games: defineTable({
-    phase: v.string(), // "selection" | "arena" | "elimination" | "betting" | "battle" | "results"
-    startedAt: v.number(),
-    phaseStartedAt: v.number(),
-    players: v.array(v.id("players")),
-    survivors: v.array(v.id("players")),
-    winner: v.optional(v.id("players")),
+    status: v.union(
+      v.literal("waiting"),
+      v.literal("selection"),
+      v.literal("arena"),
+      v.literal("elimination"),
+      v.literal("betting"),
+      v.literal("battle"),
+      v.literal("results"),
+      v.literal("completed")
+    ),
+    phase: v.number(), // Phase number for tracking
+    startTime: v.number(),
+    endTime: v.optional(v.number()),
+    playerCount: v.number(),
     totalPot: v.number(),
-    status: v.string(), // "active" | "completed"
-    isDemo: v.optional(v.boolean()), // Flag for bot-only games
-    isSinglePlayer: v.optional(v.boolean()), // Flag for single player games
-  }),
+    winnerId: v.optional(v.id("gameParticipants")),
+    isSinglePlayer: v.boolean(),
+    mapId: v.id("maps"), // Selected map for this game
+  }).index("by_status", ["status"]),
+
+  maps: defineTable({
+    name: v.string(),
+    background: v.string(),
+    description: v.optional(v.string()),
+    spawnConfiguration: v.object({
+      maxPlayers: v.number(),
+      spawnRadius: v.number(),
+      minSpacing: v.number(),
+    }),
+    isActive: v.boolean(),
+  }).index("by_active", ["isActive"]),
 
   players: defineTable({
     walletAddress: v.string(),
     gameCoins: v.number(),
-    currentGameId: v.optional(v.id("games")),
-    characterId: v.optional(v.id("characters")),
-    betAmount: v.number(),
-    isAlive: v.boolean(),
-    size: v.number(), // Visual size based on bet
-    isBot: v.optional(v.boolean()),
-    botName: v.optional(v.string()),
+    lastActive: v.number(),
+    displayName: v.optional(v.string()),
   }).index("by_wallet", ["walletAddress"]),
 
   characters: defineTable({
     name: v.string(),
-    imageUrl: v.string(),
-    baseStats: v.object({
-      strength: v.number(),
-      speed: v.number(),
-      luck: v.number(),
+    spriteKey: v.string(), // Key for Phaser sprite loading
+    description: v.optional(v.string()),
+    animations: v.object({
+      idle: v.string(),
+      walk: v.string(),
+      attack: v.optional(v.string()),
     }),
-  }),
+    isActive: v.boolean(),
+  }).index("by_active", ["isActive"]),
+
+  gameParticipants: defineTable({
+    gameId: v.id("games"),
+    playerId: v.optional(v.id("players")), // Optional for bots
+    walletAddress: v.optional(v.string()),
+    displayName: v.string(),
+    characterId: v.id("characters"),
+    colorHue: v.optional(v.number()), // Color variation
+    isBot: v.boolean(),
+    betAmount: v.number(),
+    spawnIndex: v.number(),
+    position: v.object({ x: v.number(), y: v.number() }),
+    eliminated: v.boolean(),
+    eliminatedAt: v.optional(v.number()),
+    finalPosition: v.optional(v.number()),
+  }).index("by_game", ["gameId"])
+    .index("by_player", ["playerId"]),
 
   bets: defineTable({
     gameId: v.id("games"),
@@ -85,18 +119,25 @@ import { cronJobs } from "convex/server";
 
 const crons = cronJobs();
 
-// Main game loop - runs every minute
+// Main game loop - runs every 10 seconds for phase management
 crons.interval(
   "gameLoop",
-  { seconds: 60 },
-  api.games.startNewGame
-);
-
-// Phase transitions - runs every 10 seconds
-crons.interval(
-  "phaseTransition",
   { seconds: 10 },
   api.games.advancePhase
+);
+
+// Transaction processing - every 30 seconds
+crons.interval(
+  "processTransactions",
+  { seconds: 30 },
+  api.transactions.processQueue
+);
+
+// Cleanup old games - every 6 hours
+crons.interval(
+  "cleanupGames",
+  { hours: 6 },
+  api.games.cleanupOldGames
 );
 
 // Check for inactive games - runs every 2 minutes

@@ -2,77 +2,50 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Generic character types available in the game
   characters: defineTable({
     name: v.string(), // "Warrior", "Mage", "Archer", etc.
     spriteKey: v.string(), // "warrior", "mage", "archer" - matches Phaser asset keys
     description: v.optional(v.string()),
-    rarity: v.string(), // "common", "rare", "epic", "legendary"
-    stats: v.object({
-      baseHealth: v.number(),
-      baseAttack: v.number(), 
-      baseDefense: v.number(),
-      speed: v.number(),
-      luck: v.number(), // Affects survival chances
-    }),
-    abilities: v.optional(v.array(v.object({
-      name: v.string(),
-      description: v.string(),
-      cooldown: v.optional(v.number()),
-      effect: v.any(), // Flexible effect data
-    }))),
     animations: v.object({
       idle: v.string(), // Animation key for idle
       walk: v.string(), // Animation key for walking
       attack: v.optional(v.string()),
-      death: v.optional(v.string()),
     }),
-    unlockConditions: v.optional(v.object({
-      minGames: v.optional(v.number()),
-      minWins: v.optional(v.number()),
-      specialRequirement: v.optional(v.string()),
+    baseStats: v.optional(v.object({ // Optional base stats for balancing
+      power: v.number(), // Base power rating
+      speed: v.number(), // Movement speed
+      luck: v.number(), // Chance modifier
     })),
     isActive: v.boolean(), // Can be selected in games
-  }).index("by_rarity", ["rarity"])
-    .index("by_active", ["isActive"]),
+  }).index("by_active", ["isActive"]),
 
   maps: defineTable({
     name: v.string(), // "Classic Arena", "Desert Storm", "Mystic Forest", etc.
     background: v.string(), // "arena", "arena2", "forest", etc.
     description: v.optional(v.string()),
-    difficulty: v.string(), // "easy", "medium", "hard"
-    seed: v.number(), // Base seed for procedural generation
-    centerX: v.number(), // Arena center X
-    centerY: v.number(), // Arena center Y
-    features: v.optional(v.array(v.object({
-      type: v.string(), // "obstacle", "powerup", "zone", "decoration", "hazard"
-      x: v.number(),
-      y: v.number(),
-      width: v.optional(v.number()),
-      height: v.optional(v.number()),
-      rotation: v.optional(v.number()),
-      spriteKey: v.optional(v.string()),
-      properties: v.optional(v.any()), // Type-specific properties
-    }))),
     spawnConfiguration: v.object({
       maxPlayers: v.number(), // Maximum players this map supports
       spawnRadius: v.number(), // Distance from center for spawns
       minSpacing: v.number(), // Minimum angle between spawns (radians)
     }),
     isActive: v.boolean(), // Can be used in games
-    weight: v.number(), // Selection probability weight
-  }).index("by_difficulty", ["difficulty"])
-    .index("by_active", ["isActive"]),
+  }).index("by_active", ["isActive"]),
 
   players: defineTable({
     walletAddress: v.string(),
     gameCoins: v.number(),
-    pendingCoins: v.number(),
     lastActive: v.number(),
-    totalWins: v.optional(v.number()),
-    totalGames: v.optional(v.number()),
-    totalEarnings: v.optional(v.number()),
     displayName: v.optional(v.string()), // Optional custom display name
-  }).index("by_wallet", ["walletAddress"]),
+    currentCharacterId: v.optional(v.id("characters")), // Current random character
+    characterRerolls: v.number(), // Number of rerolls used today
+    lastRerollTime: v.optional(v.number()), // Last reroll timestamp
+    totalGamesPlayed: v.number(),
+    totalWins: v.number(),
+    totalEarnings: v.number(), // Lifetime earnings in game coins
+    achievements: v.optional(v.array(v.string())), // Achievement IDs
+  }).index("by_wallet", ["walletAddress"])
+    .index("by_last_active", ["lastActive"]),
 
   games: defineTable({
     status: v.union(
@@ -85,54 +58,58 @@ export default defineSchema({
       v.literal("results"),
       v.literal("completed")
     ),
-    phase: v.number(), // 1-6 for each phase
-    phaseStartTime: v.number(),
-    nextPhaseTime: v.number(),
+    phase: v.number(), // Current phase number
     startTime: v.number(),
     endTime: v.optional(v.number()),
-    playerCount: v.number(),
+    phaseStartTime: v.number(), // When current phase started
+    nextPhaseTime: v.number(), // When next phase will start
+    playerCount: v.number(), // Unique players (not participants)
+    participantCount: v.number(), // Total game participants
     totalPot: v.number(),
+    selfBetPool: v.number(), // Pool from initial entry bets
+    spectatorBetPool: v.number(), // Pool from top 4 betting
     winnerId: v.optional(v.id("gameParticipants")),
-    isDemo: v.boolean(), // True if bot-only game
     isSinglePlayer: v.boolean(), // True if only one human player
+    isSmallGame: v.boolean(), // True if < 8 participants (3 phases only)
     mapId: v.id("maps"), // Reference to selected map
-    // Pre-calculated spawn positions for this specific game instance
-    spawnPositions: v.array(v.object({
-      angle: v.number(),
-      radius: v.number(),
-      x: v.number(),
-      y: v.number()
-    })),
+    survivorIds: v.optional(v.array(v.id("gameParticipants"))), // Top 4 survivors after elimination
   }).index("by_status", ["status"])
     .index("by_start_time", ["startTime"])
     .index("by_map", ["mapId"]),
-
+  // Individual characters in a game (multiple per player allowed)
   gameParticipants: defineTable({
     gameId: v.id("games"),
     playerId: v.optional(v.id("players")), // Optional for bots
     walletAddress: v.optional(v.string()), // For human players
-    displayName: v.string(), // Player name or bot name
+    displayName: v.string(), // Display name for this participant
     characterId: v.id("characters"), // Reference to selected character
     colorHue: v.optional(v.number()), // Optional color variation (0-360)
     isBot: v.boolean(),
     betAmount: v.number(), // Amount bet (determines size and power)
+    size: v.number(), // Visual size multiplier based on bet
+    power: v.number(), // Combat power (bet amount * character stats)
     spawnIndex: v.number(), // Index in the game's spawnPositions array
     position: v.object({ x: v.number(), y: v.number() }), // Current position in arena
+    targetPosition: v.optional(v.object({ x: v.number(), y: v.number() })), // Where they're moving to
     eliminated: v.boolean(),
     eliminatedAt: v.optional(v.number()),
+    eliminatedBy: v.optional(v.id("gameParticipants")), // Who eliminated them
     finalPosition: v.optional(v.number()), // 1st, 2nd, 3rd, etc.
+    spectatorBets: v.number(), // Total spectator bets on this participant
   }).index("by_game", ["gameId"])
     .index("by_player", ["playerId"])
     .index("by_character", ["characterId"])
-    .index("by_game_wallet", ["gameId", "walletAddress"]),
+    .index("by_game_wallet", ["gameId", "walletAddress"])
+    .index("by_game_eliminated", ["gameId", "eliminated"]),
 
   bets: defineTable({
     gameId: v.id("games"),
     playerId: v.id("players"),
     walletAddress: v.string(),
-    betType: v.union(v.literal("self"), v.literal("spectator")),
+    betType: v.union(v.literal("self"), v.literal("spectator"), v.literal("refund")),
     targetParticipantId: v.optional(v.id("gameParticipants")), // Who they bet on
     amount: v.number(), // Bet amount in game coins
+    odds: v.optional(v.number()), // Odds at time of bet placement
     payout: v.optional(v.number()), // Actual payout amount (0 if lost)
     status: v.union(
       v.literal("pending"),
@@ -145,46 +122,32 @@ export default defineSchema({
   }).index("by_game", ["gameId"])
     .index("by_player", ["playerId"])
     .index("by_wallet", ["walletAddress"])
-    .index("by_game_wallet", ["gameId", "walletAddress"]),
+    .index("by_game_wallet", ["gameId", "walletAddress"])
+    .index("by_status", ["status"]),
 
-  nfts: defineTable({
-    mintAddress: v.string(), // Solana NFT address
-    ownerWallet: v.string(),
-    gameId: v.id("games"),
-    participantName: v.string(), // Winner's display name
-    spriteIndex: v.number(), // Sprite used in winning game
-    winAmount: v.number(), // Amount won in the game
-    betAmount: v.number(), // Amount that was bet
-    metadata: v.object({
-      name: v.string(),
-      description: v.string(),
-      image: v.string(),
-      attributes: v.array(v.object({
-        trait_type: v.string(),
-        value: v.union(v.string(), v.number()),
-      })),
-    }),
-    mintedAt: v.number(),
-    transactionSignature: v.string(),
-  }).index("by_owner", ["ownerWallet"])
-    .index("by_game", ["gameId"])
-    .index("by_mint", ["mintAddress"]),
+  // nfts: defineTable({
+  //   mintAddress: v.string(), // Solana NFT address
+  //   ownerWallet: v.string(),
+  //   gameId: v.id("games"),
+  //   participantName: v.string(), // Winner's display name
+  //   spriteIndex: v.number(), // Sprite used in winning game
+  //   winAmount: v.number(), // Amount won in the game
+  //   betAmount: v.number(), // Amount that was bet
+  //   metadata: v.object({
+  //     name: v.string(),
+  //     description: v.string(),
+  //     image: v.string(),
+  //     attributes: v.array(v.object({
+  //       trait_type: v.string(),
+  //       value: v.union(v.string(), v.number()),
+  //     })),
+  //   }),
+  //   mintedAt: v.number(),
+  //   transactionSignature: v.string(),
+  // }).index("by_owner", ["ownerWallet"])
+  //   .index("by_game", ["gameId"])
+  //   .index("by_mint", ["mintAddress"]),
 
-  leaderboard: defineTable({
-    playerId: v.id("players"),
-    walletAddress: v.string(),
-    displayName: v.string(),
-    totalWins: v.number(),
-    totalGames: v.number(),
-    totalEarnings: v.number(),
-    winRate: v.number(),
-    avgPayout: v.number(),
-    highestPayout: v.number(),
-    lastUpdated: v.number(),
-    rank: v.optional(v.number()),
-  }).index("by_wallet", ["walletAddress"])
-    .index("by_wins", ["totalWins"])
-    .index("by_earnings", ["totalEarnings"]),
 
   transactionQueue: defineTable({
     walletAddress: v.string(),
@@ -204,5 +167,48 @@ export default defineSchema({
     priority: v.number(),
   }).index("by_status", ["status"])
     .index("by_wallet", ["walletAddress"]),
+
+  // Game history for analytics and leaderboards
+  gameHistory: defineTable({
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+    participantIds: v.array(v.id("gameParticipants")), // All participants this player controlled
+    totalBet: v.number(), // Total amount bet across all participants
+    totalPayout: v.number(), // Total winnings
+    profit: v.number(), // Profit/loss for this game
+    finishPosition: v.optional(v.number()), // Best position among their participants
+    gameEndTime: v.number(),
+  }).index("by_player", ["playerId"])
+    .index("by_game", ["gameId"])
+    .index("by_end_time", ["gameEndTime"]),
+
+  // Leaderboard tracking
+  leaderboard: defineTable({
+    period: v.string(), // "daily", "weekly", "monthly", "alltime"
+    startDate: v.number(),
+    endDate: v.optional(v.number()),
+    playerId: v.id("players"),
+    walletAddress: v.string(),
+    displayName: v.string(),
+    gamesPlayed: v.number(),
+    wins: v.number(),
+    totalEarnings: v.number(),
+    winRate: v.number(), // Percentage as decimal (0.45 = 45%)
+    rank: v.number(),
+  }).index("by_period_rank", ["period", "rank"])
+    .index("by_player_period", ["playerId", "period"]),
+
+  // Bot configuration for demo games
+  botConfigs: defineTable({
+    name: v.string(), // Bot display name
+    characterPreferences: v.array(v.id("characters")), // Preferred characters
+    betRange: v.object({
+      min: v.number(),
+      max: v.number(),
+    }),
+    skill: v.number(), // 0-1, affects decision making
+    personality: v.string(), // "aggressive", "conservative", "random"
+    isActive: v.boolean(),
+  }).index("by_active", ["isActive"]),
 
 });

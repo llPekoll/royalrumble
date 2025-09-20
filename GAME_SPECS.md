@@ -1,56 +1,81 @@
 # Royal Rumble - Solana Battle Game Specifications
 
 ## Game Overview
-A fast-paced, 1-minute battle royale betting game on Solana where players bet on characters, with winners earning NFTs.
+A fast-paced, dynamic battle royale betting game on Solana where players control multiple characters in various arenas, with winners earning NFTs. Game duration adapts based on participant count.
 
 ## Core Game Loop
 
 ### 1. Game Cycles
-- **Duration**: 1 minute per game
+- **Dynamic Duration**: 
+  - Small games (< 8 participants): 45 seconds
+  - Large games (≥ 8 participants): 75 seconds
 - **Continuous**: Games run 24/7 with no downtime
-- **Join Anytime**: Players can join mid-game for the next round
+- **Multiple Characters**: One player can control multiple GameParticipants
+- **Join Anytime**: Players can join during waiting phase
 - **Single Player Mode**:
-  - If only 1 player joins, game runs normally
+  - If only 1 player joins, game runs with bots
   - Player automatically wins and gets their bet refunded
-  - No profit/loss - just demonstration of mechanics
+  - No profit/loss - entertainment and practice mode
 - **Auto-Demo Mode**:
-  - If no players for 2 minutes, generate demo game with bots
+  - If no players join, generate demo game with bots
   - Bot games show gameplay to attract players
   - Bots use fake wallets and don't affect real economy
 
 ### 2. Game Phases
 
-#### Phase 1: Character Selection (0-15 seconds)
+#### Small Games (< 8 participants) - 3 Phases Total
+
+##### Phase 1: Waiting (30 seconds)
+- Players join and select characters
 - Players receive a random character upon entry
-- **Re-roll Feature**: Players can re-roll their character (cost: X coins)
-- Character attributes affect winning probability
+- **Re-roll Feature**: Players can re-roll their character
+- Players can add multiple GameParticipants
+- Place initial bets (self-betting only)
 
-#### Phase 2: Arena Entry (15-25 seconds)
-- All players' characters move to center of screen
-- Players can place initial bets on themselves
+##### Phase 2: Arena (10 seconds)  
+- All characters spawn in selected map
+- Characters move to center of screen
 - **Bet-to-Size Mechanic**: Character size increases with bet amount
-- Larger characters have higher survival probability
+- Visual preparation for battle
 
-#### Phase 3: First Elimination (25-35 seconds)
+##### Phase 3: Results (5 seconds)
+- Winners determined based on bet weights
+- Payouts distributed
+- Game stats displayed
+- Next game countdown
+
+#### Large Games (≥ 8 participants) - 7 Phases Total
+
+##### Phase 1: Waiting (30 seconds)
+- Same as small games
+- Players can add multiple GameParticipants
+
+##### Phase 2: Selection
+- Final character selections
+- Lock in participants
+
+##### Phase 3: Arena (10 seconds)
+- All characters spawn in selected map
+- Characters move to center position
+
+##### Phase 4: Elimination
 - Explosion animation at center
-- Only 4 characters survive (selection weighted by bet amounts)
+- Only top 4 survive (weighted by bet amounts)
 - Eliminated players become spectators
 
-#### Phase 4: Final Betting (35-45 seconds)
-- Surviving 4 players displayed
-- All players (including eliminated) can bet on final winners
-- Head-to-head betting pairs displayed
+##### Phase 5: Betting (15 seconds)
+- Top 4 displayed
+- Spectator betting opens (bet on others only)
+- No additional self-betting allowed
 
-#### Phase 5: Final Betting (45-55 seconds)
-- Tournament-style battles between final 4
-- Semi-finals: 2 simultaneous 1v1 battles
-- Finals: Winners face off
+##### Phase 6: Battle (15 seconds)
+- Tournament-style battles
 - Battle outcomes determined by total bet weights
+- Visual combat animations
 
-#### Phase 6: Final Betting (55-60 seconds)
+##### Phase 7: Results (5 seconds)
 - Winner announced
-- Payouts distributed
-- NFT minting option for winners
+- Payouts distributed (95% to winners, 5% house)
 - Next game countdown
 
 ## Economy System
@@ -106,13 +131,17 @@ A fast-paced, 1-minute battle royale betting game on Solana where players bet on
 
 ### Backend (Convex)
 - **Platform**: Convex (real-time, serverless)
-- **Database**: Built-in document store
+- **Database**: Built-in document store with tables for:
+  - games, players, characters, gameParticipants, maps, bets
 - **Real-time**: Native subscriptions (no WebSocket setup needed)
 - **Functions Types**:
   - **Queries**: Read game state, player stats
-  - **Mutations**: Place bets, update game state
+  - **Mutations**: Place bets, update game state, manage participants
   - **Actions**: Blockchain interactions, VRF calls
-- **Scheduled Functions**: Game loop timer (every 60 seconds)
+- **Scheduled Functions**: 
+  - Game loop timer (every 10 seconds for phase transitions)
+  - Transaction processing (every 30 seconds)
+  - Cleanup tasks (hourly/daily)
 
 ### Blockchain Integration
 - **Network**: Solana Mainnet/Devnet
@@ -124,11 +153,13 @@ A fast-paced, 1-minute battle royale betting game on Solana where players bet on
 - **RPC Provider**: Helius/Quicknode
 - **Integration**: Convex actions call Solana RPC
 
-### Game Engine
-- **Rendering**: Canvas API or WebGL
-- **Physics**: Matter.js for collision detection
-- **Character Movement**: Predetermined paths to center
+### Game Engine (Phaser.js)
+- **Rendering**: WebGL with Canvas fallback
+- **Physics**: Built-in Arcade Physics
+- **Character Movement**: Dynamic spawn positions based on map
 - **Battle Logic**: Weighted random with bet multipliers
+- **Animations**: Sprite-based with multiple states (idle, walk, attack)
+- **Maps**: Multiple arenas with different spawn configurations
 
 ## User Interface
 

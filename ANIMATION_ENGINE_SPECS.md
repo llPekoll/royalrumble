@@ -24,8 +24,16 @@ export class BattleArenaScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load character sprites
-    this.load.spritesheet('characters', '/assets/characters.png', {
+    // Load character sprites - multiple character types
+    this.load.spritesheet('warrior', '/assets/characters/warrior.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+    this.load.spritesheet('mage', '/assets/characters/mage.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+    this.load.spritesheet('archer', '/assets/characters/archer.png', {
       frameWidth: 64,
       frameHeight: 64
     });
@@ -36,29 +44,41 @@ export class BattleArenaScene extends Phaser.Scene {
       frameHeight: 128
     });
 
-    // Load arena background
-    this.load.image('arena', '/assets/arena.png');
-    this.load.image('arena2', '/assets/arena2.png');
+    // Load multiple map backgrounds
+    this.load.image('arena_classic', '/assets/maps/arena_classic.png');
+    this.load.image('arena_desert', '/assets/maps/arena_desert.png');
+    this.load.image('arena_forest', '/assets/maps/arena_forest.png');
   }
 
-  create() {
-    // Set up arena
-    this.add.image(400, 300, 'arena');
+  create(data: { mapId: string, participants: GameParticipant[] }) {
+    // Set up arena based on selected map
+    const mapKey = this.getMapKey(data.mapId);
+    this.add.image(400, 300, mapKey);
     this.centerPoint = { x: 400, y: 300 };
 
-    // Create animations
-    this.anims.create({
-      key: 'walk',
-      frames: this.anims.generateFrameNumbers('characters', { start: 0, end: 7 }),
-      frameRate: 10,
-      repeat: -1
-    });
+    // Create animations for each character type
+    const characterTypes = ['warrior', 'mage', 'archer'];
+    characterTypes.forEach(charType => {
+      this.anims.create({
+        key: `${charType}_walk`,
+        frames: this.anims.generateFrameNumbers(charType, { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: -1
+      });
 
-    this.anims.create({
-      key: 'idle',
-      frames: this.anims.generateFrameNumbers('characters', { start: 8, end: 11 }),
-      frameRate: 8,
-      repeat: -1
+      this.anims.create({
+        key: `${charType}_idle`,
+        frames: this.anims.generateFrameNumbers(charType, { start: 8, end: 11 }),
+        frameRate: 8,
+        repeat: -1
+      });
+
+      this.anims.create({
+        key: `${charType}_attack`,
+        frames: this.anims.generateFrameNumbers(charType, { start: 12, end: 17 }),
+        frameRate: 12,
+        repeat: 0
+      });
     });
 
     this.anims.create({
@@ -69,14 +89,15 @@ export class BattleArenaScene extends Phaser.Scene {
     });
   }
 
-  // Add player to arena
-  addPlayer(playerId: string, data: PlayerData) {
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 250;
-    const x = this.centerPoint.x + Math.cos(angle) * distance;
-    const y = this.centerPoint.y + Math.sin(angle) * distance;
+  // Add game participant to arena (supports multiple per player)
+  addParticipant(participantId: string, data: GameParticipantData) {
+    // Use predefined spawn position based on participant index and map config
+    const spawnPos = this.calculateSpawnPosition(data.spawnIndex, data.totalParticipants);
+    const x = spawnPos.x;
+    const y = spawnPos.y;
 
-    const sprite = this.add.sprite(x, y, 'characters');
+    // Create sprite with correct character type
+    const sprite = this.add.sprite(x, y, data.characterType);
 
     // Scale based on bet amount (fat = higher bet)
     const scale = 1 + (data.betAmount / 1000) * 0.5; // Up to 1.5x size

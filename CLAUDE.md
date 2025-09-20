@@ -1,7 +1,7 @@
 # Royal Rumble - Solana Battle Game
 
 ## Project Overview
-A fast-paced, 1-minute battle royale betting game on Solana where players bet on characters, with winners earning NFTs. Built with Convex, React, Phaser.js, and Solana blockchain integration.
+A fast-paced battle royale betting game on Solana where players control multiple characters in dynamic arenas, with winners earning NFTs. Built with Convex, React, Phaser.js, and Solana blockchain integration.
 
 ## Tech Stack
 - **Runtime**: Bun (not npm)
@@ -55,10 +55,14 @@ bun run typecheck
 ## Key Features
 
 ### Game Mechanics
-- **75-second games**: Continuous 24/7 gameplay
-- **5 phases**: Waiting (30s) → Arena (10s) → Betting (15s) → Battle (15s) → Results (5s)
+- **Dynamic Game Duration**: Based on participant count
+  - **< 8 participants**: 4 phases - Waiting (30s) → Selection → Arena (10s) → Results (5s)
+  - **≥ 8 participants**: 7 phases - Waiting (30s) → Selection → Arena (10s) → Elimination → Betting (15s) → Battle (15s) → Results (5s)
+- **Multiple Characters per Player**: One player can control multiple game participants
+- **Multiple Maps**: Various arenas with unique backgrounds and spawn configurations
+- **Character System**: Players start with a random character that can be re-rolled
 - **Bet-to-size**: Character size increases with bet amount
-- **Single-player mode**: Auto-refund if playing alone
+- **Single-player mode**: Auto-refund if playing alone (runs with bots for entertainment)
 - **Demo mode**: Bot games when no players join
 
 ### Betting Rules
@@ -84,16 +88,19 @@ bun run typecheck
 ## Database Schema
 
 ### Core Tables
-- `games`: Game state and phases
+- `games`: Game state, phases, and map selection
 - `players`: Player data and balances
-- `characters`: Character definitions
+- `characters`: Generic character definitions (Warrior, Mage, Archer, etc.)
+- `gameParticipants`: Individual characters in a game (one player can have multiple)
+- `maps`: Arena configurations and backgrounds
 - `bets`: Betting records
-- `nfts`: Minted NFT records
+- `transactionQueue`: Solana transaction processing
 
 ## Animation Engine (Phaser.js)
 
 ### Key Animations
 - Character movement to center
+- Character idle
 - Explosion elimination effects
 - Battle clash animations
 - Victory celebrations
@@ -195,9 +202,16 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 ## Common Tasks
 
 ### Adding a New Character
-1. Add sprite to `/public/assets/characters.png`
-2. Insert character record in Convex schema
+1. Add sprite to `/public/assets/characters/` directory
+2. Insert character record in `characters` table with animations
 3. Update character selection logic
+4. Add animation configurations (idle, walk, attack)
+
+### Adding a New Map
+1. Add background asset to `/public/assets/maps/`
+2. Insert map record in `maps` table
+3. Configure spawn positions and player limits
+4. Test spawn distribution for different player counts
 
 ### Modifying Game Phases
 1. Update phase durations in `convex/games.ts`

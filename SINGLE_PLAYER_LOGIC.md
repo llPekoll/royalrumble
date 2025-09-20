@@ -1,11 +1,12 @@
 # Single Player Game Logic
 
 ## Overview
-When only one real player joins a game, the system runs a special single-player mode where:
+When only one real player joins a game (can have multiple GameParticipants), the system runs a special single-player mode where:
 - The game runs normally with visual effects
-- Bots are added for visual entertainment
-- The real player always wins
+- Bots are added as GameParticipants for visual entertainment  
+- The real player's participants always win
 - The player gets their bet refunded (no profit/loss)
+- Supports both small (<8 participants) and large (≥8 participants) game formats
 
 ## Implementation
 
@@ -19,28 +20,34 @@ async function calculateResults(ctx: any, gameId: string) {
 
   // Check if single player game
   if (game.isSinglePlayer) {
-    const realPlayers = await ctx.db
-      .query("players")
+    // Get all GameParticipants for the real player
+    const realParticipants = await ctx.db
+      .query("gameParticipants")
       .filter((q) => 
         q.and(
-          q.eq(q.field("currentGameId"), gameId),
-          q.neq(q.field("isBot"), true)
+          q.eq(q.field("gameId"), gameId),
+          q.eq(q.field("isBot"), false)
         )
       )
       .collect();
 
-    if (realPlayers.length === 1) {
-      const player = realPlayers[0];
+    if (realParticipants.length > 0) {
+      // Get the player
+      const playerId = realParticipants[0].playerId;
+      const player = await ctx.db.get(playerId);
       
-      // Refund the player's bet
-      await ctx.db.patch(player._id, {
-        gameCoins: player.gameCoins + player.betAmount,
-        betAmount: 0,
+      // Calculate total bet across all participants
+      const totalBet = realParticipants.reduce((sum, p) => sum + p.betAmount, 0);
+      
+      // Refund all bets
+      await ctx.db.patch(playerId, {
+        gameCoins: player.gameCoins + totalBet,
       });
 
-      // Mark as winner for NFT eligibility (optional)
+      // Mark random participant as winner for visual effect
+      const winner = realParticipants[Math.floor(Math.random() * realParticipants.length)];
       await ctx.db.patch(gameId, {
-        winner: player._id,
+        winnerId: winner._id,
         status: "completed",
       });
 
@@ -69,42 +76,43 @@ async function performElimination(ctx: any, gameId: string) {
   if (!game) return;
 
   if (game.isSinglePlayer) {
-    // In single player, always keep the real player as survivor
-    const realPlayer = await ctx.db
-      .query("players")
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("currentGameId"), gameId),
-          q.neq(q.field("isBot"), true)
-        )
-      )
-      .first();
+    // Get all participants
+    const allParticipants = await ctx.db
+      .query("gameParticipants")
+      .filter((q) => q.eq(q.field("gameId"), gameId))
+      .collect();
 
-    if (realPlayer) {
-      // Select 3 random bots to survive with the player
-      const bots = await ctx.db
-        .query("players")
-        .filter((q) => 
-          q.and(
-            q.eq(q.field("currentGameId"), gameId),
-            q.eq(q.field("isBot"), true)
-          )
-        )
-        .collect();
+    const realParticipants = allParticipants.filter(p => !p.isBot);
+    const botParticipants = allParticipants.filter(p => p.isBot);
 
-      const selectedBots = bots
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3)
-        .map(b => b._id);
+    if (realParticipants.length > 0) {
+      // In large games, keep some real participants and bots for top 4
+      if (allParticipants.length >= 8) {
+        // Keep 2 real participants and 2 bots for visual variety
+        const survivingReal = realParticipants
+          .sort(() => Math.random() - 0.5)
+          .slice(0, Math.min(2, realParticipants.length));
+        
+        const survivingBots = botParticipants
+          .sort(() => Math.random() - 0.5)
+          .slice(0, Math.max(2, 4 - survivingReal.length));
 
-      await ctx.db.patch(gameId, {
-        survivors: [realPlayer._id, ...selectedBots],
-      });
+        // Mark survivors
+        const survivors = [...survivingReal, ...survivingBots];
+        for (const participant of survivors) {
+          await ctx.db.patch(participant._id, { 
+            eliminated: false,
+            finalPosition: null 
+          });
+        }
 
-      // Mark eliminated bots
-      for (const bot of bots) {
-        if (!selectedBots.includes(bot._id)) {
-          await ctx.db.patch(bot._id, { isAlive: false });
+        // Mark eliminated
+        const eliminated = allParticipants.filter(p => !survivors.includes(p));
+        for (const participant of eliminated) {
+          await ctx.db.patch(participant._id, { 
+            eliminated: true,
+            eliminatedAt: Date.now()
+          });
         }
       }
     }

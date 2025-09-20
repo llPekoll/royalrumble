@@ -1,7 +1,7 @@
 # 🎮 Royal Rumble Development Roadmap
 
 ## Project Overview
-Fast-paced, 1-minute battle royale betting game on Solana where players bet on characters, with winners earning NFTs.
+Dynamic battle royale betting game on Solana where players control multiple characters across various maps, with game duration adapting to participant count. Winners earn NFTs and rewards.
 
 ## Development Timeline: 8 Weeks
 
@@ -11,15 +11,19 @@ Fast-paced, 1-minute battle royale betting game on Solana where players bet on c
 
 ### 1. Convex Backend Setup ✅
 - [ ] Define database schema in `convex/schema.ts`
-- [ ] Create initial tables (games, players, characters, bets, nfts)
+- [ ] Create core tables:
+  - games, players, characters, gameParticipants
+  - maps, bets, transactionQueue
 - [ ] Set up environment variables and Convex deployment
 - [ ] Configure development environment
 
 ### 2. Game Loop Implementation
-- [ ] Implement 60-second game cycles in `convex/games.ts`
-- [ ] Create 6 phase transitions (Selection → Arena → Elimination → Betting → Battle → Results)
-- [ ] Set up cron jobs for automated phase management
-- [ ] Add game state management
+- [ ] Implement dynamic game cycles in `convex/games.ts`
+  - Small games (< 8 participants): 45 seconds, 3 phases
+  - Large games (≥ 8 participants): 75 seconds, 7 phases
+- [ ] Create phase transitions (Waiting → Selection → Arena → Elimination → Betting → Battle → Results)
+- [ ] Set up cron jobs for 10-second phase management
+- [ ] Add dynamic game state management based on participant count
 
 ### 3. Player System
 - [ ] Build player registration in `convex/players.ts`
@@ -31,11 +35,13 @@ Fast-paced, 1-minute battle royale betting game on Solana where players bet on c
 
 ## Phase 2: Game Mechanics (Week 2-3)
 
-### 4. Character System
-- [ ] Design character attributes and stats
-- [ ] Implement character selection logic
-- [ ] Create character display components
-- [ ] Add character randomization for bots
+### 4. Character & Map System
+- [ ] Design multiple character types (Warrior, Mage, Archer, etc.)
+- [ ] Implement character selection and re-roll feature
+- [ ] Create multiple arena maps with unique spawn configurations
+- [ ] Support multiple GameParticipants per player
+- [ ] Add character animations (idle, walk, attack)
+- [ ] Implement color variations for character customization
 
 ### 5. Betting Mechanics
 - [ ] Implement coin system (1 SOL = 1000 coins)
