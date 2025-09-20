@@ -36,6 +36,7 @@ export default defineSchema({
   players: defineTable({
     walletAddress: v.string(),
     gameCoins: v.number(),
+    pendingCoins: v.number(), // Coins pending from deposits/transactions
     lastActive: v.number(),
     displayName: v.optional(v.string()), // Optional custom display name
     currentCharacterId: v.optional(v.id("characters")), // Current random character

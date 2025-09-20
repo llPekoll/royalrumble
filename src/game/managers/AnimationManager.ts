@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { Player } from './PlayerManager';
+import { GameParticipant } from './PlayerManager';
 
 export class AnimationManager {
   private scene: Scene;
@@ -52,7 +52,7 @@ export class AnimationManager {
     createExplosion(1200);
   }
 
-  addWinnerCelebration(winnerPlayer: Player, winner: any) {
+  addWinnerCelebration(winnerPlayer: GameParticipant, winner: any) {
     // Victory text above winner
     const victoryText = this.scene.add.text(this.centerX, this.centerY - 120, '🏆 WINNER! 🏆', {
       fontFamily: 'Arial Black',
@@ -161,5 +161,99 @@ export class AnimationManager {
         }
       });
     }
+  }
+
+  createCenterExplosion() {
+    // Create a single large explosion at center
+    const explosion = this.scene.add.sprite(
+      this.centerX,
+      this.centerY,
+      'explosion'
+    );
+
+    explosion.setScale(3);
+    explosion.setDepth(150);
+    explosion.play('explosion');
+
+    explosion.once('animationcomplete', () => {
+      explosion.destroy();
+    });
+
+    // Screen shake for impact
+    this.scene.cameras.main.shake(300, 0.02);
+  }
+
+  showBettingPrompt() {
+    // Show betting phase indicator
+    const bettingText = this.scene.add.text(this.centerX, 50, 'BETTING PHASE', {
+      fontFamily: 'Arial Black',
+      fontSize: 32,
+      color: '#00ff00',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center'
+    }).setOrigin(0.5).setDepth(200);
+
+    // Pulse animation
+    this.scene.tweens.add({
+      targets: bettingText,
+      scale: { from: 1, to: 1.2 },
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    });
+
+    // Remove after 3 seconds
+    this.scene.time.delayedCall(3000, () => {
+      bettingText.destroy();
+    });
+  }
+
+  createBattleEffects() {
+    // Create multiple small explosions during battle
+    const createBattleExplosion = (delay: number) => {
+      this.scene.time.delayedCall(delay, () => {
+        const x = this.centerX + (Math.random() - 0.5) * 200;
+        const y = this.centerY + (Math.random() - 0.5) * 200;
+
+        const explosion = this.scene.add.sprite(x, y, 'explosion');
+        explosion.setScale(1.5);
+        explosion.setDepth(120);
+        explosion.play('explosion');
+
+        explosion.once('animationcomplete', () => {
+          explosion.destroy();
+        });
+      });
+    };
+
+    // Create battle explosions over time
+    for (let i = 0; i < 8; i++) {
+      createBattleExplosion(i * 500);
+    }
+
+    // Screen shake throughout battle
+    this.scene.cameras.main.shake(3000, 0.005);
+  }
+
+  createFinalExplosion() {
+    // Create the biggest explosion for battle finale
+    const explosion = this.scene.add.sprite(
+      this.centerX,
+      this.centerY,
+      'explosion'
+    );
+
+    explosion.setScale(4);
+    explosion.setDepth(150);
+    explosion.play('explosion');
+
+    explosion.once('animationcomplete', () => {
+      explosion.destroy();
+    });
+
+    // Biggest screen shake
+    this.scene.cameras.main.shake(500, 0.03);
   }
 }

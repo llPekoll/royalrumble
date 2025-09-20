@@ -433,7 +433,7 @@ export async function addBots(ctx: any, gameId: Id<"games">, count: number) {
     .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
     .collect();
 
-  const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
+  // const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
 
   for (let i = 0; i < count; i++) {
     let botName: string;

@@ -113,19 +113,16 @@ export function CharacterSelection() {
     <div className="space-y-4">
       <Card className="p-4">
         <h3 className="text-lg font-bold mb-4">Your Current Character</h3>
-        
-        <div className={`p-4 rounded-lg border-2 ${getRarityBorder(currentCharacter.rarity)} bg-gray-800`}>
+
+        <div className={`p-4 rounded-lg border-2  bg-gray-800`}>
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xl font-bold">{currentCharacter.name}</h4>
-            <span className={`text-sm font-semibold ${getRarityColor(currentCharacter.rarity)} capitalize`}>
-              {currentCharacter.rarity || 'common'}
-            </span>
           </div>
-          
+
           {currentCharacter.description && (
             <p className="text-gray-300 text-sm mb-3">{currentCharacter.description}</p>
           )}
-          
+
           {currentCharacter.baseStats && (
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="bg-red-900/30 p-2 rounded text-center">
@@ -142,13 +139,13 @@ export function CharacterSelection() {
               </div>
             </div>
           )}
-          
+
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-400">
               <div>Rerolls remaining: <span className="text-white">{rerollsRemaining}/3</span></div>
               <div>Cost: <span className="text-yellow-400">{rerollCost} coins</span></div>
             </div>
-            
+
             <Button
               onClick={handleReroll}
               disabled={isRerolling || rerollsRemaining <= 0 || gameCoins < rerollCost}
@@ -169,18 +166,17 @@ export function CharacterSelection() {
             {allCharacters.map((character: Character) => (
               <div
                 key={character._id}
-                className={`p-3 rounded-lg border ${
-                  character._id === currentCharacter._id 
-                    ? `${getRarityBorder(character.rarity)} bg-gray-700` 
-                    : 'border-gray-600 bg-gray-800'
-                } transition-all hover:border-gray-500`}
+                className={`p-3 rounded-lg border ${character._id === currentCharacter._id
+                  ? `${getRarityBorder(character.rarity)} bg-gray-700`
+                  : 'border-gray-600 bg-gray-800'
+                  } transition-all hover:border-gray-500`}
               >
                 <div className="text-center">
                   <h4 className="font-semibold text-sm mb-1">{character.name}</h4>
                   <span className={`text-xs ${getRarityColor(character.rarity)} capitalize`}>
                     {character.rarity || 'common'}
                   </span>
-                  
+
                   {character.baseStats && (
                     <div className="mt-2 text-xs">
                       <div className="flex justify-between">
@@ -197,7 +193,7 @@ export function CharacterSelection() {
                       </div>
                     </div>
                   )}
-                  
+
                   {character._id === currentCharacter._id && (
                     <div className="mt-2 text-xs text-yellow-400 font-semibold">★ Current</div>
                   )}

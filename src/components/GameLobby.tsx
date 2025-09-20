@@ -79,12 +79,12 @@ export function GameLobby() {
       case "elimination":
         return {
           name: "Elimination Phase",
-          description: "Reducing to top 4 survivors"
+          description: isSmallGame ? "Small game - skipping elimination" : "Reducing to top 4 survivors"
         };
       case "betting":
         return {
           name: "Betting Phase",
-          description: "Spectator betting on top 4 survivors"
+          description: isSmallGame ? "Small game - skipping betting" : "Spectator betting on top 4 survivors"
         };
       case "battle":
         return {

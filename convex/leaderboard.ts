@@ -94,9 +94,6 @@ export const updateLeaderboardEntry = internalMutation({
       sum + Math.max(0, (bet.payout || 0) - bet.amount), 0
     );
     const winRate = totalGames > 0 ? (totalWins / totalGames) : 0;
-    const avgPayout = wonBets.length > 0
-      ? wonBets.reduce((sum, bet) => sum + (bet.payout || 0), 0) / wonBets.length
-      : 0;
     const highestPayout = Math.max(0, ...bets.map(b => b.payout || 0));
 
     // Check if entry exists

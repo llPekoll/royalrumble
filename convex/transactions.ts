@@ -132,9 +132,11 @@ export const updateTransactionStatus = mutation({
     if (player) {
       if (args.status === "completed") {
         if (transaction.type === "deposit") {
-          // Add coins to player account
+          // Move coins from pending to game coins
+          const amountToProcess = Math.min(transaction.amount, player.pendingCoins);
           await ctx.db.patch(player._id, {
-            gameCoins: player.gameCoins + transaction.amount,
+            gameCoins: player.gameCoins + amountToProcess,
+            pendingCoins: player.pendingCoins - amountToProcess,
           });
         }
         // For withdrawals, coins were already deducted when queued
@@ -144,8 +146,13 @@ export const updateTransactionStatus = mutation({
           await ctx.db.patch(player._id, {
             gameCoins: player.gameCoins + transaction.amount,
           });
+        } else if (transaction.type === "deposit") {
+          // Remove failed deposit from pending coins
+          const amountToRemove = Math.min(transaction.amount, player.pendingCoins);
+          await ctx.db.patch(player._id, {
+            pendingCoins: player.pendingCoins - amountToRemove,
+          });
         }
-        // For failed deposits, no action needed as coins weren't added yet
       }
     }
 

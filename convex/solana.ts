@@ -37,6 +37,7 @@ export const initiateDeposit = mutation({
       const playerId = await ctx.db.insert("players", {
         walletAddress: args.walletAddress,
         gameCoins: 0,
+        pendingCoins: 0,
         lastActive: Date.now(),
         characterRerolls: 0,
         totalGamesPlayed: 0,
@@ -46,8 +47,18 @@ export const initiateDeposit = mutation({
       player = await ctx.db.get(playerId);
     }
 
+    if (!player) {
+      throw new Error("Failed to create or retrieve player");
+    }
+
     // Convert SOL to game coins (1 SOL = 1000 coins)
     const gameCoins = Math.floor(args.solAmount * 1000);
+
+    // Add to pending coins immediately when deposit is initiated
+    await ctx.db.patch(player._id, {
+      pendingCoins: player.pendingCoins + gameCoins,
+      lastActive: Date.now(),
+    });
 
     // Queue the deposit transaction
     const transactionId = await ctx.db.insert("transactionQueue", {
@@ -60,7 +71,7 @@ export const initiateDeposit = mutation({
       priority: 1,
     });
 
-    // Note: Game coins will be added when transaction is verified and completed
+    // Note: Pending coins will be converted to game coins when transaction is verified and completed
 
     return {
       transactionId,

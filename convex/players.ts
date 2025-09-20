@@ -73,6 +73,7 @@ export const createPlayer = mutation({
       walletAddress: args.walletAddress,
       displayName: args.displayName,
       gameCoins: 1000, // Start with 1000 coins
+      pendingCoins: 0, // Start with 0 pending coins
       lastActive: Date.now(),
       currentCharacterId: randomCharacterId as any,
       characterRerolls: 0,
@@ -273,6 +274,67 @@ export const updatePlayerStats = mutation({
       totalEarnings: player.totalEarnings + args.earnings,
       lastActive: Date.now(),
     });
+  },
+});
+
+// Add pending coins (typically from deposits)
+export const addPendingCoins = mutation({
+  args: {
+    walletAddress: v.string(),
+    amount: v.number()
+  },
+  handler: async (ctx, args) => {
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      throw new Error("Player not found");
+    }
+
+    await ctx.db.patch(player._id, {
+      pendingCoins: player.pendingCoins + args.amount,
+      lastActive: Date.now(),
+    });
+
+    return player.pendingCoins + args.amount;
+  },
+});
+
+// Process pending coins into game coins (when transaction is confirmed)
+export const processPendingCoins = mutation({
+  args: {
+    walletAddress: v.string(),
+    amount: v.optional(v.number()) // If not specified, processes all pending coins
+  },
+  handler: async (ctx, args) => {
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      throw new Error("Player not found");
+    }
+
+    const amountToProcess = args.amount || player.pendingCoins;
+    
+    if (player.pendingCoins < amountToProcess) {
+      throw new Error("Insufficient pending coins");
+    }
+
+    await ctx.db.patch(player._id, {
+      gameCoins: player.gameCoins + amountToProcess,
+      pendingCoins: player.pendingCoins - amountToProcess,
+      lastActive: Date.now(),
+    });
+
+    return {
+      gameCoins: player.gameCoins + amountToProcess,
+      pendingCoins: player.pendingCoins - amountToProcess,
+      processedAmount: amountToProcess,
+    };
   },
 });
 
