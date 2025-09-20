@@ -1,26 +1,29 @@
 import { Scene } from 'phaser';
-import { getRandomCharacter } from '../config/characters';
 
-export interface Player {
+export interface GameParticipant {
     id: string;
+    playerId?: string;
     container: Phaser.GameObjects.Container;
     sprite: Phaser.GameObjects.Sprite;
     nameText: Phaser.GameObjects.Text;
     characterKey: string;
     displayName: string;
     betAmount: number;
+    size: number;
+    colorHue?: number;
+    isBot: boolean;
     eliminated: boolean;
     targetX: number;
     targetY: number;
+    spawnIndex: number;
 }
 
 export class PlayerManager {
     private scene: Scene;
-    private players: Map<string, Player> = new Map();
-    private playerCharacters: Map<string, string> = new Map();
-    private usedAngles: number[] = [];
+    private participants: Map<string, GameParticipant> = new Map();
     private centerX: number;
     private centerY: number;
+    private currentMap: any = null;
 
     constructor(scene: Scene, centerX: number, centerY: number) {
         this.scene = scene;
@@ -28,79 +31,62 @@ export class PlayerManager {
         this.centerY = centerY;
     }
 
-    getPlayers(): Map<string, Player> {
-        return this.players;
+    getParticipants(): Map<string, GameParticipant> {
+        return this.participants;
     }
 
-    getPlayer(id: string): Player | undefined {
-        return this.players.get(id);
+    getParticipant(id: string): GameParticipant | undefined {
+        return this.participants.get(id);
     }
 
-    updatePlayersInWaiting(participants: any[]) {
-        // Add new players or update existing ones
-        participants.forEach((participant: any, index: number) => {
-            if (!this.players.has(participant._id)) {
-                this.addPlayer(participant, index);
-            } else {
-                this.updatePlayerScale(participant);
-            }
-        });
-
-        // Remove players who left
-        const currentIds = new Set(participants.map((p: any) => p._id));
-        this.players.forEach((_player, id) => {
-            if (!currentIds.has(id)) {
-                this.removePlayer(id);
-            }
-        });
+    // Get all participants for a specific player
+    getPlayerParticipants(playerId: string): GameParticipant[] {
+        return Array.from(this.participants.values()).filter(p => p.playerId === playerId);
     }
 
-    addPlayer(participant: any, _index: number) {
-        // Use spawn position from database if available
-        let targetX, targetY, spawnX, spawnY;
+    updateParticipantsInWaiting(participants: any[], mapData: any) {
+        this.currentMap = mapData;
         
-        if (participant.position) {
-            // Use database position
-            targetX = participant.position.x;
-            targetY = participant.position.y;
-            spawnX = targetX;  // Same X as final position
-            spawnY = -50;      // Above the screen
-        } else {
-            // Fallback to old random logic
-            const angle = this.getRandomAngleWithSpacing();
-            const radiusVariation = (Math.random() - 0.5) * 40;
-            const radius = 180 + radiusVariation;
-            const angleOffset = (Math.random() - 0.5) * 0.2;
-            const finalAngle = angle + angleOffset;
-            targetX = this.centerX + Math.cos(finalAngle) * radius;
-            targetY = this.centerY + Math.sin(finalAngle) * radius;
-            spawnX = targetX;
-            spawnY = -50;
-        }
+        // Add new participants or update existing ones
+        participants.forEach((participant: any) => {
+            if (!this.participants.has(participant._id)) {
+                this.addParticipant(participant);
+            } else {
+                this.updateParticipantScale(participant);
+            }
+        });
 
-        // Get character from database or fallback to random
-        let characterKey;
+        // Remove participants who left
+        const currentIds = new Set(participants.map((p: any) => p._id));
+        this.participants.forEach((_participant, id) => {
+            if (!currentIds.has(id)) {
+                this.removeParticipant(id);
+            }
+        });
+    }
+
+    addParticipant(participant: any) {
+        // Calculate spawn position based on map configuration and spawn index
+        const { targetX, targetY } = this.calculateSpawnPosition(participant.spawnIndex, participant);
+        const spawnX = targetX;
+        const spawnY = -50; // Above the screen
+
+        // Get character from database
+        let characterKey = 'warrior'; // Default fallback
         if (participant.character && participant.character.spriteKey) {
             characterKey = participant.character.spriteKey;
-        } else {
-            // Fallback to old random character selection
-            const character = getRandomCharacter();
-            characterKey = character.key;
         }
-
-        // Store character choice for this player
-        this.playerCharacters.set(participant._id, characterKey);
 
         // Create a container to hold both sprite and name
         const container = this.scene.add.container(spawnX, spawnY);
         container.setDepth(100);
 
-        // Create player sprite (position relative to container)
+        // Create participant sprite (position relative to container)
         const sprite = this.scene.add.sprite(0, 0, characterKey);
         sprite.play(`${characterKey}-idle`);
 
-        // Calculate scale based on bet amount
-        const scale = this.calculatePlayerScale(participant.betAmount);
+        // Use size from database or calculate scale based on bet amount
+        const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
 
         // Create name text (positioned below sprite, relative to container)
         const nameText = this.scene.add.text(0, 40, participant.displayName, {
@@ -117,6 +103,27 @@ export class PlayerManager {
         
         // Scale only the sprite, not the text
         sprite.setScale(scale);
+        
+        // Apply color tint if specified
+        if (participant.colorHue !== undefined) {
+            const hue = participant.colorHue / 360; // Convert to 0-1 range
+            const color = Phaser.Display.Color.HSVToRGB(hue, 0.8, 1.0);
+            const tint = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
+            sprite.setTint(tint);
+        }
+
+        // Add bot indicator for bots
+        if (participant.isBot) {
+            const botText = this.scene.add.text(0, -40, 'BOT', {
+                fontFamily: 'Arial',
+                fontSize: 10,
+                color: '#888888',
+                stroke: '#000000',
+                strokeThickness: 1,
+                align: 'center'
+            }).setOrigin(0.5);
+            container.add(botText);
+        }
 
         // Animate container dropping straight down (sprite and text move together)
         this.scene.tweens.add({
@@ -126,36 +133,38 @@ export class PlayerManager {
             ease: 'Bounce.easeOut'
         });
 
-        // Store player data
-        const player: Player = {
+        // Store participant data
+        const gameParticipant: GameParticipant = {
             id: participant._id,
+            playerId: participant.playerId,
             container,
             sprite,
             nameText,
             characterKey,
             displayName: participant.displayName,
             betAmount: participant.betAmount,
-            eliminated: false,
+            size: scale,
+            colorHue: participant.colorHue,
+            isBot: participant.isBot || false,
+            eliminated: participant.eliminated || false,
             targetX,
-            targetY
+            targetY,
+            spawnIndex: participant.spawnIndex
         };
 
-        this.players.set(participant._id, player);
+        this.participants.set(participant._id, gameParticipant);
     }
 
-    private calculatePlayerScale(betAmountInCoins: number): number {
-        // Convert coins to SOL (1000 coins = 1 SOL)
-        const betInSol = betAmountInCoins / 1000;
-
-        // Base scale at 0.001 SOL (1 coin) = 1.0 (100%)
-        // Max scale at 3 SOL (3000 coins) = 3.0 (300%)
-        const minBet = 0.001;
-        const maxBet = 3;
+    private calculateParticipantScale(betAmountInCoins: number): number {
+        // Base scale at 10 coins = 1.0 (100%)
+        // Max scale at 10000 coins = 2.0 (200%)
+        const minBet = 10;
+        const maxBet = 10000;
         const minScale = 1.0;
-        const maxScale = 3.0;
+        const maxScale = 2.0;
 
         // Clamp bet amount
-        const clampedBet = Math.max(minBet, Math.min(maxBet, betInSol));
+        const clampedBet = Math.max(minBet, Math.min(maxBet, betAmountInCoins));
 
         // Linear scaling
         const scale = minScale + ((clampedBet - minBet) / (maxBet - minBet)) * (maxScale - minScale);
@@ -163,13 +172,44 @@ export class PlayerManager {
         return scale;
     }
 
-    updatePlayerScale(participant: any) {
-        const player = this.players.get(participant._id);
-        if (player) {
-            const newScale = this.calculatePlayerScale(participant.betAmount);
+    // Calculate spawn position based on map configuration and spawn index
+    private calculateSpawnPosition(spawnIndex: number, participant: any) {
+        if (!this.currentMap || !this.currentMap.spawnConfiguration) {
+            // Fallback to simple circular arrangement
+            const angle = (spawnIndex / 20) * Math.PI * 2;
+            const radius = 200;
+            return {
+                targetX: this.centerX + Math.cos(angle) * radius,
+                targetY: this.centerY + Math.sin(angle) * radius
+            };
+        }
+
+        const { spawnRadius } = this.currentMap.spawnConfiguration;
+        const totalParticipants = Math.max(8, spawnIndex + 1); // Ensure at least 8 for proper spacing
+        const angle = (spawnIndex / totalParticipants) * Math.PI * 2;
+        
+        // Add some variation for more natural positioning
+        const radiusVariation = (Math.random() - 0.5) * 40;
+        const angleVariation = (Math.random() - 0.5) * 0.2;
+        
+        const finalRadius = spawnRadius + radiusVariation;
+        const finalAngle = angle + angleVariation;
+        
+        return {
+            targetX: this.centerX + Math.cos(finalAngle) * finalRadius,
+            targetY: this.centerY + Math.sin(finalAngle) * finalRadius
+        };
+    }
+
+    updateParticipantScale(participant: any) {
+        const gameParticipant = this.participants.get(participant._id);
+        if (gameParticipant) {
+            const newScale = participant.size || this.calculateParticipantScale(participant.betAmount);
+            gameParticipant.size = newScale;
+            
             // Scale only the sprite, not the text
             this.scene.tweens.add({
-                targets: player.sprite,
+                targets: gameParticipant.sprite,
                 scaleX: newScale,
                 scaleY: newScale,
                 duration: 300,
@@ -178,55 +218,20 @@ export class PlayerManager {
         }
     }
 
-    removePlayer(playerId: string) {
-        const player = this.players.get(playerId);
-        if (player) {
+    removeParticipant(participantId: string) {
+        const participant = this.participants.get(participantId);
+        if (participant) {
             // Destroying the container automatically destroys all children
-            player.container.destroy();
-            this.players.delete(playerId);
-            this.playerCharacters.delete(playerId);
+            participant.container.destroy();
+            this.participants.delete(participantId);
         }
     }
 
-    private getRandomAngleWithSpacing(): number {
-        const minSpacing = 0.5; // Minimum radians between players (~28 degrees)
-        let attempts = 0;
-        let angle: number;
-
-        do {
-            angle = Math.random() * Math.PI * 2;
-            attempts++;
-
-            // If we've tried too many times, just use the random angle
-            if (attempts > 20) break;
-
-            // Check if angle is far enough from existing angles
-            const isFarEnough = this.usedAngles.every(usedAngle => {
-                const diff = Math.abs(angle - usedAngle);
-                // Account for wrap-around (e.g., 0 and 2π are close)
-                const minDiff = Math.min(diff, 2 * Math.PI - diff);
-                return minDiff >= minSpacing;
-            });
-
-            if (isFarEnough) break;
-        } while (attempts < 20);
-
-        // Store this angle for future spacing checks
-        this.usedAngles.push(angle);
-
-        // Clean up old angles if we have too many (in case players left)
-        if (this.usedAngles.length > this.players.size + 5) {
-            this.usedAngles = this.usedAngles.slice(-10);
-        }
-
-        return angle;
-    }
-
-    movePlayersToCenter() {
-        this.players.forEach((player) => {
+    moveParticipantsToCenter() {
+        this.participants.forEach((participant) => {
             // Animate container moving towards center (sprite and text move together)
             this.scene.tweens.add({
-                targets: player.container,
+                targets: participant.container,
                 x: this.centerX + (Math.random() - 0.5) * 100,
                 y: this.centerY + (Math.random() - 0.5) * 100,
                 duration: 2000 + Math.random() * 1000,
@@ -234,49 +239,44 @@ export class PlayerManager {
             });
 
             // Change to walking animation
-            player.sprite.play(`${player.characterKey}-walk`);
+            participant.sprite.play(`${participant.characterKey}-walk`);
         });
     }
 
-    showTop4Players(survivors: any[]) {
-        // Highlight the top 4 finalists (only called when 8+ players)
-        const finalists = survivors.slice(0, 4);
+    showSurvivors(survivorIds: string[]) {
+        // Highlight the survivors (only called for large games)
+        this.participants.forEach((participant, id) => {
+            const isSurvivor = survivorIds.includes(id);
 
-        this.players.forEach((player, id) => {
-            const isFinalist = finalists.some((s: any) => s._id === id);
-
-            if (isFinalist) {
-                // Highlight finalists
-                player.sprite.setTint(0xffd700); // Golden tint
-                player.nameText.setColor('#ffd700'); // Golden name
+            if (isSurvivor) {
+                // Highlight survivors
+                participant.sprite.setTint(0xffd700); // Golden tint
+                participant.nameText.setColor('#ffd700'); // Golden name
 
                 // Add glowing effect to container (affects both sprite and text)
                 this.scene.tweens.add({
-                    targets: player.container,
+                    targets: participant.container,
                     alpha: { from: 1, to: 0.7 },
                     duration: 500,
                     yoyo: true,
                     repeat: -1
                 });
             } else {
-                // Fade out eliminated players
-                player.sprite.setTint(0x666666);
-                player.container.setAlpha(0.3);  // Fades both sprite and text
-                player.eliminated = true;
+                // Fade out eliminated participants
+                participant.sprite.setTint(0x666666);
+                participant.container.setAlpha(0.3);  // Fades both sprite and text
+                participant.eliminated = true;
             }
         });
-
-        // Clear used angles when moving to betting phase
-        this.usedAngles = [];
     }
 
     showBattlePhase() {
-        // Animate battle between remaining players
-        this.players.forEach((player) => {
-            if (!player.eliminated) {
+        // Animate battle between remaining participants
+        this.participants.forEach((participant) => {
+            if (!participant.eliminated) {
                 // Battle animations - rapid movement of container
                 this.scene.tweens.add({
-                    targets: player.container,
+                    targets: participant.container,
                     x: this.centerX + (Math.random() - 0.5) * 200,
                     y: this.centerY + (Math.random() - 0.5) * 200,
                     duration: 300,
@@ -284,6 +284,9 @@ export class PlayerManager {
                     repeat: 5,
                     yoyo: true
                 });
+
+                // Change to attack animation
+                participant.sprite.play(`${participant.characterKey}-attack`);
             }
         });
     }
@@ -294,26 +297,26 @@ export class PlayerManager {
         const winner = gameState.participants?.find((p: any) => p._id === winnerId);
 
         if (winner) {
-            // Hide all other players first
-            this.players.forEach((player, id) => {
+            // Hide all other participants first
+            this.participants.forEach((participant, id) => {
                 if (id !== winner._id) {
                     // Fade out losers
                     this.scene.tweens.add({
-                        targets: player.container,
+                        targets: participant.container,
                         alpha: 0,
                         duration: 500,
                         onComplete: () => {
-                            player.container.setVisible(false);
+                            participant.container.setVisible(false);
                         }
                     });
                 }
             });
 
-            const winnerPlayer = this.players.get(winner._id);
-            if (winnerPlayer) {
+            const winnerParticipant = this.participants.get(winner._id);
+            if (winnerParticipant) {
                 // Move winner to center of screen
                 this.scene.tweens.add({
-                    targets: winnerPlayer.container,
+                    targets: winnerParticipant.container,
                     x: this.centerX,
                     y: this.centerY,
                     duration: 1000,
@@ -322,75 +325,64 @@ export class PlayerManager {
 
                 // Scale up the winner sprite
                 this.scene.tweens.add({
-                    targets: winnerPlayer.sprite,
-                    scaleX: winnerPlayer.sprite.scaleX * 2,
-                    scaleY: winnerPlayer.sprite.scaleY * 2,
+                    targets: winnerParticipant.sprite,
+                    scaleX: winnerParticipant.sprite.scaleX * 2,
+                    scaleY: winnerParticipant.sprite.scaleY * 2,
                     duration: 1000,
                     ease: 'Back.easeOut'
                 });
 
                 // Make winner golden
-                winnerPlayer.sprite.setTint(0xffd700);
-                winnerPlayer.nameText.setColor('#ffd700');
-                winnerPlayer.nameText.setFontSize(20);
-                winnerPlayer.nameText.setStroke('#000000', 4);
+                winnerParticipant.sprite.setTint(0xffd700);
+                winnerParticipant.nameText.setColor('#ffd700');
+                winnerParticipant.nameText.setFontSize(20);
+                winnerParticipant.nameText.setStroke('#000000', 4);
 
-                return winnerPlayer;
+                // Victory animation
+                winnerParticipant.sprite.play(`${winnerParticipant.characterKey}-idle`);
+
+                return winnerParticipant;
             }
         }
         return null;
     }
 
-    spawnPlayerImmediately(participant: any) {
-        // Check if player already exists
-        if (this.players.has(participant._id)) {
-            // Update existing player's bet amount/scale
-            this.updatePlayerScale(participant);
+    spawnParticipantImmediately(participant: any) {
+        // Check if participant already exists
+        if (this.participants.has(participant._id)) {
+            // Update existing participant's bet amount/scale
+            this.updateParticipantScale(participant);
             return;
         }
 
-        // Add new player with special effects
-        const index = this.players.size;
-        this.addPlayerWithFanfare(participant, index);
+        // Add new participant with special effects
+        this.addParticipantWithFanfare(participant);
     }
 
-    private addPlayerWithFanfare(participant: any, _index: number) {
-        // Generate a random angle with some spacing from other players
-        const angle = this.getRandomAngleWithSpacing();
+    private addParticipantWithFanfare(participant: any) {
+        // Calculate spawn position
+        const { targetX, targetY } = this.calculateSpawnPosition(participant.spawnIndex, participant);
+        const spawnX = targetX;
+        const spawnY = -50;
 
-        // Add some radius variation for more natural placement
-        const radiusVariation = (Math.random() - 0.5) * 40; // ±20 pixels
-        const radius = 180 + radiusVariation;
+        // Get character
+        let characterKey = 'warrior';
+        if (participant.character && participant.character.spriteKey) {
+            characterKey = participant.character.spriteKey;
+        }
 
-        // Calculate target position with some additional randomness
-        const angleOffset = (Math.random() - 0.5) * 0.2; // Small angle variation
-        const finalAngle = angle + angleOffset;
-        const targetX = this.centerX + Math.cos(finalAngle) * radius;
-        const targetY = this.centerY + Math.sin(finalAngle) * radius;
-
-        // Spawn directly above the target position (same X)
-        const spawnX = targetX;  // Same X as final position
-        const spawnY = -50;      // Above the screen
-
-        // Get random character for this player
-        const character = getRandomCharacter();
-        const characterKey = character.key;
-
-        // Store character choice
-        this.playerCharacters.set(participant._id, characterKey);
-
-        // Create a container to hold both sprite and name
+        // Create container
         const container = this.scene.add.container(spawnX, spawnY);
         container.setDepth(100);
 
-        // Create player sprite (position relative to container)
+        // Create sprite
         const sprite = this.scene.add.sprite(0, 0, characterKey);
         sprite.play(`${characterKey}-idle`);
 
         // Calculate scale
-        const scale = this.calculatePlayerScale(participant.betAmount);
+        const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
 
-        // Create name text (positioned below sprite, relative to container)
+        // Create name text
         const nameText = this.scene.add.text(0, 40, participant.displayName, {
             fontFamily: 'Arial',
             fontSize: 14,
@@ -400,70 +392,65 @@ export class PlayerManager {
             align: 'center'
         }).setOrigin(0.5);
 
-        // Add both sprite and text to container
+        // Add to container
         container.add([sprite, nameText]);
-        
-        // Scale only the sprite, not the text
         sprite.setScale(scale);
+
+        // Apply color tint if specified
+        if (participant.colorHue !== undefined) {
+            const hue = participant.colorHue / 360;
+            const color = Phaser.Display.Color.HSVToRGB(hue, 0.8, 1.0);
+            const tint = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
+            sprite.setTint(tint);
+        }
 
         // Flash effect for new arrival
         sprite.setTint(0xffd700);
-        this.scene.time.delayedCall(200, () => sprite.clearTint());
-
-        // Animate container straight down with special entrance
-        this.scene.tweens.add({
-            targets: container,
-            y: targetY,  // Only animate Y, X stays the same
-            duration: 1000,
-            ease: 'Bounce.easeOut',
-            onStart: () => {
-                // Particle effect at spawn point
-                this.scene.add.particles(spawnX, spawnY, 'star', {
-                    lifespan: 600,
-                    speed: { min: 100, max: 200 },
-                    scale: { start: 0.5, end: 0 },
-                    tint: 0xffd700,
-                    blendMode: 'ADD'
-                });
+        this.scene.time.delayedCall(200, () => {
+            if (participant.colorHue !== undefined) {
+                const hue = participant.colorHue / 360;
+                const color = Phaser.Display.Color.HSVToRGB(hue, 0.8, 1.0);
+                const tint = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
+                sprite.setTint(tint);
+            } else {
+                sprite.clearTint();
             }
         });
 
-        // Add floating "NEW PLAYER!" text (at spawn position)
-        const newPlayerText = this.scene.add.text(spawnX, spawnY - 30, 'NEW PLAYER!', {
-            fontFamily: 'Arial Black',
-            fontSize: 16,
-            color: '#ffd700',
-            stroke: '#000000',
-            strokeThickness: 3
-        }).setOrigin(0.5).setDepth(200);
-
-        // Animate and fade out the text
+        // Animate container drop
         this.scene.tweens.add({
-            targets: newPlayerText,
-            y: spawnY - 60,
-            alpha: 0,
-            duration: 1500,
-            onComplete: () => newPlayerText.destroy()
+            targets: container,
+            y: targetY,
+            duration: 1000,
+            ease: 'Bounce.easeOut'
         });
 
-        // Store player data
-        const player: Player = {
+        // Store participant data
+        const gameParticipant: GameParticipant = {
             id: participant._id,
+            playerId: participant.playerId,
             container,
             sprite,
             nameText,
             characterKey,
             displayName: participant.displayName,
             betAmount: participant.betAmount,
-            eliminated: false,
+            size: scale,
+            colorHue: participant.colorHue,
+            isBot: participant.isBot || false,
+            eliminated: participant.eliminated || false,
             targetX,
-            targetY
+            targetY,
+            spawnIndex: participant.spawnIndex
         };
 
-        this.players.set(participant._id, player);
+        this.participants.set(participant._id, gameParticipant);
     }
 
-    resetUsedAngles() {
-        this.usedAngles = [];
+    clearParticipants() {
+        this.participants.forEach(participant => {
+            participant.container.destroy();
+        });
+        this.participants.clear();
     }
 }

@@ -67,9 +67,9 @@ export class Game extends Scene {
     this.gamePhaseManager.handleGamePhase(gameState);
   }
 
-  // Public method for real-time player spawning
-  public spawnPlayerImmediately(participant: any) {
-    this.playerManager.spawnPlayerImmediately(participant);
+  // Public method for real-time participant spawning
+  public spawnParticipantImmediately(participant: any) {
+    this.playerManager.spawnParticipantImmediately(participant);
   }
 
   // Add update method to continuously update the timer

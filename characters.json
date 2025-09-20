@@ -1,0 +1,191 @@
+{
+  "characters": [
+    {
+      "name": "Warrior",
+      "spriteKey": "warrior",
+      "description": "A mighty fighter with high power and defense",
+      "animations": {
+        "idle": "warrior_idle",
+        "walk": "warrior_walk",
+        "attack": "warrior_attack"
+      },
+      "baseStats": {
+        "power": 1.2,
+        "speed": 0.8,
+        "luck": 1.0
+      },
+      "isActive": true
+    },
+    {
+      "name": "Mage",
+      "spriteKey": "mage",
+      "description": "A mystical spellcaster with balanced stats",
+      "animations": {
+        "idle": "mage_idle",
+        "walk": "mage_walk",
+        "attack": "mage_attack"
+      },
+      "baseStats": {
+        "power": 1.0,
+        "speed": 1.0,
+        "luck": 1.2
+      },
+      "isActive": true
+    },
+    {
+      "name": "Archer",
+      "spriteKey": "archer",
+      "description": "A swift ranger with high speed and precision",
+      "animations": {
+        "idle": "archer_idle",
+        "walk": "archer_walk",
+        "attack": "archer_attack"
+      },
+      "baseStats": {
+        "power": 0.9,
+        "speed": 1.3,
+        "luck": 1.0
+      },
+      "isActive": true
+    },
+    {
+      "name": "Rogue",
+      "spriteKey": "rogue",
+      "description": "A sneaky assassin with high luck and speed",
+      "animations": {
+        "idle": "rogue_idle",
+        "walk": "rogue_walk",
+        "attack": "rogue_attack"
+      },
+      "baseStats": {
+        "power": 0.8,
+        "speed": 1.1,
+        "luck": 1.4
+      },
+      "isActive": true
+    },
+    {
+      "name": "Paladin",
+      "spriteKey": "paladin",
+      "description": "A holy knight with exceptional power and defense",
+      "animations": {
+        "idle": "paladin_idle",
+        "walk": "paladin_walk",
+        "attack": "paladin_attack"
+      },
+      "baseStats": {
+        "power": 1.4,
+        "speed": 0.7,
+        "luck": 1.1
+      },
+      "isActive": true
+    },
+    {
+      "name": "Berserker",
+      "spriteKey": "berserker",
+      "description": "A wild fighter with extreme power but low defense",
+      "animations": {
+        "idle": "berserker_idle",
+        "walk": "berserker_walk",
+        "attack": "berserker_attack"
+      },
+      "baseStats": {
+        "power": 1.5,
+        "speed": 1.0,
+        "luck": 0.7
+      },
+      "isActive": true
+    },
+    {
+      "name": "Necromancer",
+      "spriteKey": "necromancer",
+      "description": "A dark sorcerer with high luck and magical power",
+      "animations": {
+        "idle": "necromancer_idle",
+        "walk": "necromancer_walk",
+        "attack": "necromancer_attack"
+      },
+      "baseStats": {
+        "power": 1.1,
+        "speed": 0.9,
+        "luck": 1.5
+      },
+      "isActive": true
+    },
+    {
+      "name": "Demon",
+      "spriteKey": "demon",
+      "description": "A fierce creature from the underworld",
+      "animations": {
+        "idle": "demon_idle",
+        "walk": "demon_walk",
+        "attack": "demon_attack"
+      },
+      "baseStats": {
+        "power": 1.6,
+        "speed": 1.2,
+        "luck": 0.8
+      },
+      "isActive": true
+    },
+    {
+      "name": "Dragon",
+      "spriteKey": "dragon",
+      "description": "A legendary beast with overwhelming power",
+      "animations": {
+        "idle": "dragon_idle",
+        "walk": "dragon_walk",
+        "attack": "dragon_attack"
+      },
+      "baseStats": {
+        "power": 1.8,
+        "speed": 0.6,
+        "luck": 1.2
+      },
+      "isActive": true
+    },
+    {
+      "name": "Phoenix",
+      "spriteKey": "phoenix",
+      "description": "A mythical bird with incredible luck and rebirth powers",
+      "animations": {
+        "idle": "phoenix_idle",
+        "walk": "phoenix_walk",
+        "attack": "phoenix_attack"
+      },
+      "baseStats": {
+        "power": 1.3,
+        "speed": 1.4,
+        "luck": 1.8
+      },
+      "isActive": true
+    }
+  ],
+  "rarityInfo": {
+    "common": {
+      "color": "#ffffff",
+      "description": "Basic characters available to everyone",
+      "probability": 0.70
+    },
+    "rare": {
+      "color": "#00ff00",
+      "description": "Stronger characters with better stats",
+      "probability": 0.20
+    },
+    "epic": {
+      "color": "#9932cc",
+      "description": "Powerful characters with unique abilities",
+      "probability": 0.08
+    },
+    "legendary": {
+      "color": "#ffd700",
+      "description": "The most powerful characters in the game",
+      "probability": 0.02
+    }
+  },
+  "statExplanation": {
+    "power": "Affects damage dealt and bet-to-size scaling. Higher power = bigger impact in battles.",
+    "speed": "Affects movement speed and positioning advantages. Higher speed = better positioning.",
+    "luck": "Affects critical hit chance and random event outcomes. Higher luck = better odds."
+  }
+}

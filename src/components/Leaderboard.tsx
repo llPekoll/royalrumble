@@ -96,13 +96,13 @@ export function Leaderboard() {
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-white">
-                {playerRank.totalWins}
+                {playerRank.wins}
               </div>
               <div className="text-sm text-gray-400">Wins</div>
             </div>
             <div className="text-center">
               <div className="text-xl font-bold text-white">
-                {playerRank.totalGames}
+                {playerRank.gamesPlayed}
               </div>
               <div className="text-sm text-gray-400">Games</div>
             </div>
@@ -195,11 +195,11 @@ export function Leaderboard() {
                   {/* Stats */}
                   <div className="grid grid-cols-4 gap-6 text-right">
                     <div>
-                      <div className="font-bold text-white">{entry.totalWins}</div>
+                      <div className="font-bold text-white">{entry.wins}</div>
                       <div className="text-xs text-gray-400">Wins</div>
                     </div>
                     <div>
-                      <div className="font-bold text-white">{entry.totalGames}</div>
+                      <div className="font-bold text-white">{entry.gamesPlayed}</div>
                       <div className="text-xs text-gray-400">Games</div>
                     </div>
                     <div>

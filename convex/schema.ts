@@ -194,9 +194,13 @@ export default defineSchema({
     wins: v.number(),
     totalEarnings: v.number(),
     winRate: v.number(), // Percentage as decimal (0.45 = 45%)
+    highestPayout: v.number(), // Biggest single win
     rank: v.number(),
   }).index("by_period_rank", ["period", "rank"])
-    .index("by_player_period", ["playerId", "period"]),
+    .index("by_player_period", ["playerId", "period"])
+    .index("by_wallet", ["walletAddress"])
+    .index("by_wins", ["wins"])
+    .index("by_earnings", ["totalEarnings"]),
 
   // Bot configuration for demo games
   botConfigs: defineTable({

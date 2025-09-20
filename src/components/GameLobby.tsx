@@ -4,335 +4,422 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { Input } from "./ui/input";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
+import { CharacterSelection } from "./CharacterSelection";
+import { MultiParticipantPanel } from "./MultiParticipantPanel";
+import { 
+  Clock, 
+  Users, 
+  Coins, 
+  Trophy, 
+  Target,
+  Map,
+  Gamepad2
+} from "lucide-react";
 
 export function GameLobby() {
   const { connected, publicKey } = useWallet();
-  const [betAmount, setBetAmount] = useState(100);
+  const [spectatorBetAmount, setSpectatorBetAmount] = useState(100);
+  const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
 
   // Get current game
   const currentGame = useQuery(api.games.getCurrentGame);
 
-  // Get player data
+  // Get player data  
   const playerData = useQuery(
-    api.players.getPlayer,
+    api.players.getPlayerWithCharacter,
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
+  );
+
+  // Get betting statistics
+  const bettingStats = useQuery(
+    api.bets.getBettingStats,
+    currentGame ? { gameId: currentGame._id } : "skip"
   );
 
   // Mutations
   const createPlayer = useMutation(api.players.createPlayer);
-  const joinGame = useMutation(api.games.joinGame);
-  const placeSpectatorBet = useMutation(api.games.placeSpectatorBet);
+  const placeBet = useMutation(api.bets.placeBet);
 
   const gameCoins = playerData?.gameCoins || 0;
 
+  // Check if player has participants in current game
+  const playerParticipants = currentGame?.participants?.filter(
+    (p: any) => p.walletAddress === publicKey?.toString()
+  ) || [];
 
-  // Check if player is in current game
-  const playerInGame = currentGame?.participants?.find(
-    p => p.walletAddress === publicKey?.toString()
-  );
+  // Get survivors for betting (only in large games during betting phase)
+  const survivors = currentGame?.participants?.filter((p: any) => !p.eliminated) || [];
+  const canPlaceSpectatorBets = currentGame?.status === "betting" && survivors.length > 0;
 
-  // Get finalists for betting phase
-  const finalists = currentGame?.participants?.filter(p => !p.eliminated) || [];
+  // Get phase information
+  const getPhaseInfo = () => {
+    if (!currentGame) return { name: "Loading...", description: "" };
 
-  const handleJoinGame = async () => {
-    if (!connected || !publicKey) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-
-    if (betAmount < 10 || betAmount > 10000) {
-      toast.error("Bet amount must be between 10 and 10,000 coins");
-      return;
-    }
-
-    if (gameCoins < betAmount) {
-      toast.error("Insufficient game coins");
-      return;
-    }
-
-    try {
-      // Create player if doesn't exist
-      if (!playerData) {
-        await createPlayer({ walletAddress: publicKey.toString() });
-      }
-
-      await joinGame({
-        walletAddress: publicKey.toString(),
-        betAmount,
-      });
-
-      toast.success("Successfully joined the game!");
-      setBetAmount(100); // Reset bet amount
-    } catch (error) {
-      console.error("Failed to join game:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to join game");
+    const isSmallGame = currentGame.isSmallGame || currentGame.participantCount < 8;
+    
+    switch (currentGame.status) {
+      case "waiting":
+        return {
+          name: "Waiting Phase",
+          description: "Players joining and placing entry bets"
+        };
+      case "selection":
+        return {
+          name: "Selection Phase", 
+          description: "Final character selection and preparation"
+        };
+      case "arena":
+        return {
+          name: "Arena Phase",
+          description: "Characters moving to center for battle"
+        };
+      case "elimination":
+        return {
+          name: "Elimination Phase",
+          description: "Reducing to top 4 survivors"
+        };
+      case "betting":
+        return {
+          name: "Betting Phase",
+          description: "Spectator betting on top 4 survivors"
+        };
+      case "battle":
+        return {
+          name: "Battle Phase", 
+          description: "Final showdown between survivors"
+        };
+      case "results":
+        return {
+          name: "Results Phase",
+          description: "Winner announced and rewards distributed"
+        };
+      default:
+        return {
+          name: "Unknown Phase",
+          description: ""
+        };
     }
   };
 
-  const handleSpectatorBet = async (targetId: Id<"gameParticipants">) => {
+  const formatTimeRemaining = (ms: number) => {
+    const seconds = Math.ceil(ms / 1000);
+    return `${seconds}s`;
+  };
+
+  const handleCreatePlayer = async () => {
     if (!connected || !publicKey) {
       toast.error("Please connect your wallet first");
       return;
     }
 
-    if (!currentGame) {
-      toast.error("No active game");
+    try {
+      await createPlayer({ 
+        walletAddress: publicKey.toString(),
+        displayName: `Player ${Math.floor(Math.random() * 1000)}`
+      });
+      toast.success("Player created! You've been given a random character and 1000 starting coins.");
+    } catch (error) {
+      console.error("Failed to create player:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create player");
+    }
+  };
+
+  const handleSpectatorBet = async () => {
+    if (!connected || !publicKey || !currentGame || !playerData) {
+      toast.error("Please connect your wallet and ensure game data is loaded");
       return;
     }
 
-    if (betAmount < 10 || betAmount > 10000) {
+    if (!selectedParticipantId) {
+      toast.error("Please select a participant to bet on");
+      return;
+    }
+
+    if (spectatorBetAmount < 10 || spectatorBetAmount > 10000) {
       toast.error("Bet amount must be between 10 and 10,000 coins");
       return;
     }
 
-    if (gameCoins < betAmount) {
+    if (gameCoins < spectatorBetAmount) {
       toast.error("Insufficient game coins");
       return;
     }
 
     try {
-      await placeSpectatorBet({
-        walletAddress: publicKey.toString(),
+      await placeBet({
         gameId: currentGame._id,
-        targetParticipantId: targetId,
-        betAmount,
+        playerId: playerData._id,
+        walletAddress: publicKey.toString(),
+        betType: "spectator",
+        targetParticipantId: selectedParticipantId as Id<"gameParticipants">,
+        amount: spectatorBetAmount,
       });
 
-      toast.success("Spectator bet placed!");
-      setBetAmount(100); // Reset bet amount
+      toast.success("Spectator bet placed successfully!");
+      setSelectedParticipantId("");
+      setSpectatorBetAmount(100);
     } catch (error) {
-      console.error("Failed to place bet:", error);
+      console.error("Failed to place spectator bet:", error);
       toast.error(error instanceof Error ? error.message : "Failed to place bet");
     }
   };
 
-
-  const getPhaseDescription = (game: any) => {
-    switch (game.status) {
-      case "waiting":
-        return "⏳ Waiting for players to join";
-      case "arena":
-        return "🏃‍♂️ Players running to center";
-      case "betting":
-        return `💰 Betting on top 4 survivors`;
-      case "battle":
-        return "⚔️ Final battle in progress";
-      case "results":
-        return "🏆 Showing results";
-      default:
-        return "🎮 Game in progress";
-    }
-  };
-
-  const getPhaseName = (game: any) => {
-    switch (game.status) {
-      case "waiting":
-        return "Join Phase";
-      case "arena":
-        return "Arena Phase";
-      case "betting":
-        return "Betting Phase";
-      case "battle":
-        return "Battle Phase";
-      case "results":
-        return "Results Phase";
-      default:
-        return "Game Phase";
-    }
-  };
-
-  if (!currentGame) {
+  if (!connected) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">🎮 Royal Rumble</h2>
-          <p className="text-gray-400 mb-4">Game Creation in progress...</p>
+      <div className="space-y-4">
+        <Card className="p-6 text-center">
+          <Gamepad2 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <h2 className="text-xl font-bold mb-2">Royal Rumble</h2>
+          <p className="text-gray-400 mb-4">
+            Connect your wallet to join the battle royale
+          </p>
+          <p className="text-sm text-gray-500">
+            Control multiple characters, place strategic bets, and win rewards!
+          </p>
         </Card>
       </div>
     );
   }
 
+  if (!playerData) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-6 text-center">
+          <Users className="w-12 h-12 mx-auto mb-4 text-blue-400" />
+          <h2 className="text-xl font-bold mb-2">Welcome to Royal Rumble!</h2>
+          <p className="text-gray-400 mb-4">
+            Create your player profile to start battling
+          </p>
+          <Button onClick={handleCreatePlayer} size="lg">
+            Create Player Profile
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const phaseInfo = getPhaseInfo();
+
   return (
     <div className="space-y-4">
-      {/* Game Status Header */}
-      <Card className="p-4 bg-gradient-to-r from-purple-900/50 to-blue-900/50 border-purple-500/30">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-xl font-bold text-white mb-1">🏆 Royal Rumble</h1>
-            <p className="text-sm text-purple-200">{getPhaseDescription(currentGame)}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-bold text-purple-400">
-              {/* Show phase count based on player count */}
-              Phase {currentGame.phase}/{(currentGame.participants?.length || 0) < 8 ? '3' : '5'}
+      {/* Game Status Card */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Clock className="w-5 h-5 text-blue-400" />
+            <div>
+              <h3 className="font-bold">{phaseInfo.name}</h3>
+              <p className="text-sm text-gray-400">{phaseInfo.description}</p>
             </div>
-            <div className="text-xs text-gray-400">{getPhaseName(currentGame)}</div>
+          </div>
+          
+          {currentGame?.timeRemaining && (
+            <div className="text-right">
+              <div className="text-2xl font-bold text-yellow-400">
+                {formatTimeRemaining(currentGame.timeRemaining)}
+              </div>
+              <div className="text-xs text-gray-400">remaining</div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <Users className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+            <div className="text-sm text-gray-400">Participants</div>
+            <div className="font-bold">{currentGame?.participantCount || 0}</div>
+          </div>
+          
+          <div className="text-center">
+            <Coins className="w-5 h-5 mx-auto mb-1 text-yellow-400" />
+            <div className="text-sm text-gray-400">Total Pool</div>
+            <div className="font-bold text-yellow-400">{currentGame?.totalPot || 0}</div>
+          </div>
+          
+          <div className="text-center">
+            <Map className="w-5 h-5 mx-auto mb-1 text-green-400" />
+            <div className="text-sm text-gray-400">Map</div>
+            <div className="font-bold text-green-400">{currentGame?.map?.name || "Loading"}</div>
+          </div>
+          
+          <div className="text-center">
+            <Trophy className="w-5 h-5 mx-auto mb-1 text-purple-400" />
+            <div className="text-sm text-gray-400">Your Coins</div>
+            <div className="font-bold text-purple-400">{gameCoins}</div>
           </div>
         </div>
 
+        {currentGame?.isSmallGame && (
+          <div className="mt-3 p-2 bg-blue-900/20 border border-blue-500 rounded text-center">
+            <p className="text-blue-400 text-sm">
+              ⚡ Quick Game Mode: 3 phases (45 seconds total)
+            </p>
+          </div>
+        )}
       </Card>
 
-      {/* Join Game or Spectator Betting */}
-      {currentGame.status === "waiting" && !playerInGame && connected && (
-        <Card className="p-4 border-green-500/30 bg-green-900/20">
-          <div className="mb-3">
-            <h2 className="text-lg font-bold text-green-400">🎯 Join the Battle!</h2>
-          </div>
+      {/* Character Selection */}
+      <CharacterSelection />
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
-                Bet Amount (10-10,000 coins)
-              </label>
-              <input
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(Number(e.target.value))}
-                min={10}
-                max={10000}
-                className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-600 rounded-md text-white"
-              />
-            </div>
+      {/* Multi-Participant Panel - only show during waiting phase */}
+      {currentGame?.status === "waiting" && <MultiParticipantPanel />}
 
-            <Button
-              onClick={handleJoinGame}
-              disabled={!connected || gameCoins < betAmount}
-              className="w-full bg-green-600 hover:bg-green-700 text-sm py-2"
-            >
-              Join Game ({betAmount.toLocaleString()} coins)
-            </Button>
-          </div>
-
-          {!connected && (
-            <p className="text-yellow-400 text-sm">
-              💡 Connect your wallet to join the game
-            </p>
-          )}
-
-          {connected && gameCoins < betAmount && (
-            <p className="text-red-400 text-sm">
-              ❌ Insufficient coins. You have {gameCoins.toLocaleString()} coins.
-            </p>
-          )}
-        </Card>
-      )}
-
-      {/* Finalists Betting Phase */}
-      {currentGame.status === "betting" && finalists.length > 0 && !playerInGame && connected && (
-        <Card className="p-6 border-yellow-500/30 bg-yellow-900/20">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-yellow-400">🎲 Bet on the Winner!</h2>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Bet Amount (10-10,000 coins)
-            </label>
-            <input
-              type="number"
-              value={betAmount}
-              onChange={(e) => setBetAmount(Number(e.target.value))}
-              min={10}
-              max={10000}
-              className="w-full max-w-xs px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {finalists.map((participant) => (
-              <Card key={participant._id} className="p-4 bg-gray-800/50 border-gray-600">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">
-                    🎮{participant.spriteIndex}
+      {/* Current Participants */}
+      {playerParticipants.length > 0 && (
+        <Card className="p-4">
+          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Your Participants ({playerParticipants.length})
+          </h3>
+          <div className="grid gap-3">
+            {playerParticipants.map((participant: any) => (
+              <div 
+                key={participant._id}
+                className="flex items-center justify-between p-3 bg-gray-800 rounded border"
+              >
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-4 h-4 rounded-full border"
+                    style={{ 
+                      backgroundColor: participant.colorHue !== undefined 
+                        ? `hsl(${participant.colorHue}, 80%, 60%)` 
+                        : '#666'
+                    }}
+                  />
+                  <div>
+                    <div className="font-medium">{participant.displayName}</div>
+                    <div className="text-sm text-gray-400">
+                      {participant.character?.name} • {participant.betAmount} coins
+                    </div>
                   </div>
-                  <div className="font-bold text-white mb-1">
-                    {participant.displayName}
-                  </div>
-                  <div className="text-sm text-gray-400 mb-3">
-                    Bet: {participant.betAmount.toLocaleString()} coins
-                  </div>
-                  <Button
-                    onClick={() => handleSpectatorBet(participant._id)}
-                    disabled={gameCoins < betAmount}
-                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-sm"
-                  >
-                    Bet {betAmount.toLocaleString()}
-                  </Button>
                 </div>
-              </Card>
+                
+                {participant.eliminated && (
+                  <div className="text-red-400 text-sm font-semibold">ELIMINATED</div>
+                )}
+                
+                {participant.finalPosition && (
+                  <div className="text-yellow-400 text-sm font-semibold">
+                    #{participant.finalPosition}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </Card>
       )}
 
-      {/* Players List */}
-      <Card className="p-4">
-        <h2 className="text-lg font-bold text-white mb-3">
-          👥 Players ({currentGame.participants?.length || 0})
-        </h2>
-
-        <div className="space-y-2">
-          {currentGame.participants?.map((participant) => (
-            <div
-              key={participant._id}
-              className={`p-2 rounded border ${participant.eliminated
-                ? "bg-red-900/20 border-red-500/30"
-                : "bg-blue-900/20 border-blue-500/30"
-                } ${participant.walletAddress === publicKey?.toString()
-                  ? "ring-1 ring-green-500"
-                  : ""
-                }`}
-            >
-              <div className="flex items-center space-x-2">
-                <div className="text-lg">
-                  {participant.eliminated ? "💀" : `🎮${participant.spriteIndex}`}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-white text-sm truncate">
-                    {participant.displayName}
-                    {participant.isBot && " (Bot)"}
+      {/* Spectator Betting - only show during betting phase */}
+      {canPlaceSpectatorBets && (
+        <Card className="p-4">
+          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Spectator Betting
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="grid gap-3">
+              {survivors.map((participant: any) => {
+                // Don't allow betting on own participants
+                const isOwnParticipant = participant.walletAddress === publicKey?.toString();
+                const stats = bettingStats?.participantStats?.find(
+                  (s: any) => s.participantId === participant._id
+                );
+                
+                return (
+                  <div 
+                    key={participant._id}
+                    className={`p-3 rounded border cursor-pointer transition-all ${
+                      selectedParticipantId === participant._id
+                        ? 'border-blue-500 bg-blue-900/20'
+                        : isOwnParticipant
+                        ? 'border-gray-600 bg-gray-700/50 cursor-not-allowed opacity-50'
+                        : 'border-gray-600 hover:border-gray-500'
+                    }`}
+                    onClick={() => !isOwnParticipant && setSelectedParticipantId(participant._id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-4 h-4 rounded-full border"
+                          style={{ 
+                            backgroundColor: participant.colorHue !== undefined 
+                              ? `hsl(${participant.colorHue}, 80%, 60%)` 
+                              : '#666'
+                          }}
+                        />
+                        <div>
+                          <div className="font-medium">{participant.displayName}</div>
+                          <div className="text-sm text-gray-400">
+                            {participant.character?.name} • {participant.betAmount} entry bet
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        {stats && (
+                          <div className="text-sm">
+                            <div className="text-yellow-400">{stats.totalBetAmount} coins bet</div>
+                            <div className="text-gray-400">{stats.betCount} bets</div>
+                          </div>
+                        )}
+                        {isOwnParticipant && (
+                          <div className="text-blue-400 text-xs">YOUR PARTICIPANT</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {participant.betAmount.toLocaleString()} coins
-                  </div>
-                  {participant.eliminated && (
-                    <div className="text-xs text-red-400">Eliminated</div>
-                  )}
-                </div>
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
 
-        {(!currentGame.participants || currentGame.participants.length === 0) && (
-          <div className="text-center text-gray-400 py-8">
-            Be the first to join! and get more chance to win!
-          </div>
-        )}
-      </Card>
-
-      {/* Game Demo Mode Notice */}
-      {currentGame.isDemo && (
-        <Card className="p-4 bg-orange-900/20 border-orange-500/30">
-          <div className="flex items-center space-x-2">
-            <span className="text-orange-400">🤖</span>
-            <span className="text-orange-300">
-              Demo mode: This game is running with bots only
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  value={spectatorBetAmount}
+                  onChange={(e) => setSpectatorBetAmount(parseInt(e.target.value) || 0)}
+                  placeholder="Bet amount"
+                  min={10}
+                  max={10000}
+                />
+              </div>
+              <Button
+                onClick={handleSpectatorBet}
+                disabled={!selectedParticipantId || spectatorBetAmount < 10 || gameCoins < spectatorBetAmount}
+              >
+                Place Bet
+              </Button>
+            </div>
           </div>
         </Card>
       )}
 
-      {/* Single Player Mode Notice */}
-      {currentGame.isSinglePlayer && (
-        <Card className="p-4 bg-blue-900/20 border-blue-500/30">
-          <div className="flex items-center space-x-2">
-            <span className="text-blue-400">🎯</span>
-            <span className="text-blue-300">
-              Single player mode: You'll compete against bots and your bet will be refunded
-            </span>
+      {/* Game Results */}
+      {currentGame?.status === "results" && currentGame.winnerId && (
+        <Card className="p-4">
+          <div className="text-center">
+            <Trophy className="w-12 h-12 mx-auto mb-3 text-yellow-400" />
+            <h3 className="text-xl font-bold mb-2">Game Complete!</h3>
+            
+            {(() => {
+              const winner = currentGame.participants?.find((p: any) => p._id === currentGame.winnerId);
+              const isPlayerWinner = winner && playerParticipants.some((p: any) => p._id === winner._id);
+              
+              return (
+                <div>
+                  <p className="text-lg mb-2">
+                    Winner: <span className="text-yellow-400 font-bold">{winner?.displayName}</span>
+                  </p>
+                  {isPlayerWinner && (
+                    <p className="text-green-400 font-bold">🎉 Congratulations! You won! 🎉</p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </Card>
       )}

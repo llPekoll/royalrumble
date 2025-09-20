@@ -37,8 +37,11 @@ export const initiateDeposit = mutation({
       const playerId = await ctx.db.insert("players", {
         walletAddress: args.walletAddress,
         gameCoins: 0,
-        pendingCoins: 0,
         lastActive: Date.now(),
+        characterRerolls: 0,
+        totalGamesPlayed: 0,
+        totalWins: 0,
+        totalEarnings: 0,
       });
       player = await ctx.db.get(playerId);
     }
@@ -57,10 +60,7 @@ export const initiateDeposit = mutation({
       priority: 1,
     });
 
-    // Update pending coins for immediate UX feedback
-    await ctx.db.patch(player!._id, {
-      pendingCoins: player!.pendingCoins + gameCoins,
-    });
+    // Note: Game coins will be added when transaction is verified and completed
 
     return {
       transactionId,
@@ -108,7 +108,6 @@ export const initiateWithdrawal = mutation({
     // Deduct from game coins immediately
     await ctx.db.patch(player._id, {
       gameCoins: player.gameCoins - args.gameCoins,
-      pendingCoins: player.pendingCoins - args.gameCoins,
     });
 
     return {
@@ -120,7 +119,7 @@ export const initiateWithdrawal = mutation({
 });
 
 // Real transaction verification using Solana RPC
-async function verifyDepositTransaction(transaction: any): Promise<{success: boolean, signature?: string}> {
+async function verifyDepositTransaction(transaction: any): Promise<{ success: boolean, signature?: string }> {
   try {
     const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
     const connection = new Connection(rpcUrl, 'confirmed');
@@ -185,7 +184,7 @@ async function verifyDepositTransaction(transaction: any): Promise<{success: boo
 }
 
 // Real withdrawal processing using Solana transactions
-async function processWithdrawal(transaction: any): Promise<{success: boolean, signature?: string}> {
+async function processWithdrawal(transaction: any): Promise<{ success: boolean, signature?: string }> {
   try {
     const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
     const connection = new Connection(rpcUrl, 'confirmed');

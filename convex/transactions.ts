@@ -49,17 +49,7 @@ export const queueDeposit = mutation({
       priority: args.priority || 1,
     });
 
-    // Update pending coins immediately for UX
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
-      .first();
-
-    if (player) {
-      await ctx.db.patch(player._id, {
-        pendingCoins: player.pendingCoins + args.amount,
-      });
-    }
+    // Note: Game coins will be added when transaction is completed and verified
 
     return transactionId;
   },
@@ -93,10 +83,9 @@ export const queueWithdrawal = mutation({
       priority: args.priority || 1,
     });
 
-    // Deduct from game coins and add to pending
+    // Deduct from game coins immediately
     await ctx.db.patch(player._id, {
       gameCoins: player.gameCoins - args.amount,
-      pendingCoins: player.pendingCoins - args.amount,
     });
 
     return transactionId;
@@ -143,26 +132,20 @@ export const updateTransactionStatus = mutation({
     if (player) {
       if (args.status === "completed") {
         if (transaction.type === "deposit") {
-          // Move from pending to game coins
+          // Add coins to player account
           await ctx.db.patch(player._id, {
             gameCoins: player.gameCoins + transaction.amount,
-            pendingCoins: Math.max(0, player.pendingCoins - transaction.amount),
           });
         }
         // For withdrawals, coins were already deducted when queued
       } else if (args.status === "failed") {
-        if (transaction.type === "deposit") {
-          // Remove from pending coins
-          await ctx.db.patch(player._id, {
-            pendingCoins: Math.max(0, player.pendingCoins - transaction.amount),
-          });
-        } else {
-          // Refund withdrawal
+        if (transaction.type === "withdrawal") {
+          // Refund withdrawal back to player's balance
           await ctx.db.patch(player._id, {
             gameCoins: player.gameCoins + transaction.amount,
-            pendingCoins: Math.max(0, player.pendingCoins + transaction.amount),
           });
         }
+        // For failed deposits, no action needed as coins weren't added yet
       }
     }
 

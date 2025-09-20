@@ -106,16 +106,17 @@ export const updateLeaderboardEntry = internalMutation({
       .first();
 
     const leaderboardData = {
+      period: "alltime",
+      startDate: 0,
       playerId: args.playerId,
       walletAddress: args.walletAddress,
       displayName: player.displayName || `Player${args.walletAddress.slice(-4)}`,
-      totalWins,
-      totalGames,
+      gamesPlayed: totalGames,
+      wins: totalWins,
       totalEarnings,
       winRate,
-      avgPayout,
       highestPayout,
-      lastUpdated: Date.now(),
+      rank: 0, // Will be calculated later
     };
 
     if (existing) {
