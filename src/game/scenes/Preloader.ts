@@ -30,27 +30,18 @@ export class Preloader extends Scene {
   preload() {
     //  Load the assets for the game
     this.load.setPath('assets');
-
     // Load all character sprites dynamically
     CHARACTERS.forEach(character => {
       this.load.atlas(character.key, character.spriteSheet, character.jsonPath);
     });
 
-    // Load only the current game's map
-    if (currentMapData && currentMapData.background && currentMapData.assetPath) {
-      // Load the specific map for this game
-      this.load.image(currentMapData.background, currentMapData.assetPath);
-    } else {
-      // Fallback to loading default map if no specific map data available
-      console.warn('No specific map data available, loading default map');
-      this.load.image('arena_classic', 'maps/arena_classic.png');
-    }
+    this.load.image(currentMapData.background, currentMapData.assetPath);
 
     // Load particle effects
     this.load.image('star', 'star.png');
 
     // Load explosion sprite sheet
-    this.load.atlas('explosion', 'spriteSheets/Explosion.png', 'spriteSheets/Explosion.json');
+    this.load.atlas('explosion', 'misc/Explosion.png', 'misc/Explosion.json');
 
     this.load.image('logo', 'logo.png');
   }
