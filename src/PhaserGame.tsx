@@ -1,5 +1,7 @@
 import { forwardRef, useEffect, useLayoutEffect, useRef } from 'react';
-import StartGame from './game/main';
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import StartGame, { setMapsData } from './game/main';
 import { EventBus } from './game/EventBus';
 
 export interface IRefPhaserGame {
@@ -13,10 +15,13 @@ interface IProps {
 
 export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame({ currentActiveScene }, ref) {
   const game = useRef<Phaser.Game | null>(null!);
+  const maps = useQuery(api.maps.getActiveMaps);
 
   useLayoutEffect(() => {
-    if (game.current === null) {
-
+    if (game.current === null && maps) {
+      // Pass map data to Phaser before starting the game
+      setMapsData(maps);
+      
       game.current = StartGame("game-container");
 
       if (typeof ref === 'function') {
@@ -35,7 +40,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
         }
       }
     }
-  }, [ref]);
+  }, [ref, maps]);
 
   useEffect(() => {
     EventBus.on('current-scene-ready', (scene_instance: Phaser.Scene) => {

@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { CHARACTERS } from '../config/characters';
+import { mapsData } from '../main';
 
 export class Preloader extends Scene
 {
@@ -38,9 +39,21 @@ export class Preloader extends Scene
             this.load.atlas(character.key, character.spriteSheet, character.jsonPath);
         });
 
-        // Load arena backgrounds
-        this.load.image('arena', 'arena.png');
-        this.load.image('arena2', 'arena2.png');
+        // Load map backgrounds dynamically from database
+        if (mapsData && mapsData.length > 0) {
+            mapsData.forEach(map => {
+                // Use the background field as the key and assetPath for the file location
+                if (map.background && map.assetPath) {
+                    this.load.image(map.background, map.assetPath);
+                }
+            });
+        } else {
+            // Fallback to loading default maps if no database data available
+            console.warn('No map data available from database, loading defaults');
+            this.load.image('arena_classic', 'maps/arena_classic.png');
+            this.load.image('arena_desert', 'maps/arena_desert.png');
+            this.load.image('arena_forest', 'maps/arena_forest.png');
+        }
 
         // Load particle effects
         this.load.image('star', 'star.png');

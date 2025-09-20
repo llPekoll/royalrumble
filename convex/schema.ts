@@ -23,6 +23,7 @@ export default defineSchema({
   maps: defineTable({
     name: v.string(), // "Classic Arena", "Desert Storm", "Mystic Forest", etc.
     background: v.string(), // "arena", "arena2", "forest", etc.
+    assetPath: v.string(), // Path to the image file, e.g., "maps/arena_classic.png"
     description: v.optional(v.string()),
     spawnConfiguration: v.object({
       maxPlayers: v.number(), // Maximum players this map supports

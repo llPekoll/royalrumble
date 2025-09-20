@@ -27,7 +27,9 @@ export class Game extends Scene {
     this.camera.setBackgroundColor(0x1a1a2e);
 
     // Background will be set when gameState is first updated
-    this.background = this.add.image(this.centerX, this.centerY, 'arena');
+    // Use first available map texture as default, will be updated from game state
+    const defaultTexture = 'arena_classic'; // This will be loaded from database
+    this.background = this.add.image(this.centerX, this.centerY, defaultTexture);
     this.background.setAlpha(0.8);
 
     // Initialize managers
