@@ -1,6 +1,5 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 
 // Add a participant to a game (player can add multiple)
 export const addParticipant = mutation({
@@ -42,12 +41,12 @@ export const addParticipant = mutation({
     if (!map) {
       throw new Error("Map not found");
     }
-    
+
     const existingParticipants = await ctx.db
       .query("gameParticipants")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
       .collect();
-    
+
     if (existingParticipants.length >= map.spawnConfiguration.maxPlayers) {
       throw new Error("Game is full");
     }
@@ -197,7 +196,7 @@ export const getSurvivors = query({
   handler: async (ctx, args) => {
     const survivors = await ctx.db
       .query("gameParticipants")
-      .withIndex("by_game_eliminated", (q) => 
+      .withIndex("by_game_eliminated", (q) =>
         q.eq("gameId", args.gameId).eq("eliminated", false)
       )
       .collect();

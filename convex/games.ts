@@ -133,7 +133,7 @@ export const createNewGame = mutation({
       .query("maps")
       .withIndex("by_active", (q) => q.eq("isActive", true))
       .collect();
-    
+
     if (maps.length === 0) {
       throw new Error("No active maps available");
     }
@@ -272,19 +272,19 @@ export const joinGame = mutation({
       .query("gameParticipants")
       .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
       .collect();
-    
-    const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
+
+    // const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
 
     // For now, assign a simple circular spawn position since spawnPositions isn't in schema
     const mapData = await ctx.db.get(game.mapId);
     if (!mapData) throw new Error("Map not found");
-    
+
     // Calculate spawn position based on map configuration
     const spawnIndex = existingParticipants.length;
     const angleStep = (Math.PI * 2) / mapData.spawnConfiguration.maxPlayers;
     const angle = spawnIndex * angleStep;
     const radius = mapData.spawnConfiguration.spawnRadius;
-    
+
     // Center position (assuming 400x300 arena)
     const centerX = 400;
     const centerY = 300;
@@ -299,11 +299,11 @@ export const joinGame = mutation({
       lastActive: Date.now(),
     });
 
-    // Calculate size and power based on bet amount  
+    // Calculate size and power based on bet amount
     const size = Math.max(0.8, Math.min(2.0, args.betAmount / 1000)); // Size from 0.8x to 2.0x
     const basePower = character.baseStats?.power || 100;
     const power = basePower * (args.betAmount / 100); // Power scales with bet
-    
+
     // Create participant using player's display name from database
     const participantId = await ctx.db.insert("gameParticipants", {
       gameId: game._id,
@@ -408,7 +408,7 @@ export const placeSpectatorBet = mutation({
       placedAt: Date.now(),
     });
 
-    // Update game pot  
+    // Update game pot
     await ctx.db.patch(game._id, {
       totalPot: game.totalPot + args.betAmount,
       spectatorBetPool: game.spectatorBetPool + args.betAmount,
@@ -426,13 +426,13 @@ export async function addBots(ctx: any, gameId: Id<"games">, count: number) {
   if (!game) throw new Error("Game not found");
 
   const usedNames = new Set<string>();
-  
+
   // Get existing participants to see which spawn positions are taken
   const existingParticipants = await ctx.db
     .query("gameParticipants")
     .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
     .collect();
-  
+
   const usedSpawnIndices = new Set(existingParticipants.map((p: any) => p.spawnIndex));
 
   for (let i = 0; i < count; i++) {
@@ -443,19 +443,19 @@ export async function addBots(ctx: any, gameId: Id<"games">, count: number) {
     usedNames.add(botName);
 
     const betAmount = Math.floor(Math.random() * 500) + 50; // 50-550 coins
-    
+
     // Select a random character
     const character = await selectRandomCharacter(ctx);
-    
+
     // Calculate spawn position for bot
     const mapData = await ctx.db.get(game.mapId);
     if (!mapData) throw new Error("Map not found");
-    
+
     const spawnIndex = existingParticipants.length + i;
     const angleStep = (Math.PI * 2) / mapData.spawnConfiguration.maxPlayers;
     const angle = spawnIndex * angleStep;
     const radius = mapData.spawnConfiguration.spawnRadius;
-    
+
     const centerX = 400;
     const centerY = 300;
     const spawnPos = {
@@ -778,7 +778,7 @@ export const advanceGamePhase = internalMutation({
           nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
 
           await ctx.db.patch(args.gameId, {
-            isSinglePlayer: false, // Demo mode 
+            isSinglePlayer: false, // Demo mode
             status: nextStatus,
             phase: nextPhase,
             phaseStartTime: now,

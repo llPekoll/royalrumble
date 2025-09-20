@@ -1,6 +1,5 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 
 // Place a bet on a participant (self or spectator)
 export const placeBet = mutation({
@@ -63,10 +62,10 @@ export const placeBet = mutation({
     // Check for existing bet
     const existingBet = await ctx.db
       .query("bets")
-      .withIndex("by_game_wallet", (q) => 
+      .withIndex("by_game_wallet", (q) =>
         q.eq("gameId", args.gameId).eq("walletAddress", args.walletAddress)
       )
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("betType"), args.betType),
           q.eq(q.field("targetParticipantId"), args.targetParticipantId)
@@ -83,11 +82,11 @@ export const placeBet = mutation({
     if (args.betType === "spectator") {
       const allSurvivors = await ctx.db
         .query("gameParticipants")
-        .withIndex("by_game_eliminated", (q) => 
+        .withIndex("by_game_eliminated", (q) =>
           q.eq("gameId", args.gameId).eq("eliminated", false)
         )
         .collect();
-      
+
       const totalPower = allSurvivors.reduce((sum, p) => sum + p.power, 0);
       const targetPower = targetParticipant.power;
       odds = totalPower / targetPower; // Simple odds calculation
@@ -142,7 +141,7 @@ export const getGameBets = query({
     // Fetch participant and player data
     const betsWithData = await Promise.all(
       bets.map(async (bet) => {
-        const participant = bet.targetParticipantId 
+        const participant = bet.targetParticipantId
           ? await ctx.db.get(bet.targetParticipantId)
           : null;
         const player = await ctx.db.get(bet.playerId);
@@ -165,14 +164,14 @@ export const getPlayerBets = query({
     gameId: v.optional(v.id("games")),
   },
   handler: async (ctx, args) => {
-    let betsQuery = ctx.db
+    const betsQuery = ctx.db
       .query("bets")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId));
 
     const bets = await betsQuery.collect();
 
     // Filter by game if specified
-    const filteredBets = args.gameId 
+    const filteredBets = args.gameId
       ? bets.filter(b => b.gameId === args.gameId)
       : bets;
 
@@ -221,25 +220,25 @@ export const settleBets = mutation({
     }
 
     // Calculate payouts for multi-player game
-    const selfBetWinners = bets.filter(b => 
+    const selfBetWinners = bets.filter(b =>
       b.betType === "self" && b.targetParticipantId === args.winnerId
     );
-    const spectatorBetWinners = bets.filter(b => 
+    const spectatorBetWinners = bets.filter(b =>
       b.betType === "spectator" && b.targetParticipantId === args.winnerId
     );
 
     // Calculate self bet payouts (split 95% of self pool)
     const selfPoolPayout = game.selfBetPool * 0.95;
     const totalSelfBetAmount = selfBetWinners.reduce((sum, b) => sum + b.amount, 0);
-    
+
     for (const bet of bets) {
       if (bet.betType === "self") {
         if (bet.targetParticipantId === args.winnerId) {
           // Winner - calculate proportional payout
-          const payout = totalSelfBetAmount > 0 
+          const payout = totalSelfBetAmount > 0
             ? (bet.amount / totalSelfBetAmount) * selfPoolPayout
             : bet.amount;
-          
+
           await ctx.db.patch(bet._id, {
             status: "won",
             payout,
@@ -267,7 +266,7 @@ export const settleBets = mutation({
     // Calculate spectator bet payouts (95% of spectator pool)
     const spectatorPoolPayout = game.spectatorBetPool * 0.95;
     const totalSpectatorBetAmount = spectatorBetWinners.reduce((sum, b) => sum + b.amount, 0);
-    
+
     for (const bet of bets) {
       if (bet.betType === "spectator") {
         if (bet.targetParticipantId === args.winnerId) {
@@ -275,7 +274,7 @@ export const settleBets = mutation({
           const payout = totalSpectatorBetAmount > 0
             ? (bet.amount / totalSpectatorBetAmount) * spectatorPoolPayout
             : bet.amount * (bet.odds || 1);
-          
+
           await ctx.db.patch(bet._id, {
             status: "won",
             payout,
@@ -324,7 +323,7 @@ export const getBettingStats = query({
       const participantBets = bets.filter(b => b.targetParticipantId === p._id);
       const totalBetAmount = participantBets.reduce((sum, b) => sum + b.amount, 0);
       const betCount = participantBets.length;
-      
+
       return {
         participantId: p._id,
         displayName: p.displayName,

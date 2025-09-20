@@ -20,7 +20,7 @@ export const calculateSpawnPositions = query({
       throw new Error("Map not found");
     }
 
-    const { spawnRadius, minSpacing } = map.spawnConfiguration;
+    const { spawnRadius } = map.spawnConfiguration;
     const positions = [];
 
     // Calculate positions in a circle around center
