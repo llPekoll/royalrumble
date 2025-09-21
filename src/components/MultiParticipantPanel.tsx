@@ -54,7 +54,7 @@ export function MultiParticipantPanel() {
         <div className="max-h-96 overflow-y-auto custom-scrollbar">
           {allParticipants && allParticipants.length > 0 ? (
             <div className="p-3 space-y-2">
-              {allParticipants.map((participant: any, index: number) => {
+              {allParticipants.map((participant: any) => {
                 const isOwn = participant.walletAddress === walletAddress;
                 const isEliminated = participant.eliminated;
 

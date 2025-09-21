@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
@@ -27,19 +27,11 @@ interface CharacterSelectionProps {
 }
 
 export function CharacterSelection({ onCharacterSelect, selectedCharacter, gameParticipants }: CharacterSelectionProps) {
-  const { connected, publicKey } = useWallet();
+  const { connected } = useWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(selectedCharacter || null);
-
-  // Get player data
-  const playerData = useQuery(
-    api.players.getPlayer,
-    connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
-  );
 
   // Get all available characters
   const allCharacters = useQuery(api.characters.getActiveCharacters);
-
-  const gameCoins = playerData?.gameCoins || 0;
 
   // Initialize with random character when characters load
   useEffect(() => {
@@ -76,25 +68,6 @@ export function CharacterSelection({ onCharacterSelect, selectedCharacter, gameP
     toast.success(`New character: ${randomChar.name}!`);
   };
 
-  const getRarityColor = (rarity?: string) => {
-    switch (rarity) {
-      case 'common': return 'text-gray-400';
-      case 'rare': return 'text-green-400';
-      case 'epic': return 'text-purple-400';
-      case 'legendary': return 'text-yellow-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const getRarityBorder = (rarity?: string) => {
-    switch (rarity) {
-      case 'common': return 'border-gray-400';
-      case 'rare': return 'border-green-400';
-      case 'epic': return 'border-purple-400';
-      case 'legendary': return 'border-yellow-400';
-      default: return 'border-gray-400';
-    }
-  };
 
   if (!connected) {
     return (

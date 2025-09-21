@@ -14,12 +14,10 @@ interface Character {
 }
 
 interface CompactCharacterCardProps {
-  currentGameId?: string;
-  playerId?: string;
   onParticipantAdded?: () => void;
 }
 
-const CompactCharacterCard = memo(function CompactCharacterCard({ currentGameId, playerId, onParticipantAdded }: CompactCharacterCardProps) {
+const CompactCharacterCard = memo(function CompactCharacterCard({  onParticipantAdded }: CompactCharacterCardProps) {
   const { connected, publicKey } = useWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("100");

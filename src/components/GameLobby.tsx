@@ -11,12 +11,9 @@ import { MultiParticipantPanel } from "./MultiParticipantPanel";
 import { CompactCharacterCard } from "./CompactCharacterCard";
 import { generateRandomName } from "../lib/nameGenerator";
 import {
-  Clock,
   Users,
-  Coins,
   Trophy,
   Target,
-  Map,
   Gamepad2
 } from "lucide-react";
 
@@ -55,55 +52,7 @@ export function GameLobby() {
   const survivors = currentGame?.participants?.filter((p: any) => !p.eliminated) || [];
   const canPlaceSpectatorBets = currentGame?.status === "betting" && survivors.length > 0;
 
-  // Get phase information
-  const getPhaseInfo = () => {
-    if (!currentGame) return { name: "Loading...", description: "" };
 
-    const isSmallGame = currentGame.isSmallGame || currentGame.participantCount < 8;
-
-    switch (currentGame.status) {
-      case "waiting":
-        return {
-          name: "Waiting Phase",
-          description: "Players joining and placing entry bets"
-        };
-      case "selection":
-        return {
-          name: "Selection Phase",
-          description: "Final character selection and preparation"
-        };
-      case "arena":
-        return {
-          name: "Arena Phase",
-          description: "Characters moving to center for battle"
-        };
-      case "elimination":
-        return {
-          name: "Elimination Phase",
-          description: isSmallGame ? "Small game - skipping elimination" : "Reducing to top 4 survivors"
-        };
-      case "betting":
-        return {
-          name: "Betting Phase",
-          description: isSmallGame ? "Small game - skipping betting" : "Spectator betting on top 4 survivors"
-        };
-      case "battle":
-        return {
-          name: "Battle Phase",
-          description: "Final showdown between survivors"
-        };
-      case "results":
-        return {
-          name: "Results Phase",
-          description: "Winner announced and rewards distributed"
-        };
-      default:
-        return {
-          name: "Unknown Phase",
-          description: ""
-        };
-    }
-  };
 
   const handleCreatePlayer = async () => {
     if (!connected || !publicKey) {
@@ -233,7 +182,6 @@ export function GameLobby() {
     );
   }
 
-  const phaseInfo = getPhaseInfo();
 
   return (
     <div className="space-y-4">
@@ -243,8 +191,6 @@ export function GameLobby() {
         <>
           <MultiParticipantPanel />
           <CompactCharacterCard
-            currentGameId={currentGame._id}
-            playerId={playerData?._id}
             onParticipantAdded={handleParticipantAdded}
           />
         </>
