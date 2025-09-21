@@ -232,19 +232,19 @@ export function GameLobby() {
 
   return (
     <div className="space-y-4">
-      {/* Game Status Card - Flatter design */}
-      <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
+      {/* Game Status Card - Amber themed design */}
+      <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <Map className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
-            <div className="font-medium text-emerald-400 text-lg">{currentGame?.map?.name || "Loading"}</div>
+            <Map className="w-5 h-5 mx-auto mb-2 text-amber-400" />
+            <div className="font-bold text-amber-300 text-lg uppercase tracking-wide">{currentGame?.map?.name || "Loading"}</div>
           </div>
         </div>
 
         {currentGame?.isSmallGame && (
-          <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-600/30 rounded text-center">
-            <p className="text-cyan-400 text-sm flex items-center justify-center gap-2">
-              <span className="text-yellow-400">⚡</span> Quick Game Mode: 3 phases (45 seconds total)
+          <div className="mt-4 p-3 bg-amber-800/20 border border-amber-500/40 rounded text-center">
+            <p className="text-amber-300 text-sm flex items-center justify-center gap-2">
+              <span className="text-yellow-300">⚡</span> Quick Game Mode: 3 phases (45 seconds total)
             </p>
           </div>
         )}
@@ -255,16 +255,16 @@ export function GameLobby() {
 
       {/* Current Participants */}
       {playerParticipants.length > 0 && (
-        <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-100">
-            <Target className="w-5 h-5 text-cyan-400" />
+        <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">
+          <h3 className="text-lg font-bold mb-3 flex items-center gap-2 text-amber-300 uppercase tracking-wide">
+            <Target className="w-5 h-5 text-amber-400" />
             Your Participants ({playerParticipants.length})
           </h3>
           <div className="grid gap-3">
             {playerParticipants.map((participant: any) => (
               <div
                 key={participant._id}
-                className="flex items-center justify-between p-3 bg-gray-800 rounded border"
+                className="flex items-center justify-between p-3 bg-amber-950/30 rounded-lg border border-amber-700/30 backdrop-blur-sm"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -276,8 +276,8 @@ export function GameLobby() {
                     }}
                   />
                   <div>
-                    <div className="font-medium">{participant.displayName}</div>
-                    <div className="text-sm text-gray-400">
+                    <div className="font-bold text-amber-200">{participant.displayName}</div>
+                    <div className="text-sm text-amber-400/70">
                       {participant.character?.name} • {participant.betAmount} coins
                     </div>
                   </div>
@@ -300,9 +300,9 @@ export function GameLobby() {
 
       {/* Spectator Betting - only show during betting phase */}
       {canPlaceSpectatorBets && (
-        <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-100">
-            <Target className="w-5 h-5 text-cyan-400" />
+        <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">
+          <h3 className="text-lg font-bold mb-3 flex items-center gap-2 text-amber-300 uppercase tracking-wide">
+            <Target className="w-5 h-5 text-amber-400" />
             Spectator Betting
           </h3>
 
@@ -337,8 +337,8 @@ export function GameLobby() {
                           }}
                         />
                         <div>
-                          <div className="font-medium">{participant.displayName}</div>
-                          <div className="text-sm text-gray-400">
+                          <div className="font-bold text-amber-200">{participant.displayName}</div>
+                          <div className="text-sm text-amber-400/70">
                             {participant.character?.name} • {participant.betAmount} entry bet
                           </div>
                         </div>
@@ -347,8 +347,8 @@ export function GameLobby() {
                       <div className="text-right">
                         {stats && (
                           <div className="text-sm">
-                            <div className="text-yellow-400">{stats.totalBetAmount} coins bet</div>
-                            <div className="text-gray-400">{stats.betCount} bets</div>
+                            <div className="text-amber-300">{stats.totalBetAmount} coins bet</div>
+                            <div className="text-amber-400/60">{stats.betCount} bets</div>
                           </div>
                         )}
                         {isOwnParticipant && (
@@ -385,9 +385,9 @@ export function GameLobby() {
 
       {/* Game Results */}
       {currentGame?.status === "results" && currentGame.winnerId && (
-        <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
+        <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">
           <div className="text-center">
-            <Trophy className="w-12 h-12 mx-auto mb-3 text-yellow-400" />
+            <Trophy className="w-12 h-12 mx-auto mb-3 text-amber-400" />
             <h3 className="text-xl font-bold mb-2">Game Complete!</h3>
 
             {(() => {

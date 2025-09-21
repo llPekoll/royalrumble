@@ -44,13 +44,14 @@ export class UIManager {
 
   create() {
     // Show title for 2 seconds then disappear
-    this.titleText = this.scene.add.text(this.centerX, 150, '🏆 ROYAL RUMBLE 🏆', {
+    this.titleText = this.scene.add.text(this.centerX, 150, 'Enrageded', {
       fontFamily: 'Arial Black',
       fontSize: 48,
-      color: '#ffd700',
-      stroke: '#000000',
-      strokeThickness: 6,
-      align: 'center'
+      color: '#FFD700',
+      stroke: '#8B4513',
+      strokeThickness: 8,
+      align: 'center',
+      shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 5, fill: true, stroke: true }
     }).setOrigin(0.5).setDepth(200);
 
     // Animate title appearance and disappearance
@@ -70,46 +71,49 @@ export class UIManager {
     // Phase indicator (always visible after title)
     this.phaseText = this.scene.add.text(this.centerX, 50, '', {
       fontFamily: 'Arial Black',
-      fontSize: 24,
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 3,
-      align: 'center'
+      fontSize: 28,
+      color: '#FFA500',
+      stroke: '#4B2F20',
+      strokeThickness: 4,
+      align: 'center',
+      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true }
     }).setOrigin(0.5).setDepth(150);
 
-    // Timer background
-    this.timerBackground = this.scene.add.rectangle(this.centerX, 100, 140, 50, 0x000000, 0.7);
-    this.timerBackground.setStrokeStyle(3, 0xffd700);
+    // Timer background with gradient-like effect
+    this.timerBackground = this.scene.add.rectangle(this.centerX, 100, 160, 60, 0x2C1810, 0.8);
+    this.timerBackground.setStrokeStyle(4, 0xFFB347);
     this.timerBackground.setDepth(149);
 
-    // Timer display
+    // Timer display with amber theme
     this.timerText = this.scene.add.text(this.centerX, 100, '0:00', {
       fontFamily: 'Arial Black',
-      fontSize: 32,
-      color: '#00ff00',
-      stroke: '#000000',
-      strokeThickness: 4,
-      align: 'center'
+      fontSize: 36,
+      color: '#FFDB58',
+      stroke: '#6B4423',
+      strokeThickness: 5,
+      align: 'center',
+      shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true }
     }).setOrigin(0.5).setDepth(151);
 
     // Player count display (bottom left)
     this.playerCountText = this.scene.add.text(this.centerX - 150, 700, 'Players: 0', {
       fontFamily: 'Arial Black',
       fontSize: 24,
-      color: '#ffffff',
-      stroke: '#000000',
+      color: '#FFD700',
+      stroke: '#4B2F20',
       strokeThickness: 3,
       align: 'left'
     }).setOrigin(0.5).setDepth(150);
 
     // Pot amount display (bottom right)
-    this.potAmountText = this.scene.add.text(this.centerX + 150, 700, 'Pot: 0 SOL', {
+    this.potAmountText = this.scene.add.text(this.centerX + 150, 700, '£ 0', {
       fontFamily: 'Arial Black',
-      fontSize: 24,
-      color: '#ffd700',
-      stroke: '#000000',
-      strokeThickness: 3,
-      align: 'right'
+      fontSize: 26,
+      color: '#FFB347',
+      stroke: '#4B2F20',
+      strokeThickness: 4,
+      align: 'right',
+      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true }
     }).setOrigin(0.5).setDepth(150);
 
     // Debug: Scene name at bottom
@@ -131,11 +135,11 @@ export class UIManager {
 
   private updatePhaseDisplay(gameState: any) {
     const phaseNames: { [key: string]: string } = {
-      'waiting': '⏳ Waiting for Players',
-      'arena': '🏃‍♂️ Running to Center',
-      'betting': '💰 Betting on Finalists',
-      'battle': '⚔️ Final Battle',
-      'results': '🏆 Results'
+      'waiting': 'WAITING FOR PLAYERS',
+      'arena': 'RUNNING TO CENTER',
+      'betting': 'PLACE YOUR BETS',
+      'battle': 'FINAL BATTLE',
+      'results': 'WINNER DECLARED'
     };
 
     const phaseName = phaseNames[gameState.status] || 'Game Phase';
@@ -162,9 +166,8 @@ export class UIManager {
       return sum + (participant.betAmount || 0);
     }, 0) || 0;
 
-    // Convert coins to SOL (1000 coins = 1 SOL)
-    const totalPotInSol = (totalPotInCoins / 1000).toFixed(3);
-    this.potAmountText.setText(`Pot: ${totalPotInSol} SOL`);
+    // Display pot in coins with £ symbol
+    this.potAmountText.setText(`£ ${totalPotInCoins.toLocaleString()}`);
   }
 
   updateTimer() {
@@ -181,20 +184,20 @@ export class UIManager {
 
     this.timerText.setText(timeText);
 
-    // Change color based on time remaining
+    // Change color based on time remaining with amber theme
     if (seconds <= 5) {
-      this.timerText.setColor('#ff0000'); // Red for urgent
-      this.timerBackground.setStrokeStyle(3, 0xff0000);
+      this.timerText.setColor('#FF6B6B'); // Red-orange for urgent
+      this.timerBackground.setStrokeStyle(4, 0xFF6B6B);
       // Pulse effect for last 5 seconds
       const scale = 1 + Math.sin(currentTime * 0.01) * 0.1;
       this.timerText.setScale(scale);
     } else if (seconds <= 10) {
-      this.timerText.setColor('#ffff00'); // Yellow for warning
-      this.timerBackground.setStrokeStyle(3, 0xffff00);
+      this.timerText.setColor('#FFA500'); // Orange for warning
+      this.timerBackground.setStrokeStyle(4, 0xFFA500);
       this.timerText.setScale(1);
     } else {
-      this.timerText.setColor('#00ff00'); // Green for normal
-      this.timerBackground.setStrokeStyle(3, 0x00ff00);
+      this.timerText.setColor('#FFDB58'); // Golden for normal
+      this.timerBackground.setStrokeStyle(4, 0xFFB347);
       this.timerText.setScale(1);
     }
   }

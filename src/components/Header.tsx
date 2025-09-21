@@ -205,7 +205,7 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-6">
-              <h1 className="text-2xl font-bold text-white">Royal Rumble</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent uppercase tracking-wide">Enrageded</h1>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -223,20 +223,20 @@ export function Header() {
                     </span>
                   </Button>
 
-                  <div className="bg-gray-900 rounded-lg p-3 border border-gray-700 flex items-center space-x-3">
+                  <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/30 rounded-lg p-3 border border-amber-600/50 backdrop-blur-sm flex items-center space-x-3 shadow-lg shadow-amber-500/20">
                     <div className="text-right">
-                      <div className="text-green-400 font-mono text-sm">
-                        {gameCoins.toLocaleString()} coins
+                      <div className="text-amber-300 font-bold text-lg flex items-center">
+                        <span className="text-amber-400 mr-1">£</span> {gameCoins.toLocaleString()}
                       </div>
                       {pendingCoins > 0 && (
-                        <div className="text-yellow-400 font-mono text-xs">
+                        <div className="text-amber-200 font-semibold text-xs animate-pulse">
                           +{pendingCoins.toLocaleString()} pending
                         </div>
                       )}
                     </div>
                     <Button
                       onClick={() => setShowDepositModal(true)}
-                      className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1 h-auto"
+                      className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-amber-950 font-bold text-xs px-3 py-1.5 h-auto shadow-md transition-all duration-200 hover:shadow-amber-400/30"
                     >
                       Deposit
                     </Button>

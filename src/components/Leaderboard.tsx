@@ -46,38 +46,38 @@ export function Leaderboard() {
     <div className="max-w-4xl mx-auto p-4 space-y-6">
       {/* Game Statistics */}
       {gameStats && (
-        <Card className="p-6 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border-indigo-500/30">
-          <h2 className="text-2xl font-bold text-white mb-4">📊 Game Statistics</h2>
+        <Card className="p-6 bg-gradient-to-br from-amber-900/30 to-yellow-900/30 border border-amber-600/50 backdrop-blur-sm shadow-lg shadow-amber-500/20">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent mb-4 uppercase tracking-wide">Game Statistics</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">
+              <div className="text-2xl font-bold text-amber-300">
                 {gameStats.totalGames.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-400">Total Games</div>
+              <div className="text-sm text-amber-400/60">Total Games</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">
+              <div className="text-2xl font-bold text-amber-300">
                 {gameStats.totalPlayers.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-400">Players</div>
+              <div className="text-sm text-amber-400/60">Players</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400">
-                {formatCoins(gameStats.totalPot)}
+              <div className="text-2xl font-bold text-amber-300">
+                £ {formatCoins(gameStats.totalPot)}
               </div>
-              <div className="text-sm text-gray-400">Total Pot</div>
+              <div className="text-sm text-amber-400/60">Total Pot</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">
-                {formatCoins(gameStats.averagePot)}
+              <div className="text-2xl font-bold text-amber-300">
+                £ {formatCoins(gameStats.averagePot)}
               </div>
-              <div className="text-sm text-gray-400">Avg Pot</div>
+              <div className="text-sm text-amber-400/60">Avg Pot</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-400">
+              <div className="text-2xl font-bold text-amber-300">
                 {gameStats.activeGames}
               </div>
-              <div className="text-sm text-gray-400">Active Games</div>
+              <div className="text-sm text-amber-400/60">Active Games</div>
             </div>
           </div>
         </Card>
@@ -85,8 +85,8 @@ export function Leaderboard() {
 
       {/* Player's Rank */}
       {playerRank && (
-        <Card className="p-6 border-green-500/30 bg-green-900/20">
-          <h3 className="text-xl font-bold text-green-400 mb-4">🎯 Your Stats</h3>
+        <Card className="p-6 bg-gradient-to-br from-amber-900/30 to-yellow-900/30 border border-amber-600/50 backdrop-blur-sm shadow-lg shadow-amber-500/20">
+          <h3 className="text-xl font-bold text-amber-300 mb-4 uppercase tracking-wide">Your Stats</h3>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div className="text-center">
               <div className="text-xl font-bold text-green-400">
