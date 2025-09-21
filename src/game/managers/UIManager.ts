@@ -5,7 +5,7 @@ export class UIManager {
   private centerX: number;
 
   // UI Elements
-  public titleText!: Phaser.GameObjects.Text;
+  public titleLogo!: Phaser.GameObjects.Image;
   public phaseText!: Phaser.GameObjects.Text;
   public timerText!: Phaser.GameObjects.Text;
   public timerBackground!: Phaser.GameObjects.Rectangle;
@@ -22,8 +22,8 @@ export class UIManager {
   updateCenter(centerX: number) {
     this.centerX = centerX;
     // Update positions of UI elements that use centerX
-    if (this.titleText) {
-      this.titleText.setX(centerX);
+    if (this.titleLogo) {
+      this.titleLogo.setX(centerX);
     }
     if (this.phaseText) {
       this.phaseText.setX(centerX);
@@ -43,33 +43,29 @@ export class UIManager {
   }
 
   create() {
-    // Show title for 2 seconds then disappear
-    this.titleText = this.scene.add.text(this.centerX, 150, 'Enrageded', {
-      fontFamily: 'Arial Black',
-      fontSize: 48,
-      color: '#FFD700',
-      stroke: '#8B4513',
-      strokeThickness: 8,
-      align: 'center',
-      shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 5, fill: true, stroke: true }
-    }).setOrigin(0.5).setDepth(200);
+    // Show logo for 2 seconds then disappear
+    this.titleLogo = this.scene.add.image(this.centerX, 350, 'logo');
+    this.titleLogo.setOrigin(0.5).setDepth(200);
 
-    // Animate title appearance and disappearance
-    this.titleText.setScale(0);
+    // Scale the logo appropriately (adjust this value as needed)
+    this.titleLogo.setScale(0.3);
+
+    // Animate logo appearance and disappearance
+    this.titleLogo.setScale(0);
     this.scene.tweens.add({
-      targets: this.titleText,
-      scale: { from: 0, to: 1.2 },
+      targets: this.titleLogo,
+      scale: { from: 0, to: 0.3 },
       duration: 500,
       ease: 'Back.easeOut',
       yoyo: true,
       hold: 1500,
       onComplete: () => {
-        this.titleText.setVisible(false);
+        this.titleLogo.setVisible(false);
       }
     });
 
     // Phase indicator (always visible after title)
-    this.phaseText = this.scene.add.text(this.centerX, 50, '', {
+    this.phaseText = this.scene.add.text(this.centerX, 120, '', {
       fontFamily: 'Arial Black',
       fontSize: 28,
       color: '#FFA500',
@@ -80,12 +76,12 @@ export class UIManager {
     }).setOrigin(0.5).setDepth(150);
 
     // Timer background with gradient-like effect
-    this.timerBackground = this.scene.add.rectangle(this.centerX, 100, 160, 60, 0x2C1810, 0.8);
+    this.timerBackground = this.scene.add.rectangle(this.centerX, 180, 160, 60, 0x2C1810, 0.8);
     this.timerBackground.setStrokeStyle(4, 0xFFB347);
     this.timerBackground.setDepth(149);
 
     // Timer display with amber theme
-    this.timerText = this.scene.add.text(this.centerX, 100, '0:00', {
+    this.timerText = this.scene.add.text(this.centerX, 180, '0:00', {
       fontFamily: 'Arial Black',
       fontSize: 36,
       color: '#FFDB58',
@@ -116,13 +112,7 @@ export class UIManager {
       shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true }
     }).setOrigin(0.5).setDepth(150);
 
-    // Debug: Scene name at bottom
-    this.scene.add.text(this.centerX, 750, 'Scene: RoyalRumble', {
-      fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
-      stroke: '#000000', strokeThickness: 2,
-      align: 'center'
-    }).setOrigin(0.5).setDepth(1000);
-  }
+ }
 
   updateGameState(gameState: any) {
     this.gameState = gameState;
