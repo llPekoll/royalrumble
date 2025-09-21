@@ -97,7 +97,7 @@ export function CharacterSelection({ onCharacterSelect, selectedCharacter }: Cha
 
   if (!connected) {
     return (
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <p className="text-center text-gray-500">Connect your wallet to see your character</p>
       </Card>
     );
@@ -105,7 +105,7 @@ export function CharacterSelection({ onCharacterSelect, selectedCharacter }: Cha
 
   if (!currentCharacter) {
     return (
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <p className="text-center text-gray-500">Loading character...</p>
       </Card>
     );
@@ -113,7 +113,7 @@ export function CharacterSelection({ onCharacterSelect, selectedCharacter }: Cha
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <h3 className="text-lg font-bold mb-4">Your Current Character</h3>
 
         <div className={`p-4 rounded-lg border-2  bg-gray-800`}>
@@ -161,7 +161,7 @@ export function CharacterSelection({ onCharacterSelect, selectedCharacter }: Cha
 
       {/* Character Gallery */}
       {allCharacters && allCharacters.length > 0 && (
-        <Card className="p-4">
+        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
           <h3 className="text-lg font-bold mb-4">All Available Characters</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {allCharacters.map((character: Character) => (

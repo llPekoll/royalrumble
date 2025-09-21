@@ -233,7 +233,7 @@ export function GameLobby() {
   return (
     <div className="space-y-4">
       {/* Game Status Card */}
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Clock className="w-5 h-5 text-blue-400" />
@@ -286,7 +286,7 @@ export function GameLobby() {
 
       {/* Current Participants */}
       {playerParticipants.length > 0 && (
-        <Card className="p-4">
+        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
           <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
             <Target className="w-5 h-5" />
             Your Participants ({playerParticipants.length})
@@ -331,7 +331,7 @@ export function GameLobby() {
 
       {/* Spectator Betting - only show during betting phase */}
       {canPlaceSpectatorBets && (
-        <Card className="p-4">
+        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
           <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
             <Target className="w-5 h-5" />
             Spectator Betting
@@ -416,7 +416,7 @@ export function GameLobby() {
 
       {/* Game Results */}
       {currentGame?.status === "results" && currentGame.winnerId && (
-        <Card className="p-4">
+        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
           <div className="text-center">
             <Trophy className="w-12 h-12 mx-auto mb-3 text-yellow-400" />
             <h3 className="text-xl font-bold mb-2">Game Complete!</h3>

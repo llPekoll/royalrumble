@@ -52,38 +52,36 @@ export default function App() {
   }, [currentGame, previousParticipants]);
 
   return (
-    <>
-      <Header currentView={currentView} onViewChange={setCurrentView} />
-
-      {/* Main Content */}
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 pt-16 pb-24">
-        {currentView === "game" && (
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Compact Game Lobby - Left Side */}
-              <div className="lg:w-80 xl:w-96">
-                <GameLobby />
-              </div>
-
-              {/* Main Phaser Game Arena - Center/Right */}
-              <div className="flex-1 flex justify-center items-start">
-                <div className="bg-black/50 rounded-lg overflow-hidden border border-purple-500/30 max-w-4xl w-full">
-                  <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {currentView === "leaderboard" && (
-          <div className="container mx-auto">
-            <Leaderboard />
-          </div>
-        )}
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Full Background Phaser Game */}
+      <div className="fixed inset-0 w-full h-full">
+        <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
       </div>
 
-      {/* Bottom Navigation */}
-      <Navigation currentView={currentView} onViewChange={setCurrentView} />
-    </>
+      {/* Overlay UI Elements */}
+      <div className="relative z-10">
+        <Header currentView={currentView} onViewChange={setCurrentView} />
+
+        {/* Main Content Overlay */}
+        <div className="min-h-screen pt-16 pb-24">
+          {currentView === "game" && (
+            <div className="absolute left-4 top-20 lg:w-80 xl:w-96">
+              <GameLobby />
+            </div>
+          )}
+
+          {currentView === "leaderboard" && (
+            <div className="container mx-auto px-4">
+              <div className="bg-gray-900/95 backdrop-blur-sm rounded-lg p-6 border border-purple-500/30">
+                <Leaderboard />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Navigation */}
+        <Navigation currentView={currentView} onViewChange={setCurrentView} />
+      </div>
+    </div>
   );
 }

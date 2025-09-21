@@ -167,7 +167,7 @@ export function MultiParticipantPanel() {
 
   if (!connected) {
     return (
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <p className="text-center text-gray-500">Connect your wallet to participate</p>
       </Card>
     );
@@ -175,7 +175,7 @@ export function MultiParticipantPanel() {
 
   if (!currentGame) {
     return (
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <p className="text-center text-gray-500">Loading game...</p>
       </Card>
     );
@@ -191,7 +191,7 @@ export function MultiParticipantPanel() {
         />
       )}
 
-      <Card className="p-4">
+      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <Users className="w-5 h-5" />
