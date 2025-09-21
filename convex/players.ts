@@ -17,6 +17,35 @@ export const getPlayer = query({
   },
 });
 
+export const getPlayerWithCharacter = query({
+  args: { walletAddress: v.string() },
+  handler: async (ctx, args) => {
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      return null;
+    }
+
+    // Get a random character for the player (since players don't have persistent characters)
+    const characters = await ctx.db
+      .query("characters")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+
+    const character = characters.length > 0 
+      ? characters[Math.floor(Math.random() * characters.length)]
+      : null;
+
+    return {
+      ...player,
+      character
+    };
+  },
+});
+
 
 export const createPlayer = mutation({
   args: {

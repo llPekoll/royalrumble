@@ -281,9 +281,6 @@ export function GameLobby() {
         )}
       </Card>
 
-      {/* Character Selection */}
-      <CharacterSelection />
-
       {/* Multi-Participant Panel - only show during waiting phase */}
       {currentGame?.status === "waiting" && <MultiParticipantPanel />}
 
