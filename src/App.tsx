@@ -3,12 +3,9 @@ import { useQuery } from "convex/react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
 import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
-import { Leaderboard } from "./components/Leaderboard";
-import { Navigation } from "./components/Navigation";
 import { api } from "../convex/_generated/api";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<"game" | "leaderboard">("game");
   const [previousParticipants, setPreviousParticipants] = useState<any[]>([]);
 
   //  References to the PhaserGame component (game and scene are exposed)
@@ -60,27 +57,12 @@ export default function App() {
 
       {/* Overlay UI Elements */}
       <div className="relative z-10">
-        <Header currentView={currentView} onViewChange={setCurrentView} />
-
-        {/* Main Content Overlay */}
+        <Header />
         <div className="min-h-screen pt-16 pb-24">
-          {currentView === "game" && (
-            <div className="absolute left-4 top-20 lg:w-80 xl:w-96">
-              <GameLobby />
-            </div>
-          )}
-
-          {currentView === "leaderboard" && (
-            <div className="container mx-auto px-4">
-              <div className="bg-gray-900/95 backdrop-blur-sm rounded-lg p-6 border border-purple-500/30">
-                <Leaderboard />
-              </div>
-            </div>
-          )}
+          <div className="absolute left-4 top-20 lg:w-80 xl:w-96 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+            <GameLobby />
+          </div>
         </div>
-
-        {/* Bottom Navigation */}
-        <Navigation currentView={currentView} onViewChange={setCurrentView} />
       </div>
     </div>
   );

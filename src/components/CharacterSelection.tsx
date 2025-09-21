@@ -23,9 +23,10 @@ interface Character {
 interface CharacterSelectionProps {
   onCharacterSelect: (character: Character) => void;
   selectedCharacter?: Character | null;
+  gameParticipants?: { current: number; max: number };
 }
 
-export function CharacterSelection({ onCharacterSelect, selectedCharacter }: CharacterSelectionProps) {
+export function CharacterSelection({ onCharacterSelect, selectedCharacter, gameParticipants }: CharacterSelectionProps) {
   const { connected, publicKey } = useWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(selectedCharacter || null);
 
@@ -112,98 +113,37 @@ export function CharacterSelection({ onCharacterSelect, selectedCharacter }: Cha
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
-        <h3 className="text-lg font-bold mb-4">Your Current Character</h3>
-
-        <div className={`p-4 rounded-lg border-2  bg-gray-800`}>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xl font-bold">{currentCharacter.name}</h4>
+    <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
+      <div className="flex items-center justify-between ">
+        <h3 className="text-lg font-bold">Your Current Character</h3>
+        {gameParticipants && (
+          <div className="text-sm text-gray-400">
+            Game: {gameParticipants.current}/{gameParticipants.max} participants
           </div>
+        )}
+      </div>
 
-          {currentCharacter.description && (
-            <p className="text-gray-300 text-sm mb-3">{currentCharacter.description}</p>
-          )}
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xl font-bold">{currentCharacter.name}</h4>
+      </div>
 
-          {currentCharacter.baseStats && (
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <div className="bg-red-900/30 p-2 rounded text-center">
-                <div className="text-xs text-gray-400">Power</div>
-                <div className="font-bold text-red-400">{currentCharacter.baseStats.power.toFixed(1)}</div>
-              </div>
-              <div className="bg-blue-900/30 p-2 rounded text-center">
-                <div className="text-xs text-gray-400">Speed</div>
-                <div className="font-bold text-blue-400">{currentCharacter.baseStats.speed.toFixed(1)}</div>
-              </div>
-              <div className="bg-green-900/30 p-2 rounded text-center">
-                <div className="text-xs text-gray-400">Luck</div>
-                <div className="font-bold text-green-400">{currentCharacter.baseStats.luck.toFixed(1)}</div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-400">
-              <div>Free rerolls before joining game</div>
-            </div>
-
-            <Button
-              onClick={handleReroll}
-              disabled={!allCharacters || allCharacters.length <= 1}
-              className="flex items-center gap-2"
-            >
-              <Dice6 className="w-4 h-4" />
-              Reroll Character
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Character Gallery */}
-      {allCharacters && allCharacters.length > 0 && (
-        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
-          <h3 className="text-lg font-bold mb-4">All Available Characters</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {allCharacters.map((character: Character) => (
-              <div
-                key={character._id}
-                className={`p-3 rounded-lg border ${character._id === currentCharacter._id
-                  ? `${getRarityBorder(character.rarity)} bg-gray-700`
-                  : 'border-gray-600 bg-gray-800'
-                  } transition-all hover:border-gray-500`}
-              >
-                <div className="text-center">
-                  <h4 className="font-semibold text-sm mb-1">{character.name}</h4>
-                  <span className={`text-xs ${getRarityColor(character.rarity)} capitalize`}>
-                    {character.rarity || 'common'}
-                  </span>
-
-                  {character.baseStats && (
-                    <div className="mt-2 text-xs">
-                      <div className="flex justify-between">
-                        <span>Power:</span>
-                        <span className="text-red-400">{character.baseStats.power.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Speed:</span>
-                        <span className="text-blue-400">{character.baseStats.speed.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Luck:</span>
-                        <span className="text-green-400">{character.baseStats.luck.toFixed(1)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {character._id === currentCharacter._id && (
-                    <div className="mt-2 text-xs text-yellow-400 font-semibold">★ Current</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+      {currentCharacter.description && (
+        <p className="text-gray-300 text-sm mb-3">{currentCharacter.description}</p>
       )}
-    </div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-400">
+          <div>Free rerolls before joining game</div>
+        </div>
+
+        <Button
+          onClick={handleReroll}
+          disabled={!allCharacters || allCharacters.length <= 1}
+          className="flex items-center gap-2"
+        >
+          <Dice6 className="w-4 h-4" />
+          Reroll Character
+        </Button>
+      </div>
+    </Card>
   );
 }

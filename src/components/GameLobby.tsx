@@ -233,7 +233,7 @@ export function GameLobby() {
   return (
     <div className="space-y-4">
       {/* Game Status Card */}
-      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
+      <Card className="p-4 bg-gray-900/20 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Clock className="w-5 h-5 text-blue-400" />
@@ -265,11 +265,7 @@ export function GameLobby() {
             <div className="font-bold text-green-400">{currentGame?.map?.name || "Loading"}</div>
           </div>
 
-          <div className="text-center">
-            <Trophy className="w-5 h-5 mx-auto mb-1 text-purple-400" />
-            <div className="text-sm text-gray-400">Your Coins</div>
-            <div className="font-bold text-purple-400">{gameCoins}</div>
-          </div>
+
         </div>
 
         {currentGame?.isSmallGame && (

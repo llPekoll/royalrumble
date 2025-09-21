@@ -3,7 +3,7 @@ import { WalletError } from "@solana/wallet-adapter-base";
 import { UnifiedWalletButton } from "@jup-ag/wallet-adapter";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { getSolanaRpcUrl } from "../lib/utils";
 import {
@@ -19,12 +19,7 @@ import { toast } from "sonner";
 import { User } from "lucide-react";
 import { generateRandomName } from "../lib/nameGenerator";
 
-interface HeaderProps {
-  currentView: "game" | "leaderboard";
-  onViewChange: (view: "game" | "leaderboard") => void;
-}
-
-export function Header({ currentView, onViewChange }: HeaderProps) {
+export function Header() {
   const { connected, publicKey, sendTransaction } = useWallet();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -211,31 +206,6 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-6">
               <h1 className="text-2xl font-bold text-white">Royal Rumble</h1>
-
-              {/* Navigation */}
-              <div className="hidden md:flex items-center space-x-2">
-                <Button
-                  onClick={() => onViewChange("game")}
-                  variant={currentView === "game" ? "default" : "ghost"}
-                  className={`px-4 py-2 transition-all ${currentView === "game"
-                    ? "bg-purple-600 hover:bg-purple-700 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800"
-                    }`}
-                >
-                  🎮 Game
-                </Button>
-
-                <Button
-                  onClick={() => onViewChange("leaderboard")}
-                  variant={currentView === "leaderboard" ? "default" : "ghost"}
-                  className={`px-4 py-2 transition-all ${currentView === "leaderboard"
-                    ? "bg-purple-600 hover:bg-purple-700 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800"
-                    }`}
-                >
-                  🏆 Leaderboard
-                </Button>
-              </div>
             </div>
 
             <div className="flex items-center space-x-4">
