@@ -1,39 +1,14 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
-import { Button } from "./ui/button";
-import { Card } from "./ui/card";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { toast } from "sonner";
-import { Plus, Minus, Users, Coins, Dice6 } from "lucide-react";
-import { Id } from "../../convex/_generated/dataModel";
-
-interface ParticipantForm {
-  characterId: string;
-  betAmount: number;
-  displayName: string;
-  colorHue: number;
-}
-
-interface Character {
-  _id: string;
-  name: string;
-  spriteKey: string;
-  description?: string;
-  baseStats?: {
-    power: number;
-    speed: number;
-    luck: number;
-  };
-}
+import { Users } from "lucide-react";
+import { useMemo } from "react";
 
 export function MultiParticipantPanel() {
   const { connected, publicKey } = useWallet();
-  const [participants, setParticipants] = useState<ParticipantForm[]>([]);
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Memoize wallet address to prevent unnecessary re-queries
+  const walletAddress = useMemo(() => connected && publicKey ? publicKey.toString() : null, [connected, publicKey]);
 
   // Get current game
   const currentGame = useQuery(api.games.getCurrentGame);
@@ -41,365 +16,89 @@ export function MultiParticipantPanel() {
   // Get player data
   const playerData = useQuery(
     api.players.getPlayer,
-    connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
+    walletAddress ? { walletAddress } : "skip"
   );
 
-  // Get available characters
-  const characters = useQuery(api.characters.getActiveCharacters);
+  // Get player's current participants in the game - memoize the condition
+  const participantsQueryArgs = useMemo(() => {
+    if (walletAddress && currentGame && playerData) {
+      return { gameId: currentGame._id, playerId: playerData._id };
+    }
+    return "skip";
+  }, [walletAddress, currentGame, playerData]);
 
-  // Get player's current participants in the game
   const playerParticipants = useQuery(
     api.gameParticipants.getPlayerParticipants,
-    connected && publicKey && currentGame && playerData
-      ? { gameId: currentGame._id, playerId: playerData._id }
-      : "skip"
+    participantsQueryArgs
   );
 
-  // Mutations
-  const addParticipant = useMutation(api.gameParticipants.addParticipant);
-
-  const gameCoins = playerData?.gameCoins || 0;
-  const canAddParticipants = currentGame?.status === "waiting";
   const maxParticipants = currentGame?.map?.spawnConfiguration?.maxPlayers || 20;
   const currentParticipantCount = currentGame?.participantCount || 0;
 
-  const handleCharacterSelect = (character: Character) => {
-    setSelectedCharacter(character);
-  };
-
-  // Initialize with random character when characters load
-  useEffect(() => {
-    if (characters && characters.length > 0 && !selectedCharacter) {
-      const randomChar = characters[Math.floor(Math.random() * characters.length)];
-      setSelectedCharacter(randomChar);
-    }
-  }, [characters, selectedCharacter]);
-
-  const addNewParticipant = () => {
-    if (!selectedCharacter) {
-      toast.error("Please select a character first");
-      return;
-    }
-
-    setParticipants(prev => [...prev, {
-      characterId: selectedCharacter._id,
-      betAmount: 100,
-      displayName: `${playerData?.displayName || "Player"} ${prev.length > 0 ? `#${prev.length + 1}` : ''}`,
-      colorHue: Math.random() * 360,
-    }]);
-  };
-
-  const removeParticipant = (index: number) => {
-    setParticipants(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateParticipant = (index: number, field: keyof ParticipantForm, value: any) => {
-    setParticipants(prev => prev.map((p, i) =>
-      i === index ? { ...p, [field]: value } : p
-    ));
-  };
-
-  const getTotalBetAmount = () => {
-    return participants.reduce((sum, p) => sum + p.betAmount, 0);
-  };
-
-  const validateAndSubmit = async () => {
-    if (!connected || !publicKey || !currentGame || !playerData) {
-      toast.error("Please connect your wallet and wait for game data to load");
-      return;
-    }
-
-    if (!canAddParticipants) {
-      toast.error("Cannot add participants - game has already started");
-      return;
-    }
-
-    // Validation
-    const totalBet = getTotalBetAmount();
-    if (totalBet > gameCoins) {
-      toast.error(`Insufficient coins. Need ${totalBet} coins, have ${gameCoins}`);
-      return;
-    }
-
-    if (currentParticipantCount + participants.length > maxParticipants) {
-      toast.error(`Too many participants. Map limit: ${maxParticipants}`);
-      return;
-    }
-
-    for (const participant of participants) {
-      if (participant.betAmount < 10 || participant.betAmount > 10000) {
-        toast.error("Bet amounts must be between 10 and 10,000 coins");
-        return;
-      }
-      if (!participant.displayName.trim()) {
-        toast.error("All participants must have names");
-        return;
-      }
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Add participants one by one
-      for (const participant of participants) {
-        await addParticipant({
-          gameId: currentGame._id,
-          playerId: playerData._id,
-          walletAddress: publicKey.toString(),
-          characterId: participant.characterId as Id<"characters">,
-          betAmount: participant.betAmount,
-          displayName: participant.displayName.trim(),
-          colorHue: participant.colorHue,
-        });
-      }
-
-      toast.success(`Added ${participants.length} participant(s) to the game!`);
-
-      // Reset form
-      setParticipants([]);
-    } catch (error) {
-      console.error("Failed to add participants:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to add participants");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getCharacterName = (characterId: string) => {
-    return characters?.find(c => c._id === characterId)?.name || "Unknown";
-  };
-
-  const getColorPreview = (hue: number) => {
-    return `hsl(${hue}, 80%, 60%)`;
-  };
-
   if (!connected) {
     return (
-      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
-        <p className="text-center text-gray-500">Connect your wallet to participate</p>
-      </Card>
+      <div className="p-4 bg-gradient-to-b from-amber-900/80 to-amber-950/80 backdrop-blur-sm rounded-lg border-2 border-amber-600/40">
+        <p className="text-center text-amber-400">Connect your wallet to participate</p>
+      </div>
     );
   }
 
   if (!currentGame) {
     return (
-      <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
-        <p className="text-center text-gray-500">Loading game...</p>
-      </Card>
+      <div className="p-4 bg-gradient-to-b from-amber-900/80 to-amber-950/80 backdrop-blur-sm rounded-lg border-2 border-amber-600/40">
+        <p className="text-center text-amber-400">Loading game...</p>
+      </div>
     );
   }
 
   return (
-    <Card className="p-4 bg-gray-900/20 backdrop-blur-sm">
-      {/* Character Selection Header */}
+    <div className="p-4 bg-gradient-to-b from-amber-900/30 to-amber-950/30 backdrop-blur-sm rounded-lg border-2 border-amber-600/40">
+      {/* Game Info Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold">Your Current Character</h3>
-        <div className="text-sm text-gray-400">
-          Game: {currentParticipantCount}/{maxParticipants} participants
-        </div>
-      </div>
-
-      {/* Character Info */}
-      {selectedCharacter && (
-        <>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xl font-bold">{selectedCharacter.name}</h4>
-          </div>
-
-          {selectedCharacter.description && (
-            <p className="text-gray-300 text-sm mb-3">{selectedCharacter.description}</p>
-          )}
-
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-gray-400">
-              <div>Free rerolls before joining game</div>
-            </div>
-
-            <Button
-              onClick={() => {
-                if (!characters || characters.length === 0) {
-                  toast.error("No characters available");
-                  return;
-                }
-
-                const availableCharacters = characters.filter(c => c._id !== selectedCharacter._id);
-                if (availableCharacters.length === 0) {
-                  toast.error("No other characters available");
-                  return;
-                }
-
-                const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                setSelectedCharacter(randomChar);
-                handleCharacterSelect(randomChar);
-                toast.success(`New character: ${randomChar.name}!`);
-              }}
-              disabled={!characters || characters.length <= 1}
-              className="flex items-center gap-2"
-            >
-              <Dice6 className="w-4 h-4" />
-              Reroll Character
-            </Button>
-          </div>
-        </>
-      )}
-
-      {/* Divider */}
-      <div className="border-t border-gray-700 my-4"></div>
-
-      {/* Add Participants Section */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Add Participants
+        <h3 className="text-lg font-bold flex items-center gap-2 text-amber-300 uppercase tracking-wide">
+          <Users className="w-5 h-5 text-amber-400" />
+          Your Combatants
         </h3>
-      </div>
-
-      {!canAddParticipants && (
-        <div className="bg-yellow-900/20 border border-yellow-500 rounded p-3 mb-4">
-          <p className="text-yellow-400 text-sm">
-            Game has started. Cannot add more participants.
-          </p>
+        <div className="text-sm text-amber-400">
+          Arena: {currentParticipantCount}/{maxParticipants}
         </div>
-      )}
+      </div>
 
       {/* Current Participants in Game */}
-      {playerParticipants && playerParticipants.length > 0 && (
-        <div className="mb-4">
-          <h4 className="font-semibold mb-2">Your Current Participants</h4>
+      {playerParticipants && playerParticipants.length > 0 ? (
+        <div>
           <div className="space-y-2">
             {playerParticipants.map((participant: any) => (
-              <div key={participant._id} className="bg-green-900/20 border border-green-500 rounded p-3">
+              <div key={participant._id} className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-600/50 rounded-lg p-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium">{participant.displayName}</span>
-                    <span className="text-gray-400 ml-2">
-                      ({getCharacterName(participant.characterId)})
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-amber-600 to-amber-800 rounded-lg flex items-center justify-center text-xl font-bold text-amber-100">
+                      {participant.displayName?.charAt(0) || "?"}
+                    </div>
+                    <div>
+                      <span className="font-bold text-amber-100">{participant.displayName}</span>
+                      <span className="text-amber-400 text-sm block">
+                        {participant.character?.name || "Unknown"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-yellow-400">
-                    {participant.betAmount} coins
+                  <div className="text-right">
+                    <div className="text-amber-300 font-bold">
+                      {participant.betAmount}
+                    </div>
+                    <div className="text-amber-500 text-xs uppercase">SOL</div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-amber-300 font-bold">No combatants yet</p>
+          <p className="text-sm mt-2 text-amber-400">Use the card below to enter the arena</p>
+        </div>
       )}
-
-      {/* Add New Participants Form */}
-      {canAddParticipants && (
-        <>
-          <div className="space-y-4">
-            {participants.map((participant, index) => (
-              <div key={index} className="border border-gray-600 rounded p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Participant #{index + 1}</h4>
-                  {participants.length > 1 && (
-                    <Button
-                      onClick={() => removeParticipant(index)}
-                      size="sm"
-                      variant="outline"
-                      className="text-red-400 border-red-400"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor={`name-${index}`}>Display Name</Label>
-                    <Input
-                      id={`name-${index}`}
-                      value={participant.displayName}
-                      onChange={(e) => updateParticipant(index, 'displayName', e.target.value)}
-                      placeholder="Participant name"
-                      maxLength={20}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor={`bet-${index}`}>Bet Amount</Label>
-                    <div className="relative">
-                      <Input
-                        id={`bet-${index}`}
-                        type="number"
-                        value={participant.betAmount}
-                        onChange={(e) => updateParticipant(index, 'betAmount', parseInt(e.target.value) || 0)}
-                        min={10}
-                        max={10000}
-                        className="pr-16"
-                      />
-                      <Coins className="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-yellow-400" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor={`character-${index}`}>Character</Label>
-                    <select
-                      id={`character-${index}`}
-                      value={participant.characterId}
-                      onChange={(e) => updateParticipant(index, 'characterId', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                    >
-                      {characters?.map((char: any) => (
-                        <option key={char._id} value={char._id}>
-                          {char.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor={`color-${index}`}>Color Variation</Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        id={`color-${index}`}
-                        type="range"
-                        min="0"
-                        max="360"
-                        value={participant.colorHue}
-                        onChange={(e) => updateParticipant(index, 'colorHue', parseInt(e.target.value))}
-                        className="flex-1"
-                      />
-                      <div
-                        className="w-8 h-8 rounded border border-gray-600"
-                        style={{ backgroundColor: getColorPreview(participant.colorHue) }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-gray-600">
-            <div className="text-sm text-gray-400">
-              <div>Total bet: <span className="text-yellow-400">{getTotalBetAmount()} coins</span></div>
-              <div>Available: <span className="text-green-400">{gameCoins} coins</span></div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={addNewParticipant}
-                variant="outline"
-                disabled={participants.length >= 5 || !selectedCharacter} // Reasonable limit per player
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {participants.length === 0 ? 'Add Participant' : 'Add Another'}
-              </Button>
-
-              {participants.length > 0 && (
-                <Button
-                  onClick={validateAndSubmit}
-                  disabled={isSubmitting || getTotalBetAmount() > gameCoins}
-                >
-                  {isSubmitting ? 'Adding...' : `Join Game (${participants.length} participants)`}
-                </Button>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </Card>
+    </div>
   );
 }

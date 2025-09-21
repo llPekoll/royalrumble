@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
@@ -7,8 +7,8 @@ import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
-import { CharacterSelection } from "./CharacterSelection";
 import { MultiParticipantPanel } from "./MultiParticipantPanel";
+import { CompactCharacterCard } from "./CompactCharacterCard";
 import { generateRandomName } from "../lib/nameGenerator";
 import {
   Clock,
@@ -126,6 +126,11 @@ export function GameLobby() {
     }
   };
 
+  // Stable callback for CompactCharacterCard
+  const handleParticipantAdded = useCallback(() => {
+    // No need to force re-render, queries will update automatically
+  }, []);
+
   const handleSpectatorBet = async () => {
     if (!connected || !publicKey || !currentGame || !playerData) {
       toast.error("Please connect your wallet and ensure game data is loaded");
@@ -232,26 +237,18 @@ export function GameLobby() {
 
   return (
     <div className="space-y-4">
-      {/* Game Status Card - Amber themed design */}
-      <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <Map className="w-5 h-5 mx-auto mb-2 text-amber-400" />
-            <div className="font-bold text-amber-300 text-lg uppercase tracking-wide">{currentGame?.map?.name || "Loading"}</div>
-          </div>
-        </div>
-
-        {currentGame?.isSmallGame && (
-          <div className="mt-4 p-3 bg-amber-800/20 border border-amber-500/40 rounded text-center">
-            <p className="text-amber-300 text-sm flex items-center justify-center gap-2">
-              <span className="text-yellow-300">⚡</span> Quick Game Mode: 3 phases (45 seconds total)
-            </p>
-          </div>
-        )}
-      </div>
 
       {/* Multi-Participant Panel - only show during waiting phase */}
-      {currentGame?.status === "waiting" && <MultiParticipantPanel />}
+      {currentGame?.status === "waiting" && (
+        <>
+          <MultiParticipantPanel />
+          <CompactCharacterCard
+            currentGameId={currentGame._id}
+            playerId={playerData?._id}
+            onParticipantAdded={handleParticipantAdded}
+          />
+        </>
+      )}
 
       {/* Current Participants */}
       {playerParticipants.length > 0 && (
