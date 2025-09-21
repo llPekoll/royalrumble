@@ -31,6 +31,11 @@ export class PlayerManager {
     this.centerY = centerY;
   }
 
+  updateCenter(centerX: number, centerY: number) {
+    this.centerX = centerX;
+    this.centerY = centerY;
+  }
+
   getParticipants(): Map<string, GameParticipant> {
     return this.participants;
   }

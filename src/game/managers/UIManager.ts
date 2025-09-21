@@ -19,6 +19,29 @@ export class UIManager {
     this.centerX = centerX;
   }
 
+  updateCenter(centerX: number) {
+    this.centerX = centerX;
+    // Update positions of UI elements that use centerX
+    if (this.titleText) {
+      this.titleText.setX(centerX);
+    }
+    if (this.phaseText) {
+      this.phaseText.setX(centerX);
+    }
+    if (this.timerText) {
+      this.timerText.setX(centerX);
+    }
+    if (this.timerBackground) {
+      this.timerBackground.setX(centerX);
+    }
+    if (this.playerCountText) {
+      this.playerCountText.setX(centerX);
+    }
+    if (this.potAmountText) {
+      this.potAmountText.setX(centerX);
+    }
+  }
+
   create() {
     // Show title for 2 seconds then disappear
     this.titleText = this.scene.add.text(this.centerX, 150, '🏆 ROYAL RUMBLE 🏆', {

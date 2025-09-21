@@ -12,6 +12,11 @@ export class AnimationManager {
     this.centerY = centerY;
   }
 
+  updateCenter(centerX: number, centerY: number) {
+    this.centerX = centerX;
+    this.centerY = centerY;
+  }
+
   createExplosionsSequence() {
     const createExplosion = (delay: number = 0) => {
       this.scene.time.delayedCall(delay, () => {

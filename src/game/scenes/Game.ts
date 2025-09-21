@@ -9,8 +9,8 @@ export class Game extends Scene {
   camera!: Phaser.Cameras.Scene2D.Camera;
   background!: Phaser.GameObjects.Image;
   gameState: any = null;
-  centerX: number = 512;
-  centerY: number = 384;
+  centerX: number = 0;
+  centerY: number = 0;
 
   // Managers
   private playerManager!: PlayerManager;
@@ -26,10 +26,15 @@ export class Game extends Scene {
     this.camera = this.cameras.main;
     this.camera.setBackgroundColor(0x1a1a2e);
 
+    // Calculate proper center coordinates based on actual camera dimensions
+    this.centerX = this.camera.centerX;
+    this.centerY = this.camera.centerY;
+
     // Background will be set when gameState is first updated
     // Use first available map texture as default, will be updated from game state
     const defaultTexture = 'arena_classic'; // This will be loaded from database
     this.background = this.add.image(this.centerX, this.centerY, defaultTexture);
+    this.background.setOrigin(0.5, 0.5);
     this.background.setAlpha(0.8);
 
     // Initialize managers
@@ -41,7 +46,24 @@ export class Game extends Scene {
     // Create UI elements
     this.uiManager.create();
 
+    // Handle resize events to keep background centered
+    this.scale.on('resize', this.handleResize, this);
+
     EventBus.emit('current-scene-ready', this);
+  }
+
+  handleResize() {
+    // Update center coordinates when window is resized
+    this.centerX = this.camera.centerX;
+    this.centerY = this.camera.centerY;
+    
+    // Reposition background
+    this.background.setPosition(this.centerX, this.centerY);
+    
+    // Update managers with new center coordinates
+    this.playerManager.updateCenter(this.centerX, this.centerY);
+    this.animationManager.updateCenter(this.centerX, this.centerY);
+    this.uiManager.updateCenter(this.centerX);
   }
 
   // Update game state from Convex

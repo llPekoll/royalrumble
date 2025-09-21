@@ -232,59 +232,32 @@ export function GameLobby() {
 
   return (
     <div className="space-y-4">
-      {/* Game Status Card */}
-      <Card className="p-4 bg-gray-900/20 backdrop-blur-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-blue-400" />
-            <div>
-              <h3 className="font-bold">{phaseInfo.name}</h3>
-              <p className="text-sm text-gray-400">{phaseInfo.description}</p>
-            </div>
-          </div>
-
-
-        </div>
-
+      {/* Game Status Card - Flatter design */}
+      <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <Users className="w-5 h-5 mx-auto mb-1 text-gray-400" />
-            <div className="text-sm text-gray-400">Participants</div>
-            <div className="font-bold">{currentGame?.participantCount || 0}</div>
+            <Map className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
+            <div className="font-medium text-emerald-400 text-lg">{currentGame?.map?.name || "Loading"}</div>
           </div>
-
-          <div className="text-center">
-            <Coins className="w-5 h-5 mx-auto mb-1 text-yellow-400" />
-            <div className="text-sm text-gray-400">Total Pool</div>
-            <div className="font-bold text-yellow-400">{currentGame?.totalPot || 0}</div>
-          </div>
-
-          <div className="text-center">
-            <Map className="w-5 h-5 mx-auto mb-1 text-green-400" />
-            <div className="text-sm text-gray-400">Map</div>
-            <div className="font-bold text-green-400">{currentGame?.map?.name || "Loading"}</div>
-          </div>
-
-
         </div>
 
         {currentGame?.isSmallGame && (
-          <div className="mt-3 p-2 bg-blue-900/20 border border-blue-500 rounded text-center">
-            <p className="text-blue-400 text-sm">
-              ⚡ Quick Game Mode: 3 phases (45 seconds total)
+          <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-600/30 rounded text-center">
+            <p className="text-cyan-400 text-sm flex items-center justify-center gap-2">
+              <span className="text-yellow-400">⚡</span> Quick Game Mode: 3 phases (45 seconds total)
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Multi-Participant Panel - only show during waiting phase */}
       {currentGame?.status === "waiting" && <MultiParticipantPanel />}
 
       {/* Current Participants */}
       {playerParticipants.length > 0 && (
-        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
-          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-            <Target className="w-5 h-5" />
+        <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-100">
+            <Target className="w-5 h-5 text-cyan-400" />
             Your Participants ({playerParticipants.length})
           </h3>
           <div className="grid gap-3">
@@ -322,14 +295,14 @@ export function GameLobby() {
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Spectator Betting - only show during betting phase */}
       {canPlaceSpectatorBets && (
-        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
-          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-            <Target className="w-5 h-5" />
+        <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-100">
+            <Target className="w-5 h-5 text-cyan-400" />
             Spectator Betting
           </h3>
 
@@ -407,12 +380,12 @@ export function GameLobby() {
               </Button>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Game Results */}
       {currentGame?.status === "results" && currentGame.winnerId && (
-        <Card className="p-4 bg-gray-900/80 backdrop-blur-sm">
+        <div className="p-6 bg-slate-800/60 border border-slate-700/50 rounded-lg">
           <div className="text-center">
             <Trophy className="w-12 h-12 mx-auto mb-3 text-yellow-400" />
             <h3 className="text-xl font-bold mb-2">Game Complete!</h3>
@@ -433,7 +406,7 @@ export function GameLobby() {
               );
             })()}
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );
