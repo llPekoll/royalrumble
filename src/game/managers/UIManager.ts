@@ -102,13 +102,27 @@ export class UIManager {
     };
 
     const phaseName = phaseNames[gameState.status] || 'Game Phase';
-    const participantCount = gameState.participants?.length || 0;
-    const maxPhases = participantCount < 8 ? 3 : 5;
+    const isSmallGame = gameState.isSmallGame || gameState.participants?.length < 8;
+    const maxPhases = isSmallGame ? 3 : 5;
 
-    // Adjust phase number for display in 3-phase games
+    // Map internal phase to display phase based on game type
     let displayPhase = gameState.phase;
-    if (participantCount < 8 && gameState.phase === 3) {
-      displayPhase = 3; // Results is phase 3 in 3-phase games
+    if (isSmallGame) {
+      // Quick game (< 8 participants): Only 3 phases
+      // Phase 1: Waiting
+      // Phase 2: Arena
+      // Phase 3: Results (internal phase 3 when skipping betting/battle)
+      if (gameState.status === 'waiting') displayPhase = 1;
+      else if (gameState.status === 'arena') displayPhase = 2;
+      else if (gameState.status === 'results') displayPhase = 3;
+    } else {
+      // Normal game (≥ 8 participants): 5 phases
+      // Phase 1: Waiting
+      // Phase 2: Arena
+      // Phase 3: Betting
+      // Phase 4: Battle
+      // Phase 5: Results
+      displayPhase = gameState.phase;
     }
 
     this.phaseText.setText(`${phaseName} (${displayPhase}/${maxPhases})`);

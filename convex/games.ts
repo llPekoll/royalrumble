@@ -60,12 +60,15 @@ export const getCurrentGame = query({
     // Calculate time remaining for current phase
     const timeRemaining = Math.max(0, game.nextPhaseTime - Date.now());
 
+    // Determine if it's a small game based on participant count
+    const isSmallGame = participantsWithCharacters.length < 8;
+
     return {
       ...game,
       map,
       participants: participantsWithCharacters,
       timeRemaining,
-      isSmallGame: game.participantCount < 8,
+      isSmallGame,
     };
   },
 });
@@ -334,12 +337,14 @@ export const joinGame = mutation({
       placedAt: Date.now(),
     });
 
-    // Update game stats
+    // Update game stats and check if it's still a small game
+    const updatedParticipantCount = game.participantCount + 1;
     await ctx.db.patch(game._id, {
       playerCount: game.playerCount + 1,
-      participantCount: game.participantCount + 1,
+      participantCount: updatedParticipantCount,
       totalPot: game.totalPot + args.betAmount,
       selfBetPool: game.selfBetPool + args.betAmount,
+      isSmallGame: updatedParticipantCount < 8,
     });
 
     return {
@@ -777,8 +782,15 @@ export const advanceGamePhase = internalMutation({
           nextPhase = 2;
           nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
 
+          const totalParticipants = await ctx.db
+            .query("gameParticipants")
+            .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
+            .collect();
+
           await ctx.db.patch(args.gameId, {
             isSinglePlayer: false, // Demo mode
+            isSmallGame: totalParticipants.length < 8,
+            participantCount: totalParticipants.length,
             status: nextStatus,
             phase: nextPhase,
             phaseStartTime: now,
@@ -791,8 +803,15 @@ export const advanceGamePhase = internalMutation({
           nextPhase = 2;
           nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
 
+          const totalParticipants = await ctx.db
+            .query("gameParticipants")
+            .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
+            .collect();
+
           await ctx.db.patch(args.gameId, {
             isSinglePlayer: true,
+            isSmallGame: totalParticipants.length < 8,
+            participantCount: totalParticipants.length,
             status: nextStatus,
             phase: nextPhase,
             phaseStartTime: now,
@@ -804,7 +823,14 @@ export const advanceGamePhase = internalMutation({
           nextPhase = 2;
           nextPhaseTime = now + (PHASE_DURATIONS.RUNNING * 1000);
 
+          const totalParticipants = await ctx.db
+            .query("gameParticipants")
+            .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
+            .collect();
+
           await ctx.db.patch(args.gameId, {
+            isSmallGame: totalParticipants.length < 8,
+            participantCount: totalParticipants.length,
             status: nextStatus,
             phase: nextPhase,
             phaseStartTime: now,
