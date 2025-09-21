@@ -250,51 +250,6 @@ export function GameLobby() {
         </>
       )}
 
-      {/* Current Participants */}
-      {playerParticipants.length > 0 && (
-        <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">
-          <h3 className="text-lg font-bold mb-3 flex items-center gap-2 text-amber-300 uppercase tracking-wide">
-            <Target className="w-5 h-5 text-amber-400" />
-            Your Participants ({playerParticipants.length})
-          </h3>
-          <div className="grid gap-3">
-            {playerParticipants.map((participant: any) => (
-              <div
-                key={participant._id}
-                className="flex items-center justify-between p-3 bg-amber-950/30 rounded-lg border border-amber-700/30 backdrop-blur-sm"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full border"
-                    style={{
-                      backgroundColor: participant.colorHue !== undefined
-                        ? `hsl(${participant.colorHue}, 80%, 60%)`
-                        : '#666'
-                    }}
-                  />
-                  <div>
-                    <div className="font-bold text-amber-200">{participant.displayName}</div>
-                    <div className="text-sm text-amber-400/70">
-                      {participant.character?.name} • {participant.betAmount} coins
-                    </div>
-                  </div>
-                </div>
-
-                {participant.eliminated && (
-                  <div className="text-red-400 text-sm font-semibold">ELIMINATED</div>
-                )}
-
-                {participant.finalPosition && (
-                  <div className="text-yellow-400 text-sm font-semibold">
-                    #{participant.finalPosition}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Spectator Betting - only show during betting phase */}
       {canPlaceSpectatorBets && (
         <div className="p-6 bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-600/40 rounded-lg backdrop-blur-sm shadow-xl shadow-amber-500/10">

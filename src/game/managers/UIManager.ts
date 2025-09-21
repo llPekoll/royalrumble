@@ -9,8 +9,6 @@ export class UIManager {
   public phaseText!: Phaser.GameObjects.Text;
   public timerText!: Phaser.GameObjects.Text;
   public timerBackground!: Phaser.GameObjects.Rectangle;
-  public playerCountText!: Phaser.GameObjects.Text;
-  public potAmountText!: Phaser.GameObjects.Text;
 
   private gameState: any = null;
 
@@ -33,12 +31,6 @@ export class UIManager {
     }
     if (this.timerBackground) {
       this.timerBackground.setX(centerX);
-    }
-    if (this.playerCountText) {
-      this.playerCountText.setX(centerX);
-    }
-    if (this.potAmountText) {
-      this.potAmountText.setX(centerX);
     }
   }
 
@@ -91,27 +83,6 @@ export class UIManager {
       shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true }
     }).setOrigin(0.5).setDepth(151);
 
-    // Player count display (bottom left)
-    this.playerCountText = this.scene.add.text(this.centerX - 150, 700, 'Players: 0', {
-      fontFamily: 'Arial Black',
-      fontSize: 24,
-      color: '#FFD700',
-      stroke: '#4B2F20',
-      strokeThickness: 3,
-      align: 'left'
-    }).setOrigin(0.5).setDepth(150);
-
-    // Pot amount display (bottom right)
-    this.potAmountText = this.scene.add.text(this.centerX + 150, 700, '£ 0', {
-      fontFamily: 'Arial Black',
-      fontSize: 26,
-      color: '#FFB347',
-      stroke: '#4B2F20',
-      strokeThickness: 4,
-      align: 'right',
-      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true }
-    }).setOrigin(0.5).setDepth(150);
-
  }
 
   updateGameState(gameState: any) {
@@ -119,8 +90,6 @@ export class UIManager {
     if (!gameState) return;
 
     this.updatePhaseDisplay(gameState);
-    this.updatePlayerCount(gameState);
-    this.updatePotAmount(gameState);
   }
 
   private updatePhaseDisplay(gameState: any) {
@@ -143,21 +112,6 @@ export class UIManager {
     }
 
     this.phaseText.setText(`${phaseName} (${displayPhase}/${maxPhases})`);
-  }
-
-  private updatePlayerCount(gameState: any) {
-    const participantCount = gameState.participants?.length || 0;
-    this.playerCountText.setText(`Players: ${participantCount}`);
-  }
-
-  private updatePotAmount(gameState: any) {
-    // Calculate total pot from all participants' bet amounts
-    const totalPotInCoins = gameState.participants?.reduce((sum: number, participant: any) => {
-      return sum + (participant.betAmount || 0);
-    }, 0) || 0;
-
-    // Display pot in coins with £ symbol
-    this.potAmountText.setText(`£ ${totalPotInCoins.toLocaleString()}`);
   }
 
   updateTimer() {

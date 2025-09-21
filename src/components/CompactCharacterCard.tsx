@@ -40,10 +40,10 @@ const CompactCharacterCard = memo(function CompactCharacterCard({ currentGameId,
   // Get current game - only fetch once
   const currentGame = useQuery(api.games.getCurrentGame);
 
-  // Check if player has already joined this game
-  const playerParticipants = currentGame?.participants?.filter(
+  // Check how many participants this player already has
+  const playerParticipantCount = currentGame?.participants?.filter(
     (p: any) => p.walletAddress === walletAddress
-  ) || [];
+  ).length || 0;
 
   // Mutation to add participant
   const addParticipant = useMutation(api.gameParticipants.addParticipant);
@@ -116,6 +116,16 @@ const CompactCharacterCard = memo(function CompactCharacterCard({ currentGameId,
 
       toast.success(`Joined game with ${currentCharacter.name}! Bet: ${amount} coins`);
       setBetAmount("100");
+
+      // Auto-reroll to a new character for the next participant
+      if (allCharacters && allCharacters.length > 0) {
+        const availableCharacters = allCharacters.filter(c => c._id !== currentCharacter._id);
+        if (availableCharacters.length > 0) {
+          const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+          setCurrentCharacter(randomChar);
+        }
+      }
+
       onParticipantAdded?.();
 
     } catch (error) {
@@ -126,8 +136,8 @@ const CompactCharacterCard = memo(function CompactCharacterCard({ currentGameId,
     }
   }, [connected, publicKey, currentGame, playerData, currentCharacter, betAmount, gameCoins, addParticipant, onParticipantAdded]);
 
-  // Don't render if not connected, no character, or player has already joined
-  if (!connected || !currentCharacter || playerParticipants.length > 0) {
+  // Don't render if not connected, no character, or game is not in waiting phase
+  if (!connected || !currentCharacter || currentGame?.status !== 'waiting') {
     return null;
   }
 
@@ -136,6 +146,14 @@ const CompactCharacterCard = memo(function CompactCharacterCard({ currentGameId,
       <div className="bg-gradient-to-b from-amber-900/95 to-amber-950/95 backdrop-blur-sm rounded-lg border-2 border-amber-600/60 shadow-2xl shadow-amber-900/50">
         {/* Character Section */}
         <div className="p-3 border-b border-amber-700/50">
+          {/* Player participant count indicator */}
+          {playerParticipantCount > 0 && (
+            <div className="mb-2 text-center">
+              <span className="text-xs text-amber-400 uppercase tracking-wide">
+                You have {playerParticipantCount} participant{playerParticipantCount > 1 ? 's' : ''} in this game
+              </span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-amber-800 rounded-lg flex items-center justify-center text-2xl font-bold text-amber-100">
