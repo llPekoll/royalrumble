@@ -46,7 +46,7 @@ export class Game extends Scene {
     this.uiManager.create();
 
     // Handle resize events to keep background centered
-    this.scale.on('resize', this.handleResize, this);
+    this.scale.on('resize', () => this.handleResize(), this);
 
     EventBus.emit('current-scene-ready', this);
   }
