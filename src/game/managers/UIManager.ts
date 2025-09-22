@@ -11,6 +11,9 @@ export class UIManager {
   public timerBackground!: Phaser.GameObjects.Rectangle;
 
   private gameState: any = null;
+  private lastTimerValue: string = '';
+  private timerContainer!: Phaser.GameObjects.Container;
+  private digitContainers: Map<number, Phaser.GameObjects.Container> = new Map();
 
   constructor(scene: Scene, centerX: number) {
     this.scene = scene;
@@ -26,8 +29,8 @@ export class UIManager {
     if (this.phaseText) {
       this.phaseText.setX(centerX);
     }
-    if (this.timerText) {
-      this.timerText.setX(centerX);
+    if (this.timerContainer) {
+      this.timerContainer.setX(centerX);
     }
     if (this.timerBackground) {
       this.timerBackground.setX(centerX);
@@ -72,18 +75,46 @@ export class UIManager {
     this.timerBackground.setStrokeStyle(4, 0xFFB347);
     this.timerBackground.setDepth(149);
 
-    // Timer display with amber theme
-    this.timerText = this.scene.add.text(this.centerX, 180, '0:00', {
-      fontFamily: 'Arial Black',
-      fontSize: 36,
-      color: '#FFDB58',
-      stroke: '#6B4423',
-      strokeThickness: 5,
-      align: 'center',
-      shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true }
-    }).setOrigin(0.5).setDepth(151);
+    // Create timer container for animated digits
+    this.timerContainer = this.scene.add.container(this.centerX, 180);
+    this.timerContainer.setDepth(151);
 
- }
+    // Initialize with default timer display
+    this.lastTimerValue = '';
+    this.initializeTimer('0:00');
+
+  }
+
+  private initializeTimer(timeText: string) {
+    // Clear existing containers
+    this.digitContainers.forEach(container => container.destroy());
+    this.digitContainers.clear();
+
+    // Calculate centering offset based on string length
+    const charWidth = 22;
+    const totalWidth = timeText.length * charWidth;
+    const startOffset = -totalWidth / 2 + charWidth / 2;
+
+    // Create initial digits
+    for (let i = 0; i < timeText.length; i++) {
+      const char = timeText[i];
+      const xOffset = startOffset + (i * charWidth);
+
+      const container = this.scene.add.container(xOffset, 0);
+      this.timerContainer.add(container);
+      this.digitContainers.set(i, container);
+
+      // Create mask for this digit position
+      const maskGraphics = this.scene.add.graphics();
+      maskGraphics.fillRect(this.centerX + xOffset - 15, 180 - 25, 30, 50);
+      const mask = maskGraphics.createGeometryMask();
+      container.setMask(mask);
+
+      // Add initial digit
+      const digit = this.createDigitText(char, '#FFDB58');
+      container.add(digit);
+    }
+  }
 
   updateGameState(gameState: any) {
     this.gameState = gameState;
@@ -128,6 +159,82 @@ export class UIManager {
     this.phaseText.setText(`${phaseName} (${displayPhase}/${maxPhases})`);
   }
 
+  private createDigitText(char: string, color: string): Phaser.GameObjects.Text {
+    return this.scene.add.text(0, 0, char, {
+      fontFamily: 'Arial Black',
+      fontSize: 36,
+      color: color,
+      stroke: '#6B4423',
+      strokeThickness: 5,
+      align: 'center',
+      shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true }
+    }).setOrigin(0.5);
+  }
+
+  private animateDigitChange(position: number, newChar: string, color: string, totalLength: number) {
+    // Calculate centering offset based on total string length
+    const charWidth = 22;
+    const totalWidth = totalLength * charWidth;
+    const startOffset = -totalWidth / 2 + charWidth / 2;
+    const xOffset = startOffset + (position * charWidth);
+
+    // Get or create container for this position
+    let container = this.digitContainers.get(position);
+    if (!container) {
+      container = this.scene.add.container(xOffset, 0);
+      this.timerContainer.add(container);
+      this.digitContainers.set(position, container);
+
+      // Create mask for this digit position
+      const maskGraphics = this.scene.add.graphics();
+      maskGraphics.fillRect(this.centerX + xOffset - 15, 180 - 25, 30, 50);
+      const mask = maskGraphics.createGeometryMask();
+      container.setMask(mask);
+    } else {
+      // Update position if length changed
+      container.setX(xOffset);
+    }
+
+    // Clear old digits that are off-screen
+    const toRemove: Phaser.GameObjects.Text[] = [];
+    container.each((child: any) => {
+      if (child.y > 40 || child.y < -40) {
+        toRemove.push(child);
+      }
+    });
+    toRemove.forEach(child => container.remove(child, true));
+
+    // Create new digit coming from top
+    const newDigit = this.createDigitText(newChar, color);
+    newDigit.setY(-40); // Start above visible area
+    container.add(newDigit);
+
+    // Animate existing digits down and new digit into place
+    container.each((child: any) => {
+      if (child === newDigit) {
+        // New digit slides in from top
+        this.scene.tweens.add({
+          targets: child,
+          y: 0,
+          duration: 200,
+          ease: 'Power2'
+        });
+      } else {
+        // Old digits slide down and fade out
+        this.scene.tweens.add({
+          targets: child,
+          y: child.y + 40,
+          alpha: 0,
+          duration: 200,
+          ease: 'Power2',
+          onComplete: () => {
+            container.remove(child, true);
+          }
+        });
+      }
+    });
+  }
+
   updateTimer() {
     if (!this.gameState || !this.gameState.nextPhaseTime) return;
 
@@ -140,23 +247,72 @@ export class UIManager {
     const secs = seconds % 60;
     const timeText = `${minutes}:${secs.toString().padStart(2, '0')}`;
 
-    this.timerText.setText(timeText);
-
-    // Change color based on time remaining with amber theme
+    // Determine color based on time remaining
+    let color = '#FFDB58'; // Golden for normal
     if (seconds <= 5) {
-      this.timerText.setColor('#FF6B6B'); // Red-orange for urgent
+      color = '#FF6B6B'; // Red-orange for urgent
       this.timerBackground.setStrokeStyle(4, 0xFF6B6B);
       // Pulse effect for last 5 seconds
       const scale = 1 + Math.sin(currentTime * 0.01) * 0.1;
-      this.timerText.setScale(scale);
+      this.timerContainer.setScale(scale);
     } else if (seconds <= 10) {
-      this.timerText.setColor('#FFA500'); // Orange for warning
+      color = '#FFA500'; // Orange for warning
       this.timerBackground.setStrokeStyle(4, 0xFFA500);
-      this.timerText.setScale(1);
+      this.timerContainer.setScale(1);
     } else {
-      this.timerText.setColor('#FFDB58'); // Golden for normal
       this.timerBackground.setStrokeStyle(4, 0xFFB347);
-      this.timerText.setScale(1);
+      this.timerContainer.setScale(1);
+    }
+
+    // Animate digit changes
+    if (timeText !== this.lastTimerValue) {
+      // Update all digit positions if length changed
+      if (timeText.length !== this.lastTimerValue.length) {
+        // Recenter all containers
+        const charWidth = 22;
+        const totalWidth = timeText.length * charWidth;
+        const startOffset = -totalWidth / 2 + charWidth / 2;
+
+        for (let i = 0; i < timeText.length; i++) {
+          const xOffset = startOffset + (i * charWidth);
+          const container = this.digitContainers.get(i);
+          if (container) {
+            container.setX(xOffset);
+          }
+        }
+      }
+
+      for (let i = 0; i < timeText.length; i++) {
+        const newChar = timeText[i];
+        const oldChar = this.lastTimerValue[i] || '';
+
+        if (newChar !== oldChar) {
+          this.animateDigitChange(i, newChar, color, timeText.length);
+        } else {
+          // Update color of existing digits
+          const container = this.digitContainers.get(i);
+          if (container) {
+            container.each((child: any) => {
+              if (child.y === 0) { // Only update the visible digit
+                child.setColor(color);
+              }
+            });
+          }
+        }
+      }
+
+      // Remove extra digit containers if new text is shorter
+      if (timeText.length < this.lastTimerValue.length) {
+        for (let i = timeText.length; i < this.lastTimerValue.length; i++) {
+          const container = this.digitContainers.get(i);
+          if (container) {
+            container.destroy();
+            this.digitContainers.delete(i);
+          }
+        }
+      }
+
+      this.lastTimerValue = timeText;
     }
   }
 }
