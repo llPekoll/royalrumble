@@ -9,7 +9,6 @@ import { Id } from "../../convex/_generated/dataModel";
 interface Character {
   _id: string;
   name: string;
-  spriteKey: string;
   description?: string;
 }
 

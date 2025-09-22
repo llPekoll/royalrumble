@@ -10,7 +10,6 @@ import { Dice6 } from "lucide-react";
 interface Character {
   _id: string;
   name: string;
-  spriteKey: string;
   description?: string;
   baseStats?: {
     power: number;
