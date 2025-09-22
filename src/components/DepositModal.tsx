@@ -102,7 +102,7 @@ export function DepositModal({
               Cancel
             </Button>
             <Button
-              onClick={handleDeposit}
+              onClick={() => void handleDeposit()}
               className="flex-1 bg-green-600 hover:bg-green-700"
               disabled={isLoading || !amount || parseFloat(amount) <= 0}
             >
