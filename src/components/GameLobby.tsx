@@ -150,7 +150,7 @@ export function GameLobby() {
           <p className="text-gray-400 mb-4">
             Create your player profile to start battling
           </p>
-          <Button onClick={handleCreatePlayer} size="lg">
+          <Button onClick={() => void handleCreatePlayer()} size="lg">
             Create Player Profile
           </Button>
         </Card>
@@ -271,7 +271,7 @@ export function GameLobby() {
                 />
               </div>
               <Button
-                onClick={handleSpectatorBet}
+                onClick={() => void handleSpectatorBet()}
                 disabled={!selectedParticipantId || spectatorBetAmount < 10 || gameCoins < spectatorBetAmount}
               >
                 Place Bet
