@@ -987,13 +987,13 @@ export const gameLoop = internalMutation({
         .order("desc")
         .take(5);
 
-      // If the last game was very recent (within 2 minutes), don't create immediately
+      // If the last game was very recent (within 10 seconds), don't create immediately
       const lastGameTime = recentGames.length > 0 ? recentGames[0].startTime : 0;
       const timeSinceLastGame = now - lastGameTime;
 
-      // Only create a new game if enough time has passed (2 minutes = 120,000ms)
+      // Only create a new game if enough time has passed (10 seconds = 10,000ms)
       // or if there was no recent game
-      if (timeSinceLastGame > 120000 || recentGames.length === 0) {
+      if (timeSinceLastGame > 10000 || recentGames.length === 0) {
         // Select a random map
         const selectedMap = await selectRandomMap(ctx);
 
@@ -1015,7 +1015,7 @@ export const gameLoop = internalMutation({
 
         console.log("Created new game");
       } else {
-        console.log(`Waiting ${Math.ceil((120000 - timeSinceLastGame) / 1000)}s before creating new game`);
+        console.log(`Waiting ${Math.ceil((10000 - timeSinceLastGame) / 1000)}s before creating new game`);
       }
       return;
     }
