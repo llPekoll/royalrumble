@@ -5,19 +5,23 @@ import { Preloader } from './scenes/Preloader';
 
 // Global storage for current game's map data
 export let currentMapData: any = null;
+// Global storage for characters data
+export let charactersData: any[] = [];
 
 export const setCurrentMapData = (map: any) => {
   currentMapData = map;
 };
 
-//  Find out more information about the Game Config at:
-//  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
+export const setCharactersData = (characters: any[]) => {
+  charactersData = characters;
+};
+
 const config: Phaser.Types.Core.GameConfig = {
   type: AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
+  transparent: true,
   parent: 'game-container',
-  backgroundColor: '#028af8',
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH

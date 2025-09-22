@@ -246,7 +246,7 @@ export function Header() {
                   <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/30 rounded-lg p-3 border border-amber-600/50 backdrop-blur-sm flex items-center space-x-3 shadow-lg shadow-amber-500/20">
                     <div className="text-right">
                       <div className="text-amber-300 font-bold text-lg flex items-center">
-                        <span className="text-amber-400 mr-1">£</span> {gameCoins.toLocaleString()}
+                        {gameCoins.toLocaleString()} <span className="text-amber-400 ml-1 text-sm">coins</span>
                       </div>
                       {pendingCoins > 0 && (
                         <div className="text-amber-200 font-semibold text-xs animate-pulse">

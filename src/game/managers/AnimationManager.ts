@@ -35,7 +35,9 @@ export class AnimationManager {
         explosion.setDepth(150);
 
         // Play explosion animation
-        explosion.play('explosion');
+        if (this.scene.anims.exists('explosion')) {
+          explosion.play('explosion');
+        }
 
         // Remove sprite after animation completes
         explosion.once('animationcomplete', () => {
@@ -178,7 +180,9 @@ export class AnimationManager {
 
     explosion.setScale(3);
     explosion.setDepth(150);
-    explosion.play('explosion');
+    if (this.scene.anims.exists('explosion')) {
+      explosion.play('explosion');
+    }
 
     explosion.once('animationcomplete', () => {
       explosion.destroy();
@@ -225,7 +229,9 @@ export class AnimationManager {
         const explosion = this.scene.add.sprite(x, y, 'explosion');
         explosion.setScale(1.5);
         explosion.setDepth(120);
-        explosion.play('explosion');
+        if (this.scene.anims.exists('explosion')) {
+          explosion.play('explosion');
+        }
 
         explosion.once('animationcomplete', () => {
           explosion.destroy();
@@ -252,7 +258,9 @@ export class AnimationManager {
 
     explosion.setScale(4);
     explosion.setDepth(150);
-    explosion.play('explosion');
+    if (this.scene.anims.exists('explosion')) {
+      explosion.play('explosion');
+    }
 
     explosion.once('animationcomplete', () => {
       explosion.destroy();

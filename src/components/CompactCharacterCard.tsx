@@ -20,7 +20,7 @@ interface CompactCharacterCardProps {
 const CompactCharacterCard = memo(function CompactCharacterCard({  onParticipantAdded }: CompactCharacterCardProps) {
   const { connected, publicKey } = useWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
-  const [betAmount, setBetAmount] = useState<string>("1");
+  const [betAmount, setBetAmount] = useState<string>("100");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Memoize wallet address to prevent unnecessary re-queries
@@ -84,8 +84,8 @@ const CompactCharacterCard = memo(function CompactCharacterCard({  onParticipant
     }
 
     const amount = parseInt(betAmount);
-    if (isNaN(amount) || amount < 0.001 || amount > 3) {
-      toast.error("Bet amount must be between 0.001 and 10,000 coins");
+    if (isNaN(amount) || amount < 10 || amount > 10000) {
+      toast.error("Bet amount must be between 10 and 10,000 coins");
       return;
     }
 
@@ -113,7 +113,7 @@ const CompactCharacterCard = memo(function CompactCharacterCard({  onParticipant
       });
 
       toast.success(`Joined game with ${currentCharacter.name}! Bet: ${amount} coins`);
-      setBetAmount("1");
+      setBetAmount("100");
 
       // Auto-reroll to a new character for the next participant
       if (allCharacters && allCharacters.length > 0) {
@@ -178,7 +178,7 @@ const CompactCharacterCard = memo(function CompactCharacterCard({  onParticipant
         <div className="p-3 space-y-3">
           <div className="flex items-center justify-between text-xs uppercase tracking-wide">
             <span className="text-amber-400">Your Bet</span>
-            <span className="text-amber-300">{gameCoins} SOL</span>
+            <span className="text-amber-300">{gameCoins} coins</span>
           </div>
 
           <div className="relative">
@@ -187,32 +187,32 @@ const CompactCharacterCard = memo(function CompactCharacterCard({  onParticipant
               value={betAmount}
               onChange={(e) => setBetAmount(e.target.value)}
               placeholder="Amount"
-              min={0.001}
-              max={3}
-              className="w-full px-3 py-2 bg-black/30 border border-amber-700/50 rounded-lg text-amber-100 placeholder-amber-600 text-center text-lg font-bold focus:outline-none focus:border-amber-500"
+              min={10}
+              max={10000}
+              className="w-full px-3 py-2 bg-black/30 border border-amber-700/50 rounded-lg text-amber-900 placeholder-amber-600 text-center text-lg font-bold focus:outline-none focus:border-amber-900"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm font-bold">SOL</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm font-bold">coins</span>
           </div>
 
           {/* Quick bet buttons */}
           <div className="grid grid-cols-3 gap-1">
             <button
-              onClick={() => handleQuickBet(0.1)}
+              onClick={() => handleQuickBet(100)}
               className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
             >
-              0.1 SOL
+              100 coins
             </button>
             <button
-              onClick={() => handleQuickBet(0.5)}
+              onClick={() => handleQuickBet(500)}
               className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
             >
-              0.5 SOL
+              500 coins
             </button>
             <button
-              onClick={() => handleQuickBet(1)}
+              onClick={() => handleQuickBet(1000)}
               className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
             >
-              1 SOL
+              1000 coins
             </button>
           </div>
 

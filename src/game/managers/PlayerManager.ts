@@ -78,8 +78,8 @@ export class PlayerManager {
 
     // Get character from database
     let characterKey = 'warrior'; // Default fallback
-    if (participant.character && participant.character.spriteKey) {
-      characterKey = participant.character.spriteKey;
+    if (participant.character && participant.character.name) {
+      characterKey = participant.character.name.toLowerCase().replace(/\s+/g, '-');
     }
 
     // Create a container to hold both sprite and name
@@ -87,8 +87,34 @@ export class PlayerManager {
     container.setDepth(100);
 
     // Create participant sprite (position relative to container)
-    const sprite = this.scene.add.sprite(0, 0, characterKey);
-    sprite.play(`${characterKey}-idle`);
+    // First check if the texture exists, if not use default
+    let textureKey = characterKey;
+    if (!this.scene.textures.exists(characterKey)) {
+      console.warn(`Texture '${characterKey}' not found, using default 'warrior'`);
+      textureKey = 'warrior';
+
+      // If even warrior doesn't exist, create a fallback colored rectangle
+      if (!this.scene.textures.exists('warrior')) {
+        console.warn("Default 'warrior' texture not found, creating fallback rectangle");
+        if (!this.scene.textures.exists('fallback-sprite')) {
+          this.scene.add.graphics()
+            .fillStyle(0x00ff00, 1)
+            .fillRect(0, 0, 32, 32)
+            .generateTexture('fallback-sprite', 32, 32);
+        }
+        textureKey = 'fallback-sprite';
+      }
+    }
+
+    const sprite = this.scene.add.sprite(0, 0, textureKey);
+
+    // Only play animation if it exists
+    const animKey = `${textureKey}-idle`;
+    if (this.scene.anims.exists(animKey)) {
+      sprite.play(animKey);
+    } else {
+      console.warn(`Animation '${animKey}' not found, sprite will remain static`);
+    }
 
     // Use size from database or calculate scale based on bet amount
     const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
@@ -144,7 +170,7 @@ export class PlayerManager {
       container,
       sprite,
       nameText,
-      characterKey,
+      characterKey: textureKey, // Use the actual texture key that was loaded
       displayName: participant.displayName,
       betAmount: participant.betAmount,
       size: scale,
@@ -243,7 +269,10 @@ export class PlayerManager {
       });
 
       // Change to walking animation
-      participant.sprite.play(`${participant.characterKey}-walk`);
+      const walkAnimKey = `${participant.characterKey}-walk`;
+      if (this.scene.anims.exists(walkAnimKey)) {
+        participant.sprite.play(walkAnimKey);
+      }
     });
   }
 
@@ -290,7 +319,10 @@ export class PlayerManager {
         });
 
         // Change to attack animation
-        participant.sprite.play(`${participant.characterKey}-attack`);
+        const attackAnimKey = `${participant.characterKey}-attack`;
+        if (this.scene.anims.exists(attackAnimKey)) {
+          participant.sprite.play(attackAnimKey);
+        }
       }
     });
   }
@@ -343,7 +375,10 @@ export class PlayerManager {
         winnerParticipant.nameText.setStroke('#000000', 4);
 
         // Victory animation
-        winnerParticipant.sprite.play(`${winnerParticipant.characterKey}-idle`);
+        const victoryAnimKey = `${winnerParticipant.characterKey}-idle`;
+        if (this.scene.anims.exists(victoryAnimKey)) {
+          winnerParticipant.sprite.play(victoryAnimKey);
+        }
 
         return winnerParticipant;
       }
@@ -371,8 +406,8 @@ export class PlayerManager {
 
     // Get character
     let characterKey = 'warrior';
-    if (participant.character && participant.character.spriteKey) {
-      characterKey = participant.character.spriteKey;
+    if (participant.character && participant.character.name) {
+      characterKey = participant.character.name.toLowerCase().replace(/\s+/g, '-');
     }
 
     // Create container
@@ -380,8 +415,34 @@ export class PlayerManager {
     container.setDepth(100);
 
     // Create sprite
-    const sprite = this.scene.add.sprite(0, 0, characterKey);
-    sprite.play(`${characterKey}-idle`);
+    // First check if the texture exists, if not use default
+    let textureKey = characterKey;
+    if (!this.scene.textures.exists(characterKey)) {
+      console.warn(`Texture '${characterKey}' not found, using default 'warrior'`);
+      textureKey = 'warrior';
+
+      // If even warrior doesn't exist, create a fallback colored rectangle
+      if (!this.scene.textures.exists('warrior')) {
+        console.warn("Default 'warrior' texture not found, creating fallback rectangle");
+        if (!this.scene.textures.exists('fallback-sprite')) {
+          this.scene.add.graphics()
+            .fillStyle(0x00ff00, 1)
+            .fillRect(0, 0, 32, 32)
+            .generateTexture('fallback-sprite', 32, 32);
+        }
+        textureKey = 'fallback-sprite';
+      }
+    }
+
+    const sprite = this.scene.add.sprite(0, 0, textureKey);
+
+    // Only play animation if it exists
+    const animKey = `${textureKey}-idle`;
+    if (this.scene.anims.exists(animKey)) {
+      sprite.play(animKey);
+    } else {
+      console.warn(`Animation '${animKey}' not found, sprite will remain static`);
+    }
 
     // Calculate scale
     const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
@@ -434,7 +495,7 @@ export class PlayerManager {
       container,
       sprite,
       nameText,
-      characterKey,
+      characterKey: textureKey, // Use the actual texture key that was loaded
       displayName: participant.displayName,
       betAmount: participant.betAmount,
       size: scale,

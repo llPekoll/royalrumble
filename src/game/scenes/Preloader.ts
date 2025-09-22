@@ -1,6 +1,5 @@
 import { Scene } from 'phaser';
-import { CHARACTERS } from '../config/characters';
-import { currentMapData } from '../main';
+import { currentMapData, charactersData } from '../main';
 
 export class Preloader extends Scene {
   constructor() {
@@ -10,9 +9,6 @@ export class Preloader extends Scene {
   init() {
     // Create a gradient background instead of using an image
     // Create vertical gradient from dark purple to dark blue
-    const graphics = this.add.graphics();
-    graphics.fillGradientStyle(0x1a0033, 0x1a0033, 0x000d1a, 0x000d1a, 1);
-    graphics.fillRect(0, 0, 1024, 768);
 
     //  A simple progress bar. This is the outline of the bar.
     this.add.rectangle(512, 384, 468, 32).setStrokeStyle(1, 0xffffff);
@@ -30,9 +26,11 @@ export class Preloader extends Scene {
   preload() {
     //  Load the assets for the game
     this.load.setPath('assets');
-    // Load all character sprites dynamically
-    CHARACTERS.forEach(character => {
-      this.load.atlas(character.key, character.spriteSheet, character.jsonPath);
+    // Load all character sprites dynamically from database
+    charactersData.forEach(character => {
+      const key = character.name.toLowerCase().replace(/\s+/g, '-');
+      const jsonPath = character.assetPath.replace('.png', '.json');
+      this.load.atlas(key, character.assetPath, jsonPath);
     });
 
     this.load.image(currentMapData.background, currentMapData.assetPath);
@@ -47,33 +45,58 @@ export class Preloader extends Scene {
   }
 
   create() {
-    // Create animations for all characters dynamically
-    CHARACTERS.forEach(character => {
+    // Create animations for all characters dynamically from database
+    charactersData.forEach(character => {
+      const key = character.name.toLowerCase().replace(/\s+/g, '-');
+
+      // Determine prefix and suffix from the character name
+      const prefix = character.name + ' ';
+      const suffix = '.png';
+
       // Create idle animation
-      this.anims.create({
-        key: `${character.key}-idle`,
-        frames: this.anims.generateFrameNames(character.key, {
-          prefix: character.prefix,
-          suffix: character.suffix,
-          start: character.animations.idle.start,
-          end: character.animations.idle.end
-        }),
-        frameRate: 10,
-        repeat: -1
-      });
+      if (character.animations.idle) {
+        this.anims.create({
+          key: `${key}-idle`,
+          frames: this.anims.generateFrameNames(key, {
+            prefix: prefix,
+            suffix: suffix,
+            start: character.animations.idle.start,
+            end: character.animations.idle.end
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+      }
 
       // Create walk animation
-      this.anims.create({
-        key: `${character.key}-walk`,
-        frames: this.anims.generateFrameNames(character.key, {
-          prefix: character.prefix,
-          suffix: character.suffix,
-          start: character.animations.walk.start,
-          end: character.animations.walk.end
-        }),
-        frameRate: 10,
-        repeat: -1
-      });
+      if (character.animations.walk) {
+        this.anims.create({
+          key: `${key}-walk`,
+          frames: this.anims.generateFrameNames(key, {
+            prefix: prefix,
+            suffix: suffix,
+            start: character.animations.walk.start,
+            end: character.animations.walk.end
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+      }
+
+      // Create attack animation if it exists
+      if (character.animations.attack) {
+        this.anims.create({
+          key: `${key}-attack`,
+          frames: this.anims.generateFrameNames(key, {
+            prefix: prefix,
+            suffix: suffix,
+            start: character.animations.attack.start,
+            end: character.animations.attack.end
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+      }
     });
 
     // Create explosion animation

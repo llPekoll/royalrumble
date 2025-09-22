@@ -63,13 +63,13 @@ export function Leaderboard() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-amber-300">
-                £ {formatCoins(gameStats.totalPot)}
+                {formatCoins(gameStats.totalPot)}
               </div>
               <div className="text-sm text-amber-400/60">Total Pot</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-amber-300">
-                £ {formatCoins(gameStats.averagePot)}
+                {formatCoins(gameStats.averagePot)}
               </div>
               <div className="text-sm text-amber-400/60">Avg Pot</div>
             </div>

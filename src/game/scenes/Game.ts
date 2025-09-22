@@ -24,7 +24,6 @@ export class Game extends Scene {
 
   create() {
     this.camera = this.cameras.main;
-    this.camera.setBackgroundColor(0x1a1a2e);
 
     // Calculate proper center coordinates based on actual camera dimensions
     this.centerX = this.camera.centerX;
@@ -35,7 +34,7 @@ export class Game extends Scene {
     const defaultTexture = 'arena_classic'; // This will be loaded from database
     this.background = this.add.image(this.centerX, this.centerY, defaultTexture);
     this.background.setOrigin(0.5, 0.5);
-    this.background.setAlpha(0.8);
+    this.background.setAlpha(1);
 
     // Initialize managers
     this.playerManager = new PlayerManager(this, this.centerX, this.centerY);
@@ -56,10 +55,10 @@ export class Game extends Scene {
     // Update center coordinates when window is resized
     this.centerX = this.camera.centerX;
     this.centerY = this.camera.centerY;
-    
+
     // Reposition background
     this.background.setPosition(this.centerX, this.centerY);
-    
+
     // Update managers with new center coordinates
     this.playerManager.updateCenter(this.centerX, this.centerY);
     this.animationManager.updateCenter(this.centerX, this.centerY);
@@ -75,7 +74,7 @@ export class Game extends Scene {
     // Update map background based on game data
     if (gameState.map && gameState.map.background) {
       this.background.setTexture(gameState.map.background);
-      
+
       // Update center position if map specifies it
       if (gameState.map.centerX && gameState.map.centerY) {
         this.centerX = gameState.map.centerX;
