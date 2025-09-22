@@ -1,6 +1,6 @@
 [
     {
-      "name": "Warrior",
+      "name": "Orc",
       "assetPath": "/characters/orc.png",
       "description": "A mighty fighter with high power and defense",
       "animations": {
@@ -10,55 +10,13 @@
       "isActive": true
     },
     {
-      "name": "Paladin",
+      "name": "Soldier",
       "assetPath": "/characters/Soldier.png",
       "description": "A holy knight with exceptional power and defense",
       "animations": {
         "idle": { "start": 0, "end": 5 },
         "walk": { "start": 6, "end": 13 }
       },
-      "isActive": true
-    },
-    {
-      "name": "Berserker",
-      "assetPath": "/characters/Soldier.png",
-      "description": "A wild fighter with extreme power but low defense",
-      "animations": {
-        "idle": { "start": 0, "end": 5 },
-        "walk": { "start": 6, "end": 13 }
-      },
-      "isActive": true
-    },
-
-    {
-      "name": "Demon",
-      "assetPath": "/characters/orc.png",
-      "description": "A fierce creature from the underworld",
-      "animations": {
-        "idle": { "start": 0, "end": 5 },
-        "walk": { "start": 6, "end": 13 }
-      },
-      "isActive": true
-    },
-    {
-      "name": "Dragon",
-      "assetPath": "/characters/orc.png",
-      "description": "A legendary beast with overwhelming power",
-      "animations": {
-        "idle": { "start": 0, "end": 5 },
-        "walk": { "start": 6, "end": 13 }
-      },
-      "isActive": true
-    },
-    {
-      "name": "Phoenix",
-      "assetPath": "/characters/orc.png",
-      "description": "A mythical bird with incredible luck and rebirth powers",
-      "animations": {
-        "idle": { "start": 0, "end": 5 },
-        "walk": { "start": 6, "end": 13 }
-      },
-
       "isActive": true
     }
   ]

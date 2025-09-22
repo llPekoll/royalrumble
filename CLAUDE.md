@@ -1,7 +1,7 @@
-# Royal Rumble - Solana Battle Game
+# Domin8 - Solana Battle Game
 
 ## Project Overview
-A fast-paced battle royale betting game on Solana where players control multiple characters in dynamic arenas, with winners earning NFTs. Built with Convex, React, Phaser.js, and Solana blockchain integration.
+A fast-paced battle royale betting game on Solana where players control multiple characters in dynamic arenas. Built with Convex, React, Phaser.js, and Solana blockchain integration.
 
 ## Tech Stack
 - **Runtime**: Bun (not npm)
@@ -77,7 +77,6 @@ bun run typecheck
 - **Pool Distribution**: 95% to winners, 5% house edge
 - **Self Bet Pool**: All initial entry bets, winners share 95% proportionally
 - **Spectator Pool**: All top 4 bets, winners share 95% proportionally
-- **NFT Minting**: Winners can mint character NFTs
 
 ### Technical Features
 - **Real-time**: Convex subscriptions for live updates
@@ -159,7 +158,6 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 - **Empty Game Cleanup**: Games with no players are deleted immediately after waiting phase
 - **Transaction History**: Solana transactions kept for 7 days
 - **Player Data**: Account balances and leaderboard stats are permanent
-- **NFTs**: Minted NFT records are permanent (never deleted)
 
 ### Bun-Specific
 - Use `bun` instead of `npm` for all commands
@@ -188,7 +186,6 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 - Basic betting system
 
 ### Enhancement (Phase 2-3)
-- NFT minting integration
 - Advanced animations
 - Character re-roll feature
 - Leaderboards

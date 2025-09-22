@@ -40,7 +40,6 @@ export class Preloader extends Scene {
 
     // Load explosion sprite sheet
     this.load.atlas('explosion', 'misc/Explosion.png', 'misc/Explosion.json');
-
     this.load.image('logo', 'logo.webp');
   }
 
@@ -51,7 +50,7 @@ export class Preloader extends Scene {
 
       // Determine prefix and suffix from the character name
       const prefix = character.name + ' ';
-      const suffix = '.png';
+      const suffix = '.aseprite';
 
       // Create idle animation
       if (character.animations.idle) {
@@ -94,7 +93,7 @@ export class Preloader extends Scene {
             end: character.animations.attack.end
           }),
           frameRate: 10,
-          repeat: -1
+          repeat: 0
         });
       }
     });
