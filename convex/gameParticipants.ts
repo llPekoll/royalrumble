@@ -56,9 +56,7 @@ export const addParticipant = mutation({
 
     // Calculate size and power based on bet
     const size = 1 + (args.betAmount / 1000) * 0.5; // Size scales from 1 to 1.5
-    const character = await ctx.db.get(args.characterId);
-    const basePower = character?.baseStats?.power || 1;
-    const power = args.betAmount * basePower;
+    const power = args.betAmount; // Power equals bet amount directly
 
     // Create participant
     const participantId = await ctx.db.insert("gameParticipants", {
@@ -226,9 +224,7 @@ export const addBotParticipant = mutation({
 
     const spawnIndex = existingParticipants.length;
     const size = 1 + (args.betAmount / 1000) * 0.5;
-    const character = await ctx.db.get(args.characterId);
-    const basePower = character?.baseStats?.power || 1;
-    const power = args.betAmount * basePower;
+    const power = args.betAmount; // Power equals bet amount directly
 
     const participantId = await ctx.db.insert("gameParticipants", {
       gameId: args.gameId,

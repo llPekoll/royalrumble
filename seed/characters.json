@@ -1,106 +1,64 @@
 [
     {
       "name": "Warrior",
-      "spriteKey": "warrior",
       "assetPath": "/characters/orc.png",
       "description": "A mighty fighter with high power and defense",
       "animations": {
-        "idle": "warrior_idle",
-        "walk": "warrior_walk",
-        "attack": "warrior_attack"
-      },
-      "baseStats": {
-        "power": 1.2,
-        "speed": 0.8,
-        "luck": 1.0
+        "idle": { "start": 0, "end": 5 },
+        "walk": { "start": 6, "end": 13 }
       },
       "isActive": true
     },
     {
       "name": "Paladin",
-      "spriteKey": "paladin",
       "assetPath": "/characters/Soldier.png",
       "description": "A holy knight with exceptional power and defense",
       "animations": {
-        "idle": "paladin_idle",
-        "walk": "paladin_walk",
-        "attack": "paladin_attack"
-      },
-      "baseStats": {
-        "power": 1.4,
-        "speed": 0.7,
-        "luck": 1.1
+        "idle": { "start": 0, "end": 5 },
+        "walk": { "start": 6, "end": 13 }
       },
       "isActive": true
     },
     {
       "name": "Berserker",
-      "spriteKey": "berserker",
       "assetPath": "/characters/Soldier.png",
-
       "description": "A wild fighter with extreme power but low defense",
       "animations": {
-        "idle": "berserker_idle",
-        "walk": "berserker_walk",
-        "attack": "berserker_attack"
-      },
-      "baseStats": {
-        "power": 1.5,
-        "speed": 1.0,
-        "luck": 0.7
+        "idle": { "start": 0, "end": 5 },
+        "walk": { "start": 6, "end": 13 }
       },
       "isActive": true
     },
 
     {
       "name": "Demon",
-      "spriteKey": "demon",
       "assetPath": "/characters/orc.png",
       "description": "A fierce creature from the underworld",
       "animations": {
-        "idle": "demon_idle",
-        "walk": "demon_walk",
-        "attack": "demon_attack"
-      },
-      "baseStats": {
-        "power": 1.6,
-        "speed": 1.2,
-        "luck": 0.8
+        "idle": { "start": 0, "end": 5 },
+        "walk": { "start": 6, "end": 13 }
       },
       "isActive": true
     },
     {
       "name": "Dragon",
-      "spriteKey": "dragon",
       "assetPath": "/characters/orc.png",
       "description": "A legendary beast with overwhelming power",
       "animations": {
-        "idle": "dragon_idle",
-        "walk": "dragon_walk",
-        "attack": "dragon_attack"
-      },
-      "baseStats": {
-        "power": 1.8,
-        "speed": 0.6,
-        "luck": 1.2
+        "idle": { "start": 0, "end": 5 },
+        "walk": { "start": 6, "end": 13 }
       },
       "isActive": true
     },
     {
       "name": "Phoenix",
-      "spriteKey": "phoenix",
       "assetPath": "/characters/orc.png",
       "description": "A mythical bird with incredible luck and rebirth powers",
       "animations": {
-        "idle": "phoenix_idle",
-        "walk": "phoenix_walk",
-        "attack": "phoenix_attack"
+        "idle": { "start": 0, "end": 5 },
+        "walk": { "start": 6, "end": 13 }
       },
-      "baseStats": {
-        "power": 1.3,
-        "speed": 1.4,
-        "luck": 1.8
-      },
+
       "isActive": true
     }
   ]

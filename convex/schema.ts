@@ -5,19 +5,22 @@ export default defineSchema({
   // Generic character types available in the game
   characters: defineTable({
     name: v.string(), // "Warrior", "Mage", "Archer", etc.
-    spriteKey: v.string(), // "warrior", "mage", "archer" - matches Phaser asset keys
     description: v.optional(v.string()),
     assetPath: v.string(), // Path to the image file, e.g., "maps/arena_classic.png"
     animations: v.object({
-      idle: v.string(), // Animation key for idle
-      walk: v.string(), // Animation key for walking
-      attack: v.optional(v.string()),
+      idle: v.object({
+        start: v.number(), // Starting frame number
+        end: v.number(),   // Ending frame number
+      }),
+      walk: v.object({
+        start: v.number(), // Starting frame number
+        end: v.number(),   // Ending frame number
+      }),
+      attack: v.optional(v.object({
+        start: v.number(), // Starting frame number
+        end: v.number(),   // Ending frame number
+      })),
     }),
-    baseStats: v.optional(v.object({ // Optional base stats for balancing
-      power: v.number(), // Base power rating
-      speed: v.number(), // Movement speed
-      luck: v.number(), // Chance modifier
-    })),
     isActive: v.boolean(), // Can be selected in games
   }).index("by_active", ["isActive"]),
 
