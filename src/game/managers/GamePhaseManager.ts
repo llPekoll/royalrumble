@@ -92,10 +92,11 @@ export class GamePhaseManager {
       this.playerManager.moveParticipantsToCenter();
 
       if (this.isSmallGame) {
-        // Small games: no elimination, prepare for direct results
-        // Schedule winner determination near end of arena phase
-        this.scene.time.delayedCall(1000, () => {
-          this.animationManager.createCenterExplosion();
+        // Small games: explode participants outward with physics
+        // Schedule physics-based explosion near end of arena phase
+        this.scene.time.delayedCall(8000, () => {
+          const participants = this.playerManager.getParticipants();
+          this.animationManager.explodeParticipantsOutward(participants);
         });
       } else {
         // Large games: prepare for elimination

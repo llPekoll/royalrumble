@@ -192,6 +192,129 @@ export class AnimationManager {
     this.scene.cameras.main.shake(300, 0.02);
   }
 
+  explodeParticipantsOutward(participants: Map<string, any>) {
+    // Create explosion at center first
+    this.createCenterExplosion();
+    
+    // Apply physics to each participant
+    participants.forEach((participant) => {
+      if (!participant.container || !participant.container.active) return;
+      
+      // Calculate angle from center to participant
+      const dx = participant.container.x - this.centerX;
+      const dy = participant.container.y - this.centerY;
+      const angle = Math.atan2(dy, dx);
+      
+      // Random force multiplier for variety
+      const forceMultiplier = 400 + Math.random() * 300;
+      
+      // Initial velocity components
+      const velocityX = Math.cos(angle) * forceMultiplier;
+      const velocityY = Math.sin(angle) * forceMultiplier;
+      
+      // Add random upward kick for some particles (like they got punched up)
+      const upwardKick = Math.random() > 0.5 ? -200 - Math.random() * 300 : 0;
+      
+      // Gravity value for falling effect
+      const gravity = 800;
+      
+      // Random rotation speed
+      const rotationSpeed = (Math.random() - 0.5) * 20;
+      
+      // Store initial values for physics simulation
+      let currentVelocityX = velocityX;
+      let currentVelocityY = velocityY + upwardKick;
+      let elapsedTime = 0;
+      
+      // Create physics update loop
+      const physicsUpdate = this.scene.time.addEvent({
+        delay: 16, // ~60fps
+        repeat: -1,
+        callback: () => {
+          if (!participant.container || !participant.container.active) {
+            physicsUpdate.remove();
+            return;
+          }
+          
+          const deltaTime = 0.016; // 16ms in seconds
+          elapsedTime += deltaTime;
+          
+          // Apply gravity to Y velocity
+          currentVelocityY += gravity * deltaTime;
+          
+          // Update position
+          participant.container.x += currentVelocityX * deltaTime;
+          participant.container.y += currentVelocityY * deltaTime;
+          
+          // Apply rotation
+          participant.container.angle += rotationSpeed;
+          
+          // Fade out as they fly away
+          if (elapsedTime > 0.5) {
+            participant.container.alpha = Math.max(0, 1 - (elapsedTime - 0.5) * 0.8);
+          }
+          
+          // Remove when off screen or after 3 seconds
+          const bounds = this.scene.cameras.main.getBounds();
+          if (participant.container.x < bounds.x - 100 || 
+              participant.container.x > bounds.x + bounds.width + 100 ||
+              participant.container.y > bounds.y + bounds.height + 100 ||
+              elapsedTime > 3) {
+            physicsUpdate.remove();
+            participant.container.setVisible(false);
+            participant.container.setActive(false);
+          }
+        }
+      });
+      
+      // Add some visual effects during explosion
+      this.scene.tweens.add({
+        targets: participant.sprite,
+        scaleX: participant.sprite.scaleX * 1.2,
+        scaleY: participant.sprite.scaleY * 1.2,
+        duration: 200,
+        ease: 'Power2'
+      });
+    });
+    
+    // Add extra particle effects
+    this.createExplosionParticles();
+  }
+  
+  private createExplosionParticles() {
+    // Create debris particles that fly out
+    const particleCount = 20;
+    const colors = [0xff0000, 0xffff00, 0xff8800, 0xffffff];
+    
+    for (let i = 0; i < particleCount; i++) {
+      const particle = this.scene.add.rectangle(
+        this.centerX,
+        this.centerY,
+        4 + Math.random() * 8,
+        4 + Math.random() * 8,
+        colors[Math.floor(Math.random() * colors.length)]
+      );
+      particle.setDepth(140);
+      
+      const angle = (Math.PI * 2 / particleCount) * i + Math.random() * 0.5;
+      const speed = 200 + Math.random() * 400;
+      const lifetime = 1000 + Math.random() * 1000;
+      
+      this.scene.tweens.add({
+        targets: particle,
+        x: this.centerX + Math.cos(angle) * speed,
+        y: this.centerY + Math.sin(angle) * speed + Math.random() * 200,
+        alpha: 0,
+        angle: Math.random() * 720,
+        duration: lifetime,
+        ease: 'Power2',
+        onComplete: () => {
+          particle.destroy();
+        }
+      });
+    }
+  }
+
   showBettingPrompt() {
     // Show betting phase indicator
     const bettingText = this.scene.add.text(this.centerX, 50, 'BETTING PHASE', {
