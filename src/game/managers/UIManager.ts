@@ -238,6 +238,30 @@ export class UIManager {
   updateTimer() {
     if (!this.gameState || !this.gameState.nextPhaseTime) return;
 
+    // Determine if it's a quick game
+    const isSmallGame = this.gameState.isSmallGame || this.gameState.participants?.length < 8;
+    
+    // Show timer only in specific phases
+    if (isSmallGame) {
+      // Quick game: show timer only in phase 1 (waiting)
+      if (this.gameState.status !== 'waiting') {
+        this.timerContainer.setVisible(false);
+        this.timerBackground.setVisible(false);
+        return;
+      }
+    } else {
+      // Normal game: show timer only in phase 1 (waiting) and phase 3 (betting)
+      if (this.gameState.status !== 'waiting' && this.gameState.status !== 'betting') {
+        this.timerContainer.setVisible(false);
+        this.timerBackground.setVisible(false);
+        return;
+      }
+    }
+    
+    // Make sure timer is visible
+    this.timerContainer.setVisible(true);
+    this.timerBackground.setVisible(true);
+
     const currentTime = Date.now();
     const timeRemaining = Math.max(0, this.gameState.nextPhaseTime - currentTime);
     const seconds = Math.ceil(timeRemaining / 1000);

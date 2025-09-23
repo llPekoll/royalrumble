@@ -28,52 +28,48 @@ export function DepositModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 pb-8">
-      <Card className="w-full max-w-md mx-4 bg-gray-800 text-white border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-xl text-white">Deposit SOL</CardTitle>
+      <Card className="w-full max-w-md mx-4 bg-gradient-to-b from-amber-900/95 to-amber-950/95 backdrop-blur-sm border-2 border-amber-600/60 shadow-2xl shadow-amber-900/50">
+        <CardHeader className="border-b border-amber-700/50">
+          <CardTitle className="text-xl text-amber-100">Deposit SOL</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="text-center">
-            <p className="text-gray-300 text-sm mb-3">Choose deposit amount:</p>
+            <p className="text-amber-300 text-sm mb-3">Choose deposit amount:</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
-              <Button
+              <button
                 onClick={() => setAmount("0.1")}
-                variant="outline"
-                className={`${amount === "0.1" ? "bg-purple-600 text-white" : ""}`}
+                className={`py-2.5 rounded ${amount === "0.1" ? "bg-amber-600 text-white border border-amber-400" : "bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 text-amber-300"} transition-colors`}
               >
-                0.1 SOL
-                <span className="block text-xs text-gray-400">100 coins</span>
-              </Button>
-              <Button
+                <div className="font-bold text-sm">0.1 SOL</div>
+                <div className="text-xs opacity-80">100 coins</div>
+              </button>
+              <button
                 onClick={() => setAmount("0.5")}
-                variant="outline"
-                className={`${amount === "0.5" ? "bg-purple-600 text-white" : ""}`}
+                className={`py-2.5 rounded ${amount === "0.5" ? "bg-amber-600 text-white border border-amber-400" : "bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 text-amber-300"} transition-colors`}
               >
-                0.5 SOL
-                <span className="block text-xs text-gray-400">500 coins</span>
-              </Button>
-              <Button
+                <div className="font-bold text-sm">0.5 SOL</div>
+                <div className="text-xs opacity-80">500 coins</div>
+              </button>
+              <button
                 onClick={() => setAmount("1")}
-                variant="outline"
-                className={`${amount === "1" ? "bg-purple-600 text-white" : ""}`}
+                className={`py-2.5 rounded ${amount === "1" ? "bg-amber-600 text-white border border-amber-400" : "bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 text-amber-300"} transition-colors`}
               >
-                1 SOL
-                <span className="block text-xs text-gray-400">1,000 coins</span>
-              </Button>
-              <Button
+                <div className="font-bold text-sm">1 SOL</div>
+                <div className="text-xs opacity-80">1,000 coins</div>
+              </button>
+              <button
                 onClick={() => setAmount("2")}
-                variant="outline"
-                className={`${amount === "2" ? "bg-purple-600 text-white" : ""}`}
+                className={`py-2.5 rounded ${amount === "2" ? "bg-amber-600 text-white border border-amber-400" : "bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 text-amber-300"} transition-colors`}
               >
-                2 SOL
-                <span className="block text-xs text-gray-400">2,000 coins</span>
-              </Button>
+                <div className="font-bold text-sm">2 SOL</div>
+                <div className="text-xs opacity-80">2,000 coins</div>
+              </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm mb-2">
+            <label className="block text-amber-300 text-sm mb-2">
               Custom Amount (SOL)
             </label>
             <input
@@ -83,31 +79,30 @@ export function DepositModal({
               placeholder="0.1"
               step="0.01"
               min="0.01"
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-black/30 border border-amber-700/50 rounded-lg px-3 py-2 text-amber-100 placeholder-amber-600 focus:outline-none focus:border-amber-500"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-amber-400 mt-1">
               1 SOL = 1,000 Game Coins
             </p>
           </div>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter className="border-t border-amber-700/50">
           <div className="flex space-x-3 w-full">
-            <Button
+            <button
               onClick={onClose}
-              variant="outline"
-              className="flex-1"
+              className="flex-1 py-2.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 font-semibold transition-colors"
               disabled={isLoading}
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={() => void handleDeposit()}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded font-bold text-white shadow-lg shadow-amber-900/50 transition-all disabled:opacity-50"
               disabled={isLoading || !amount || parseFloat(amount) <= 0}
             >
               {isLoading ? "Sending..." : `Pay ${amount} SOL`}
-            </Button>
+            </button>
           </div>
         </CardFooter>
       </Card>
