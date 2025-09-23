@@ -276,8 +276,10 @@ export class AnimationManager {
             debugTrail.lineTo(participant.container.x, participant.container.y);
           }
 
-          // Apply rotation
-          participant.container.angle += rotationSpeed;
+          // Apply rotation to sprite only, not the container
+          if (participant.sprite) {
+            participant.sprite.angle += rotationSpeed;
+          }
 
           // Fade out as they fly away
           if (elapsedTime > config.fadeStartTime) {
