@@ -281,10 +281,8 @@ export class AnimationManager {
             participant.sprite.angle += rotationSpeed;
           }
 
-          // Fade out as they fly away
-          if (elapsedTime > config.fadeStartTime) {
-            participant.container.alpha = Math.max(0, 1 - (elapsedTime - config.fadeStartTime) * config.fadeRate);
-          }
+          // Keep full opacity - no fading
+          // participant.container.alpha stays at 1
 
           // Remove when off screen or after max lifetime
           const gameWidth = this.scene.game.config.width as number;
