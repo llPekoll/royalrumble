@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "./ui/card";
 
 interface DepositModalProps {

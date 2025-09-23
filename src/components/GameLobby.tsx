@@ -8,7 +8,7 @@ import { Input } from "./ui/input";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { MultiParticipantPanel } from "./MultiParticipantPanel";
-import { CompactCharacterCard } from "./CompactCharacterCard";
+import { CharacterSelection } from "./CharacterSelection";
 import { generateRandomName } from "../lib/nameGenerator";
 import {
   Users,
@@ -75,7 +75,7 @@ export function GameLobby() {
     }
   };
 
-  // Stable callback for CompactCharacterCard
+  // Stable callback for CharacterSelection
   const handleParticipantAdded = useCallback(() => {
     // No need to force re-render, queries will update automatically
   }, []);
@@ -190,7 +190,7 @@ export function GameLobby() {
       {currentGame?.status === "waiting" && (
         <>
           <MultiParticipantPanel />
-          <CompactCharacterCard
+          <CharacterSelection
             onParticipantAdded={handleParticipantAdded}
           />
         </>

@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../convex/_generated/api";
-import { Users, Trophy, Swords } from "lucide-react";
+import { Users, Swords } from "lucide-react";
 import { useMemo } from "react";
 
 export function MultiParticipantPanel() {
@@ -21,7 +21,7 @@ export function MultiParticipantPanel() {
 
   const maxParticipants = currentGame?.map?.spawnConfiguration?.maxPlayers || 20;
   const currentParticipantCount = allParticipants?.length || 0;
-  const totalBetAmount = allParticipants?.reduce((sum: number, p: any) => sum + (p.betAmount || 0), 0) || 0;
+  // const totalBetAmount = allParticipants?.reduce((sum: number, p: any) => sum + (p.betAmount || 0), 0) || 0;
 
   if (!currentGame) {
     return null;
