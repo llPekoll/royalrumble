@@ -93,8 +93,8 @@ export class GamePhaseManager {
 
       if (this.isSmallGame) {
         // Small games: explode participants outward with physics
-        // Schedule physics-based explosion near end of arena phase
-        this.scene.time.delayedCall(8000, () => {
+        // Schedule physics-based explosion earlier in arena phase
+        this.scene.time.delayedCall(1500, () => {
           const participants = this.playerManager.getParticipants();
           this.animationManager.explodeParticipantsOutward(participants);
         });

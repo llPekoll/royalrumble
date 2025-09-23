@@ -6,6 +6,21 @@ export class AnimationManager {
   private centerX: number;
   private centerY: number;
 
+  // Physics configuration for explosion - TWEAK THESE VALUES
+  private readonly EXPLOSION_CONFIG = {
+    forceMin: 150,          // Minimum outward force (increased for more sideways)
+    forceMax: 250,          // Maximum outward force (increased for more sideways)
+    upwardKickMin: 200,     // Minimum upward boost (increased for more height)
+    upwardKickMax: 400,     // Maximum upward boost (increased for more height)
+    upwardKickChance: 0.8,  // Chance to apply upward kick (increased to 80%)
+    gravity: 150,           // Gravity force (higher = falls faster)
+    rotationSpeed: 10,      // Max rotation speed
+    fadeStartTime: 1.5,     // When to start fading (seconds)
+    fadeRate: 0.3,          // How fast to fade (0-1 per second)
+    maxLifetime: 5,         // Maximum lifetime (seconds)
+    showDebugTrails: true   // Set to true to see red trail lines
+  };
+
   constructor(scene: Scene, centerX: number, centerY: number) {
     this.scene = scene;
     this.centerX = centerX;
@@ -193,39 +208,48 @@ export class AnimationManager {
   }
 
   explodeParticipantsOutward(participants: Map<string, any>) {
+    const config = this.EXPLOSION_CONFIG;
+
     // Create explosion at center first
     this.createCenterExplosion();
-    
+
     // Apply physics to each participant
     participants.forEach((participant) => {
       if (!participant.container || !participant.container.active) return;
-      
+
       // Calculate angle from center to participant
       const dx = participant.container.x - this.centerX;
       const dy = participant.container.y - this.centerY;
       const angle = Math.atan2(dy, dx);
-      
-      // Random force multiplier for variety
-      const forceMultiplier = 400 + Math.random() * 300;
-      
+
+      // Random force using config values
+      const forceMultiplier = config.forceMin + Math.random() * (config.forceMax - config.forceMin);
+
       // Initial velocity components
       const velocityX = Math.cos(angle) * forceMultiplier;
       const velocityY = Math.sin(angle) * forceMultiplier;
-      
+
       // Add random upward kick for some particles (like they got punched up)
-      const upwardKick = Math.random() > 0.5 ? -200 - Math.random() * 300 : 0;
-      
-      // Gravity value for falling effect
-      const gravity = 800;
-      
+      const upwardKick = Math.random() > config.upwardKickChance ? 0 :
+        -(config.upwardKickMin + Math.random() * (config.upwardKickMax - config.upwardKickMin));
+
       // Random rotation speed
-      const rotationSpeed = (Math.random() - 0.5) * 20;
-      
+      const rotationSpeed = (Math.random() - 0.5) * config.rotationSpeed * 2;
+
       // Store initial values for physics simulation
-      let currentVelocityX = velocityX;
+      const currentVelocityX = velocityX;
       let currentVelocityY = velocityY + upwardKick;
       let elapsedTime = 0;
-      
+
+      // Add debug trail only if enabled
+      let debugTrail: Phaser.GameObjects.Graphics | null = null;
+      if (config.showDebugTrails) {
+        debugTrail = this.scene.add.graphics();
+        debugTrail.lineStyle(2, 0xff0000, 0.5);
+        debugTrail.moveTo(participant.container.x, participant.container.y);
+        debugTrail.setDepth(50);
+      }
+
       // Create physics update loop
       const physicsUpdate = this.scene.time.addEvent({
         delay: 16, // ~60fps
@@ -233,40 +257,60 @@ export class AnimationManager {
         callback: () => {
           if (!participant.container || !participant.container.active) {
             physicsUpdate.remove();
+            if (debugTrail) debugTrail.destroy();
             return;
           }
-          
+
           const deltaTime = 0.016; // 16ms in seconds
           elapsedTime += deltaTime;
-          
+
           // Apply gravity to Y velocity
-          currentVelocityY += gravity * deltaTime;
-          
+          currentVelocityY += config.gravity * deltaTime;
+
           // Update position
           participant.container.x += currentVelocityX * deltaTime;
           participant.container.y += currentVelocityY * deltaTime;
-          
+
+          // Draw debug trail if enabled
+          if (debugTrail) {
+            debugTrail.lineTo(participant.container.x, participant.container.y);
+          }
+
           // Apply rotation
           participant.container.angle += rotationSpeed;
-          
+
           // Fade out as they fly away
-          if (elapsedTime > 0.5) {
-            participant.container.alpha = Math.max(0, 1 - (elapsedTime - 0.5) * 0.8);
+          if (elapsedTime > config.fadeStartTime) {
+            participant.container.alpha = Math.max(0, 1 - (elapsedTime - config.fadeStartTime) * config.fadeRate);
           }
-          
-          // Remove when off screen or after 3 seconds
-          const bounds = this.scene.cameras.main.getBounds();
-          if (participant.container.x < bounds.x - 100 || 
-              participant.container.x > bounds.x + bounds.width + 100 ||
-              participant.container.y > bounds.y + bounds.height + 100 ||
-              elapsedTime > 3) {
+
+          // Remove when off screen or after max lifetime
+          const gameWidth = this.scene.game.config.width as number;
+          const gameHeight = this.scene.game.config.height as number;
+
+          const isOffScreen = participant.container.x < -100 ||
+            participant.container.x > gameWidth + 100 ||
+            participant.container.y > gameHeight + 100 ||
+            elapsedTime > config.maxLifetime;
+
+          if (isOffScreen) {
             physicsUpdate.remove();
             participant.container.setVisible(false);
             participant.container.setActive(false);
+
+            // Fade out debug trail if it exists
+            if (debugTrail) {
+              this.scene.tweens.add({
+                targets: debugTrail,
+                alpha: 0,
+                duration: 1000,
+                onComplete: () => debugTrail.destroy()
+              });
+            }
           }
         }
       });
-      
+
       // Add some visual effects during explosion
       this.scene.tweens.add({
         targets: participant.sprite,
@@ -276,16 +320,16 @@ export class AnimationManager {
         ease: 'Power2'
       });
     });
-    
+
     // Add extra particle effects
     this.createExplosionParticles();
   }
-  
+
   private createExplosionParticles() {
     // Create debris particles that fly out
     const particleCount = 20;
     const colors = [0xff0000, 0xffff00, 0xff8800, 0xffffff];
-    
+
     for (let i = 0; i < particleCount; i++) {
       const particle = this.scene.add.rectangle(
         this.centerX,
@@ -295,11 +339,11 @@ export class AnimationManager {
         colors[Math.floor(Math.random() * colors.length)]
       );
       particle.setDepth(140);
-      
+
       const angle = (Math.PI * 2 / particleCount) * i + Math.random() * 0.5;
       const speed = 200 + Math.random() * 400;
       const lifetime = 1000 + Math.random() * 1000;
-      
+
       this.scene.tweens.add({
         targets: particle,
         x: this.centerX + Math.cos(angle) * speed,
