@@ -264,7 +264,7 @@ export class PlayerManager {
         targets: participant.container,
         x: this.centerX + (Math.random() - 0.5) * 100,
         y: this.centerY + (Math.random() - 0.5) * 100,
-        duration: 2000 + Math.random() * 1000,
+        duration: 800 + Math.random() * 400,
         ease: 'Power2.easeInOut'
       });
 

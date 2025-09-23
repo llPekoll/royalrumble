@@ -94,13 +94,13 @@ export class GamePhaseManager {
       if (this.isSmallGame) {
         // Small games: no elimination, prepare for direct results
         // Schedule winner determination near end of arena phase
-        this.scene.time.delayedCall(8000, () => {
+        this.scene.time.delayedCall(1000, () => {
           this.animationManager.createCenterExplosion();
         });
       } else {
         // Large games: prepare for elimination
         // Schedule explosions before elimination phase
-        this.scene.time.delayedCall(7000, () => {
+        this.scene.time.delayedCall(1500, () => {
           this.animationManager.createExplosionsSequence();
         });
       }
