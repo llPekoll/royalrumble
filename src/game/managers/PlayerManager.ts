@@ -57,7 +57,7 @@ export class PlayerManager {
       if (!this.participants.has(participant._id)) {
         this.addParticipant(participant);
       } else {
-        this.updateParticipantScale(participant);
+        this.updateParticipantData(participant);
       }
     });
 
@@ -231,21 +231,33 @@ export class PlayerManager {
     };
   }
 
-  updateParticipantScale(participant: any) {
+  updateParticipantData(participant: any) {
     const gameParticipant = this.participants.get(participant._id);
     if (gameParticipant) {
+      // Update scale if bet amount changed
       const newScale = participant.size || this.calculateParticipantScale(participant.betAmount);
-      gameParticipant.size = newScale;
+      if (gameParticipant.size !== newScale) {
+        gameParticipant.size = newScale;
+        gameParticipant.betAmount = participant.betAmount;
 
-      // Scale only the sprite, not the text
-      this.scene.tweens.add({
-        targets: gameParticipant.sprite,
-        scaleX: newScale,
-        scaleY: newScale,
-        duration: 300,
-        ease: 'Power2'
-      });
+        // Scale only the sprite, not the text
+        this.scene.tweens.add({
+          targets: gameParticipant.sprite,
+          scaleX: newScale,
+          scaleY: newScale,
+          duration: 300,
+          ease: 'Power2'
+        });
+      }
+
+      // Update elimination status from backend
+      gameParticipant.eliminated = participant.eliminated || false;
     }
+  }
+
+  updateParticipantScale(participant: any) {
+    // Legacy method for backward compatibility
+    this.updateParticipantData(participant);
   }
 
   removeParticipant(participantId: string) {
@@ -508,6 +520,19 @@ export class PlayerManager {
     };
 
     this.participants.set(participant._id, gameParticipant);
+  }
+
+  // Update participants in any phase (not just waiting)
+  updateParticipants(participants: any[]) {
+    // Update existing participants with new data from backend
+    participants.forEach((participant: any) => {
+      const gameParticipant = this.participants.get(participant._id);
+      if (gameParticipant) {
+        // Update elimination status and other data
+        gameParticipant.eliminated = participant.eliminated || false;
+        gameParticipant.betAmount = participant.betAmount;
+      }
+    });
   }
 
   clearParticipants() {

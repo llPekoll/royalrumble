@@ -76,6 +76,13 @@ export default defineSchema({
     isSmallGame: v.boolean(), // True if < 8 participants (3 phases only)
     mapId: v.id("maps"), // Reference to selected map
     survivorIds: v.optional(v.array(v.id("gameParticipants"))), // Top 4 survivors after elimination
+    // Blockchain call tracking for dynamic phase timing
+    blockchainCallStatus: v.optional(v.union(
+      v.literal("pending"), // Call initiated but not completed
+      v.literal("completed"), // Call completed, winner determined
+      v.literal("none") // No call needed/made
+    )),
+    blockchainCallStartTime: v.optional(v.number()), // When blockchain call was initiated
   }).index("by_status", ["status"])
     .index("by_start_time", ["startTime"])
     .index("by_map", ["mapId"]),

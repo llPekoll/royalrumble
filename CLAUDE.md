@@ -55,15 +55,17 @@ bun run typecheck
 ## Key Features
 
 ### Game Mechanics
-- **Dynamic Game Duration**: Based on participant count
-  - **< 8 participants**: 4 phases - Waiting (30s) → Selection → Arena (10s) → Results (5s)
-  - **≥ 8 participants**: 7 phases - Waiting (30s) → Selection → Arena (10s) → Elimination → Betting (15s) → Battle (15s) → Results (5s)
+- **Dynamic Game Duration**: Based on participant count with blockchain-based winner selection
+  - **< 8 participants**: 4 phases - Waiting (30s) → Arena (dynamic*) → Results (5s)
+  - **≥ 8 participants**: 7 phases - Waiting (30s) → Arena (10s) → Elimination → Betting (15s) → Battle (15s) → Results (5s)
+  - **\*Dynamic Arena Phase**: For small games, arena phase extends until blockchain call completes (3-8 seconds)
 - **Multiple Characters per Player**: One player can control multiple game participants
 - **Multiple Maps**: Various arenas with unique backgrounds and spawn configurations
 - **Character System**: Players start with a random character that can be re-rolled
 - **Bet-to-size**: Character size increases with bet amount
 - **Single-player mode**: Auto-refund if playing alone (runs with bots for entertainment)
 - **Demo mode**: Bot games when no players join
+- **Blockchain Winner Selection**: Uses blockchain randomness for fair winner determination in small games
 
 ### Betting Rules
 - **Self-Betting**: Players can ONLY bet on themselves during game entry (waiting phase)
@@ -87,7 +89,9 @@ bun run typecheck
 ## Database Schema
 
 ### Core Tables
-- `games`: Game state, phases, and map selection
+- `games`: Game state, phases, map selection, and blockchain call tracking
+  - Added: `blockchainCallStatus` ("none" | "pending" | "completed")
+  - Added: `blockchainCallStartTime` for tracking blockchain call duration
 - `players`: Player data and balances
 - `characters`: Generic character definitions (Warrior, Mage, Archer, etc.)
 - `gameParticipants`: Individual characters in a game (one player can have multiple)
@@ -100,10 +104,11 @@ bun run typecheck
 ### Key Animations
 - Character movement to center
 - Character idle
-- Explosion elimination effects
+- **Smart Explosion Effects**: Only explodes eliminated participants, winner stays in center
 - Battle clash animations
 - Victory celebrations
 - Coin rain and confetti
+- **Blockchain Randomness Dialog**: Shows during winner determination process
 
 ### Performance
 - 60 FPS target
@@ -114,7 +119,8 @@ bun run typecheck
 ## Convex Backend
 
 ### Scheduled Functions
-- Game loop: Every 10 seconds (game phase management)
+- Game loop: Every 3 seconds (game phase management)
+- Blockchain call processor: Every 5 seconds (processes pending blockchain winner determinations)
 - Transaction processing: Every 30 seconds (Solana operations)
 - Transaction cleanup: Every 1 hour (removes 7-day old transactions)
 - Game cleanup: Every 6 hours (removes 3-day old completed games)
@@ -123,6 +129,41 @@ bun run typecheck
 - Automatic UI updates
 - No WebSocket configuration needed
 - Optimistic updates with rollback
+
+## Winner Selection System
+
+### Small Games (< 8 participants)
+- **Dynamic Phase Timing**: Arena phase extends until blockchain call completes
+- **Frontend Flow**:
+  1. Players move to center (2.5 seconds)
+  2. Frontend triggers `triggerBlockchainCall` mutation
+  3. Blockchain randomness dialog appears at bottom of screen
+  4. Backend processes blockchain call (3-8 second simulation)
+  5. Winner determined, elimination status updated
+  6. Dialog disappears, only eliminated participants explode
+  7. Winner remains in center for victory celebration
+
+### Large Games (≥ 8 participants)
+- **Fixed Timing**: Standard phase durations
+- Winner determined at end of battle phase
+- Elimination happens in waves (top 4 → final winner)
+
+### Backend Implementation
+```typescript
+// Key functions in convex/games.ts
+triggerBlockchainCall()        // Frontend → Backend blockchain call initiation
+processBlockchainCalls()       // Cron job simulates blockchain completion
+determineWinner()             // Selects winner and marks losers as eliminated
+```
+
+### Frontend Integration
+```typescript
+// Key files
+src/components/BlockchainRandomnessDialog.tsx  // Progress indicator
+src/game/managers/GamePhaseManager.ts          // Phase management
+src/game/managers/AnimationManager.ts          // Smart explosions
+src/App.tsx                                   // Event coordination
+```
 
 ## Single Player Logic
 - Runs normal game with bots for entertainment

@@ -3,11 +3,18 @@ import { api, internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Main game loop - check for new games every 10 seconds
+// Main game loop - check for new games every 3 seconds
 crons.interval(
   "game loop",
   { seconds: 3 },
   internal.games.gameLoop
+);
+
+// Process blockchain calls for winner determination every 5 seconds
+crons.interval(
+  "process blockchain calls",
+  { seconds: 5 },
+  internal.games.processBlockchainCalls
 );
 
 // Process transaction queue every 30 seconds

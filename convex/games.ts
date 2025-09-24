@@ -161,6 +161,8 @@ export const createNewGame = mutation({
       isSmallGame: true, // Will be updated as participants join
       mapId: randomMap._id,
       survivorIds: undefined,
+      blockchainCallStatus: "none",
+      blockchainCallStartTime: undefined,
     });
 
     return gameId;
@@ -966,6 +968,97 @@ export const cleanupOldGames = internalMutation({
   },
 });
 
+// Public mutation to start blockchain call (called by frontend)
+export const triggerBlockchainCall = mutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "arena" || game.blockchainCallStatus !== "none") return;
+
+    const now = Date.now();
+    await ctx.db.patch(args.gameId, {
+      blockchainCallStatus: "pending",
+      blockchainCallStartTime: now,
+    });
+
+    console.log(`Frontend triggered blockchain call for game ${args.gameId}`);
+  },
+});
+
+// Start blockchain call for winner determination (internal)
+export const startBlockchainCall = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "arena") return;
+
+    const now = Date.now();
+    await ctx.db.patch(args.gameId, {
+      blockchainCallStatus: "pending",
+      blockchainCallStartTime: now,
+    });
+
+    console.log(`Started blockchain call for game ${args.gameId}`);
+  },
+});
+
+// Complete blockchain call and determine winner
+export const completeBlockchainCall = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.blockchainCallStatus !== "pending") return;
+
+    // Determine the winner using existing logic
+    await determineWinner(ctx, args.gameId);
+
+    // Mark blockchain call as completed
+    await ctx.db.patch(args.gameId, {
+      blockchainCallStatus: "completed",
+    });
+
+    console.log(`Completed blockchain call for game ${args.gameId}`);
+  },
+});
+
+// Simulate blockchain call processing (called by cron every 5 seconds)
+export const processBlockchainCalls = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Find games with pending blockchain calls
+    const gamesWithPendingCalls = await ctx.db
+      .query("games")
+      .withIndex("by_status", (q: any) => q.eq("status", "arena"))
+      .filter((q: any) => q.eq(q.field("blockchainCallStatus"), "pending"))
+      .collect();
+
+    const now = Date.now();
+
+    for (const game of gamesWithPendingCalls) {
+      if (!game.blockchainCallStartTime) continue;
+
+      // Simulate blockchain call taking 3-8 seconds to complete
+      const callDuration = now - game.blockchainCallStartTime;
+      const minDuration = 3000; // 3 seconds minimum
+      const maxRandomDelay = 5000; // Additional 0-5 seconds random
+
+      // Simple simulation: complete after minimum time + random factor
+      if (callDuration >= minDuration) {
+        const shouldComplete = Math.random() > 0.3; // 70% chance per check
+        if (shouldComplete) {
+          await ctx.db.patch(game._id, {
+            blockchainCallStatus: "completed",
+          });
+
+          // Determine winner
+          await determineWinner(ctx, game._id);
+          console.log(`Blockchain call completed for game ${game._id} after ${callDuration}ms`);
+        }
+      }
+    }
+  },
+});
+
 // Main game loop (called by cron every 10 seconds)
 export const gameLoop = internalMutation({
   args: {},
@@ -1011,6 +1104,8 @@ export const gameLoop = internalMutation({
           isSinglePlayer: false,
           isSmallGame: true,
           mapId: selectedMap._id,
+          blockchainCallStatus: "none",
+          blockchainCallStartTime: undefined,
         });
 
         console.log("Created new game");
@@ -1090,12 +1185,22 @@ export const gameLoop = internalMutation({
             .collect();
 
           if (arenaParticipants.length < 8) {
-            // For less than 8 players, skip TOP4 and BATTLE phases
-            // Go straight to determining winner
-            await determineWinner(ctx, activeGame._id);
-            nextStatus = "results";
-            nextPhase = 3; // Phase 3 in the 3-phase system
-            nextPhaseTime = now + (PHASE_DURATIONS.RESULTS * 1000);
+            // Small games: Check blockchain call status
+            if (activeGame.blockchainCallStatus === "none") {
+              // No blockchain call started yet - don't advance phase yet
+              // The blockchain call will be started by frontend after players move to center
+              console.log(`Small game ${activeGame._id}: waiting for blockchain call to start`);
+              return; // Don't advance phase, wait for blockchain call
+            } else if (activeGame.blockchainCallStatus === "pending") {
+              // Blockchain call is pending - don't advance phase yet
+              console.log(`Small game ${activeGame._id}: blockchain call pending, holding arena phase`);
+              return; // Don't advance phase, wait for blockchain call completion
+            } else if (activeGame.blockchainCallStatus === "completed") {
+              // Blockchain call completed, winner determined - advance to results
+              nextStatus = "results";
+              nextPhase = 3; // Phase 3 in the 3-phase system
+              nextPhaseTime = now + (PHASE_DURATIONS.RESULTS * 1000);
+            }
           } else {
             // 8 or more players: eliminate to top 4 for betting phase
             await eliminateToFinalists(ctx, activeGame._id, 4);

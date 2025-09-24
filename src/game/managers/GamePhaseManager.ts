@@ -8,6 +8,7 @@ export class GamePhaseManager {
   private animationManager: AnimationManager;
   private currentPhase: string = '';
   private isSmallGame: boolean = false;
+  private hasWinner: boolean = false;
 
   constructor(scene: Scene, playerManager: PlayerManager, animationManager: AnimationManager) {
     this.scene = scene;
@@ -24,6 +25,26 @@ export class GamePhaseManager {
     // Check if phase changed
     const phaseChanged = this.currentPhase !== gameState.status;
     this.currentPhase = gameState.status;
+
+    // Update participants with latest data from backend (elimination status, etc.)
+    if (gameState.status !== 'waiting') {
+      this.playerManager.updateParticipants(participants);
+    }
+
+    // Check if blockchain call completed for small games during arena phase
+    const blockchainCallJustCompleted = gameState.blockchainCallStatus === 'completed' && !this.hasWinner;
+    if (blockchainCallJustCompleted && this.isSmallGame && gameState.status === 'arena') {
+      console.log('Blockchain call completed for small game, winner:', gameState.winnerId);
+      this.hasWinner = true;
+      // Trigger explosion after a short delay
+      this.scene.time.delayedCall(500, () => {
+        const participants = this.playerManager.getParticipants();
+        this.animationManager.explodeParticipantsOutward(participants);
+      });
+    }
+
+    // Update hasWinner flag
+    this.hasWinner = !!gameState.winnerId;
 
     // Update participants based on game phase
     switch (gameState.status) {
@@ -60,6 +81,9 @@ export class GamePhaseManager {
       this.playerManager.clearParticipants();
     }
 
+    // Reset winner flag for new game
+    this.hasWinner = false;
+
     this.playerManager.updateParticipantsInWaiting(participants, mapData);
   }
 
@@ -92,11 +116,14 @@ export class GamePhaseManager {
       this.playerManager.moveParticipantsToCenter();
 
       if (this.isSmallGame) {
-        // Small games: explode participants outward with physics
-        // Schedule physics-based explosion earlier in arena phase
-        this.scene.time.delayedCall(1500, () => {
-          const participants = this.playerManager.getParticipants();
-          this.animationManager.explodeParticipantsOutward(participants);
+        // Small games: start blockchain call after players move to center
+        console.log('Small game: starting blockchain call after players move...');
+
+        // Trigger blockchain call after 2.5 seconds (after players finish moving)
+        this.scene.time.delayedCall(2500, () => {
+          // Emit event to trigger blockchain call
+          // This will be handled by the App component
+          this.scene.events.emit('triggerBlockchainCall');
         });
       } else {
         // Large games: prepare for elimination
@@ -202,6 +229,7 @@ export class GamePhaseManager {
   reset() {
     this.currentPhase = '';
     this.isSmallGame = false;
+    this.hasWinner = false;
     this.scene.tweens.killAll();
     this.scene.time.removeAllEvents();
     this.playerManager.clearParticipants();

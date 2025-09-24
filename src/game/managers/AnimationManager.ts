@@ -213,9 +213,12 @@ export class AnimationManager {
     // Create explosion at center first
     this.createCenterExplosion();
 
-    // Apply physics to each participant
+    // Apply physics only to eliminated participants
     participants.forEach((participant) => {
       if (!participant.container || !participant.container.active) return;
+
+      // Only explode eliminated participants, leave the winner alone
+      if (!participant.eliminated) return;
 
       // Calculate angle from center to participant
       const dx = participant.container.x - this.centerX;

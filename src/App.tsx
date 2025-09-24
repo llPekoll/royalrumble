@@ -1,12 +1,14 @@
 import { useRef, useState, useEffect } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
 import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
+import { BlockchainRandomnessDialog } from "./components/BlockchainRandomnessDialog";
 import { api } from "../convex/_generated/api";
 
 export default function App() {
   const [previousParticipants, setPreviousParticipants] = useState<any[]>([]);
+  const [showBlockchainDialog, setShowBlockchainDialog] = useState(false);
 
   //  References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
@@ -14,11 +16,28 @@ export default function App() {
   // Get current game state
   const currentGame = useQuery(api.games.getCurrentGame);
 
+  // Mutation to trigger blockchain call
+  const triggerBlockchainCall = useMutation(api.games.triggerBlockchainCall);
+
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
     // Update Phaser scene with game state when it's ready
     if (scene && scene.scene.key === 'RoyalRumble' && currentGame) {
       (scene as any).updateGameState?.(currentGame);
+    }
+
+    // Set up blockchain call event listener
+    if (scene && scene.scene.key === 'RoyalRumble') {
+      // Remove existing listener to prevent duplicates
+      scene.events.off('triggerBlockchainCall');
+
+      // Add event listener for blockchain call trigger
+      scene.events.on('triggerBlockchainCall', () => {
+        if (currentGame && currentGame._id) {
+          console.log('Triggering blockchain call from frontend');
+          triggerBlockchainCall({ gameId: currentGame._id });
+        }
+      });
     }
   };
 
@@ -48,6 +67,20 @@ export default function App() {
     }
   }, [currentGame, previousParticipants]);
 
+  // Show blockchain dialog when blockchain call is pending
+  useEffect(() => {
+    if (currentGame) {
+      const isSmallGame = currentGame.isSmallGame || (currentGame.participants?.length < 8);
+      const isArenaPhase = currentGame.status === 'arena';
+      const isBlockchainCallPending = currentGame.blockchainCallStatus === 'pending';
+
+      // Show dialog for small games in arena phase while blockchain call is pending
+      setShowBlockchainDialog(isSmallGame && isArenaPhase && isBlockchainCallPending);
+    } else {
+      setShowBlockchainDialog(false);
+    }
+  }, [currentGame]);
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Full Background Phaser Game */}
@@ -64,6 +97,9 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Blockchain Randomness Dialog */}
+      <BlockchainRandomnessDialog open={showBlockchainDialog} />
     </div>
   );
 }
