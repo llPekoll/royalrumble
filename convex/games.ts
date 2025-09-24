@@ -1040,7 +1040,6 @@ export const processBlockchainCalls = internalMutation({
       // Simulate blockchain call taking 3-8 seconds to complete
       const callDuration = now - game.blockchainCallStartTime;
       const minDuration = 3000; // 3 seconds minimum
-      const maxRandomDelay = 5000; // Additional 0-5 seconds random
 
       // Simple simulation: complete after minimum time + random factor
       if (callDuration >= minDuration) {
