@@ -17,11 +17,8 @@ Royal Rumble is a multiplayer battle game where:
 # Install dependencies using Bun (required)
 bun install
 
-# Set up Convex backend
-npx convex dev
-
 # Run development server
-bun run dev
+bun dev
 ```
 
 ## 🎲 Game Mechanics
@@ -35,7 +32,7 @@ The game adapts based on the number of participants:
 - Arena Phase (10s) - Characters spawn and move to center
 - Results Phase (5s) - Winners announced and payouts distributed
 
-#### Large Games (≥ 8 participants)  
+#### Large Games (≥ 8 participants)
 **7 phases (75 seconds total)**
 - Waiting Phase (30s) - Players join and place bets
 - Selection Phase - Character selection and preparation
