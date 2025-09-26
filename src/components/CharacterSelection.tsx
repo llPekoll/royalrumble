@@ -70,7 +70,6 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
 
     const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
     setCurrentCharacter(randomChar);
-    toast.success(`New character: ${randomChar.name}!`);
   };
 
   const handleQuickBet = (amount: number) => {
