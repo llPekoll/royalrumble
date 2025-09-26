@@ -136,7 +136,7 @@ export function MultiParticipantPanel() {
             <div className="flex items-center justify-between text-xs">
               <span className="text-amber-400 uppercase tracking-wide">Total Pot</span>
               <span className="text-amber-300 font-bold">
-                {allParticipants.reduce((sum: number, p: any) => sum + (p.betAmount/10000 || 0), 0)} SOL
+                {allParticipants.reduce((sum: number, p: any) => sum + (p.betAmount/10000 || 0), 0).toFixed(2)} SOL
               </span>
             </div>
           </div>

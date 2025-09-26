@@ -18,6 +18,7 @@ import { ProfileDialog } from "./ProfileDialog";
 import { toast } from "sonner";
 import { User, Map } from "lucide-react";
 import { generateRandomName } from "../lib/nameGenerator";
+import styles from "./ButtonShine.module.css";
 
 export function Header() {
   const { connected, publicKey, sendTransaction } = useWallet();
@@ -256,7 +257,7 @@ export function Header() {
                     </div>
                     <Button
                       onClick={() => setShowDepositModal(true)}
-                      className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-amber-950 font-bold text-xs px-3 py-1.5 h-auto shadow-md transition-all duration-200 hover:shadow-amber-400/30"
+                      className={`bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-amber-950 font-bold text-xs px-3 py-1.5 h-auto shadow-md transition-all duration-200 hover:shadow-amber-400/30 ${styles.shineButton}`}
                     >
                       Deposit
                     </Button>

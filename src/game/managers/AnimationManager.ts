@@ -203,8 +203,83 @@ export class AnimationManager {
       explosion.destroy();
     });
 
+    // Add directional blood effects from center
+    this.createDirectionalBloodEffects();
+
     // Screen shake for impact
     this.scene.cameras.main.shake(300, 0.02);
+  }
+
+  createDirectionalBloodEffects() {
+    // Blood shooting from left
+    this.scene.time.delayedCall(100, () => {
+      const bloodLeft = this.scene.add.sprite(this.centerX - 50, this.centerY, 'blood');
+      bloodLeft.setScale(2);
+      bloodLeft.setDepth(140);
+      bloodLeft.setFlipX(false);
+      bloodLeft.setAlpha(1);
+      // Keep pixel art crisp when scaling
+      bloodLeft.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+      console.log('Looking for blood-from-left6-big:', this.scene.anims.exists('blood-from-left6-big'));
+      if (this.scene.anims.exists('blood-from-left6-big')) {
+        bloodLeft.play('blood-from-left6-big');
+        console.log('Playing blood-from-left6-big animation');
+      } else {
+        console.log('Animation not found, showing static sprite');
+        bloodLeft.setFrame('blood_spritesheet 70.ase'); // Show a static frame
+      }
+      bloodLeft.once('animationcomplete', () => {
+        this.scene.tweens.add({
+          targets: bloodLeft,
+          alpha: 0,
+          duration: 1500,
+          onComplete: () => bloodLeft.destroy()
+        });
+      });
+    });
+
+    // Blood shooting from right (mirrored)
+    this.scene.time.delayedCall(150, () => {
+      const bloodRight = this.scene.add.sprite(this.centerX + 50, this.centerY, 'blood');
+      bloodRight.setScale(2);
+      bloodRight.setDepth(140);
+      bloodRight.setFlipX(true); // Mirror horizontally
+      bloodRight.setAlpha(1);
+      // Keep pixel art crisp when scaling
+      bloodRight.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+      if (this.scene.anims.exists('blood-from-left6-big')) {
+        bloodRight.play('blood-from-left6-big');
+      }
+      bloodRight.once('animationcomplete', () => {
+        this.scene.tweens.add({
+          targets: bloodRight,
+          alpha: 0,
+          duration: 1500,
+          onComplete: () => bloodRight.destroy()
+        });
+      });
+    });
+
+    // Ground blood in center
+    this.scene.time.delayedCall(200, () => {
+      const bloodGround = this.scene.add.sprite(this.centerX, this.centerY + 30, 'blood');
+      bloodGround.setScale(2.5);
+      bloodGround.setDepth(110);
+      bloodGround.setAlpha(1);
+      // Keep pixel art crisp when scaling
+      bloodGround.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+      if (this.scene.anims.exists('blood-ground-middle')) {
+        bloodGround.play('blood-ground-middle');
+      }
+      bloodGround.once('animationcomplete', () => {
+        this.scene.tweens.add({
+          targets: bloodGround,
+          alpha: 0,
+          duration: 2000,
+          onComplete: () => bloodGround.destroy()
+        });
+      });
+    });
   }
 
   explodeParticipantsOutward(participants: Map<string, any>) {
@@ -328,6 +403,9 @@ export class AnimationManager {
         duration: 200,
         ease: 'Power2'
       });
+
+      // Check if participant hits screen edge and create full-screen blood
+      this.checkScreenEdgeCollision(participant);
     });
 
     // Add extra particle effects
@@ -427,48 +505,188 @@ export class AnimationManager {
     this.scene.cameras.main.shake(3000, 0.005);
   }
 
-  createBloodSplatter(x: number, y: number, fullScreen: boolean = false) {
-    // Choose random blood effect
-    const bloodIndex = Math.floor(Math.random() * 9) + 1;
-    const bloodSprite = this.scene.add.image(
-      fullScreen ? this.centerX : x,
-      fullScreen ? this.centerY : y,
-      `blood-${bloodIndex}`
+  checkScreenEdgeCollision(participant: any) {
+    // Get screen dimensions
+    const screenWidth = this.scene.game.config.width as number;
+    const screenHeight = this.scene.game.config.height as number;
+
+    // Monitor participant position over time
+    const checkCollision = () => {
+      if (!participant.container || !participant.container.active) return;
+
+      const x = participant.container.x;
+      const y = participant.container.y;
+      const margin = 50; // Distance from edge to trigger effect
+
+      // Check if participant is near or past screen edges
+      if (x <= margin || x >= screenWidth - margin || y <= margin || y >= screenHeight - margin) {
+        // Create full-screen blood effect
+        this.createFullScreenBloodSplash(x, y);
+
+        // Stop monitoring this participant
+        return;
+      }
+
+      // Continue checking
+      this.scene.time.delayedCall(100, checkCollision);
+    };
+
+    // Start monitoring with a delay
+    this.scene.time.delayedCall(500, checkCollision);
+  }
+
+  createFullScreenBloodSplash(impactX: number, impactY: number) {
+    // Create multiple blood animations across the screen
+    const bloodTypes = [
+      'blood-from-left6-big',
+      'blood-from-left7',
+      'blood-from-left5',
+      'blood-ground-middle2'
+    ];
+
+    // Create blood splatters from impact point
+    for (let i = 0; i < 5; i++) {
+      this.scene.time.delayedCall(i * 50, () => {
+        const bloodType = bloodTypes[Math.floor(Math.random() * bloodTypes.length)];
+
+        // Position blood near impact area
+        const offsetX = (Math.random() - 0.5) * 200;
+        const offsetY = (Math.random() - 0.5) * 200;
+
+        const bloodSprite = this.scene.add.sprite(
+          impactX + offsetX,
+          impactY + offsetY,
+          'blood'
+        );
+
+        bloodSprite.setScale(2 + Math.random() * 2);
+        bloodSprite.setDepth(350); // Above everything
+        bloodSprite.setAlpha(0.9);
+        bloodSprite.setRotation(Math.random() * Math.PI * 2);
+        // Keep pixel art crisp when scaling
+        bloodSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+        // Random flip for variety
+        if (Math.random() > 0.5) {
+          bloodSprite.setFlipX(true);
+        }
+
+        if (this.scene.anims.exists(bloodType)) {
+          bloodSprite.play(bloodType);
+        }
+
+        bloodSprite.once('animationcomplete', () => {
+          // Fade out slowly
+          this.scene.tweens.add({
+            targets: bloodSprite,
+            alpha: 0,
+            duration: 2500,
+            onComplete: () => bloodSprite.destroy()
+          });
+        });
+      });
+    }
+
+    // Add screen flash effect
+    const flash = this.scene.add.rectangle(
+      this.centerX,
+      this.centerY,
+      this.scene.game.config.width as number,
+      this.scene.game.config.height as number,
+      0x8B0000 // Dark red
     );
+    flash.setDepth(340);
+    flash.setAlpha(0);
+
+    this.scene.tweens.add({
+      targets: flash,
+      alpha: 0.3,
+      duration: 100,
+      yoyo: true,
+      onComplete: () => flash.destroy()
+    });
+
+    // Enhanced screen shake for impact
+    this.scene.cameras.main.shake(600, 0.025);
+  }
+
+  createBloodSplatter(x: number, y: number, fullScreen: boolean = false) {
+    // Available blood animations
+    const bloodTypes = [
+      'blood-ground-middle',
+      'blood-from-left',
+      'blood-from-left2',
+      'blood-from-left3',
+      'blood-from-left4',
+      'blood-from-left5',
+      'blood-from-left6-big',
+      'blood-ground-middle2',
+      'blood-from-left7'
+    ];
 
     if (fullScreen) {
-      // Full screen blood effect - scale to cover screen
-      const screenWidth = this.scene.game.config.width as number;
-      const screenHeight = this.scene.game.config.height as number;
-      bloodSprite.setScale(
-        Math.max(screenWidth / bloodSprite.width, screenHeight / bloodSprite.height) * 1.5
-      );
-      bloodSprite.setDepth(300); // On top of everything
-      bloodSprite.setAlpha(0.7);
+      // Create multiple blood effects across the screen
+      const bloodCount = 3 + Math.floor(Math.random() * 3);
 
-      // Fade out the full-screen blood slowly
-      this.scene.tweens.add({
-        targets: bloodSprite,
-        alpha: 0,
-        duration: 3000,
-        delay: 1000,
-        onComplete: () => bloodSprite.destroy()
-      });
+      for (let i = 0; i < bloodCount; i++) {
+        this.scene.time.delayedCall(i * 100, () => {
+          const bloodType = bloodTypes[Math.floor(Math.random() * bloodTypes.length)];
+          const bloodSprite = this.scene.add.sprite(
+            this.centerX + (Math.random() - 0.5) * 400,
+            this.centerY + (Math.random() - 0.5) * 300,
+            'blood'
+          );
+
+          bloodSprite.setScale(2 + Math.random() * 2);
+          bloodSprite.setDepth(300);
+          bloodSprite.setAlpha(0.8);
+          bloodSprite.setRotation(Math.random() * Math.PI * 2);
+          // Keep pixel art crisp when scaling
+          bloodSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+          if (this.scene.anims.exists(bloodType)) {
+            bloodSprite.play(bloodType);
+          }
+
+          bloodSprite.once('animationcomplete', () => {
+            // Fade out slowly
+            this.scene.tweens.add({
+              targets: bloodSprite,
+              alpha: 0,
+              duration: 2000,
+              onComplete: () => bloodSprite.destroy()
+            });
+          });
+        });
+      }
     } else {
       // Local blood splatter during fights
-      bloodSprite.setScale(0.5 + Math.random() * 1.5);
-      bloodSprite.setRotation(Math.random() * Math.PI * 2);
-      bloodSprite.setDepth(115);
-      bloodSprite.setAlpha(0.8);
+      const bloodType = bloodTypes[Math.floor(Math.random() * bloodTypes.length)];
+      const bloodSprite = this.scene.add.sprite(
+        x + (Math.random() - 0.5) * 100,
+        y + (Math.random() - 0.5) * 100,
+        'blood'
+      );
 
-      // Fade out local blood
-      this.scene.tweens.add({
-        targets: bloodSprite,
-        alpha: 0,
-        scale: bloodSprite.scale * 1.2,
-        duration: 2000,
-        delay: 500,
-        onComplete: () => bloodSprite.destroy()
+      bloodSprite.setScale(0.8 + Math.random() * 1.2);
+      bloodSprite.setDepth(115);
+      bloodSprite.setAlpha(0.9);
+      bloodSprite.setRotation(Math.random() * Math.PI * 2);
+      // Keep pixel art crisp when scaling
+      bloodSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+      if (this.scene.anims.exists(bloodType)) {
+        bloodSprite.play(bloodType);
+      }
+
+      bloodSprite.once('animationcomplete', () => {
+        // Fade out
+        this.scene.tweens.add({
+          targets: bloodSprite,
+          alpha: 0,
+          duration: 1500,
+          onComplete: () => bloodSprite.destroy()
+        });
       });
     }
   }

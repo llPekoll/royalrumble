@@ -135,6 +135,9 @@ export class PlayerManager {
     // Scale only the sprite, not the text
     sprite.setScale(scale);
 
+    // Keep pixel art crisp when scaling
+    sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
     // Apply color tint if specified
     if (participant.colorHue !== undefined) {
       const hue = participant.colorHue / 360; // Convert to 0-1 range

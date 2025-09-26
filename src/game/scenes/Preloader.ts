@@ -35,16 +35,11 @@ export class Preloader extends Scene {
 
     this.load.image(currentMapData.background, currentMapData.assetPath);
 
-    // Load particle effects
-    this.load.image('star', 'star.png');
-
     // Load explosion sprite sheet
     this.load.atlas('explosion', 'vfx/Explosion.png', 'vfx/Explosion.json');
 
-    // Load blood effect GIFs
-    for (let i = 1; i <= 9; i++) {
-      this.load.image(`blood-${i}`, `vfx/blood_effect_${i}.gif`);
-    }
+    // Load blood sprite sheet
+    this.load.atlas('blood', 'vfx/blood_spritesheet.png', 'vfx/blood_spritesheet.json');
 
     this.load.image('logo', 'logo.webp');
   }
@@ -115,6 +110,33 @@ export class Preloader extends Scene {
       }),
       frameRate: 18,
       repeat: 0
+    });
+
+    // Create blood animations
+    const bloodAnimations = [
+      { key: 'blood-ground-middle', start: 0, end: 10, frameRate: 15 },
+      { key: 'blood-from-left', start: 12, end: 23, frameRate: 15 },
+      { key: 'blood-from-left2', start: 25, end: 32, frameRate: 15 },
+      { key: 'blood-from-left3', start: 34, end: 44, frameRate: 15 },
+      { key: 'blood-from-left4', start: 46, end: 54, frameRate: 15 },
+      { key: 'blood-from-left5', start: 56, end: 67, frameRate: 15 },
+      { key: 'blood-from-left6-big', start: 69, end: 82, frameRate: 18 },
+      { key: 'blood-ground-middle2', start: 84, end: 93, frameRate: 15 },
+      { key: 'blood-from-left7', start: 95, end: 106, frameRate: 15 }
+    ];
+
+    bloodAnimations.forEach(anim => {
+      this.anims.create({
+        key: anim.key,
+        frames: this.anims.generateFrameNames('blood', {
+          prefix: 'blood_spritesheet ',
+          suffix: '.ase',
+          start: anim.start,
+          end: anim.end
+        }),
+        frameRate: anim.frameRate,
+        repeat: 0
+      });
     });
 
     // Debug: Scene name at bottom

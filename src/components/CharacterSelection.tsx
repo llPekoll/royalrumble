@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
+import styles from "./ButtonShine.module.css";
 
 interface Character {
   _id: string;
@@ -223,7 +224,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           <button
             onClick={() => void handlePlaceBet()}
             disabled={isSubmitting || !currentGame || currentGame.status !== "waiting"}
-            className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-amber-950 uppercase tracking-wider text-sm transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50"
+            className={`w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-sm transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
             {isSubmitting ? "Placing..." : "Place Bet"}
           </button>
