@@ -31,6 +31,12 @@ export const CharacterPreviewScene: React.FC<CharacterPreviewSceneProps> = ({
       parent: containerRef.current,
       backgroundColor: '#2d1810',
       scene: CharacterPreview,
+      pixelArt: true,
+      render: {
+        antialias: false,
+        pixelArt: true,
+        roundPixels: true
+      },
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH

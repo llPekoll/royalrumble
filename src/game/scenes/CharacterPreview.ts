@@ -38,6 +38,9 @@ export class CharacterPreview extends Scene {
     // Scale the character appropriately for the preview
     this.currentCharacterSprite.setScale(2);
 
+    // Keep pixel art crisp when scaling
+    this.currentCharacterSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
     // Play idle animation
     const idleAnimKey = `${characterKey}-idle`;
     if (this.anims.exists(idleAnimKey)) {
