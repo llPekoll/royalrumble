@@ -110,8 +110,6 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
         displayName: `${playerData.displayName || "Player"}`,
         colorHue: Math.random() * 360,
       });
-
-      toast.success(`Joined game with ${currentCharacter.name}! Bet: ${amount} coins`);
       setBetAmount("100");
 
       // Auto-reroll to a new character for the next participant
