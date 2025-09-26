@@ -40,6 +40,12 @@ export class Preloader extends Scene {
 
     // Load explosion sprite sheet
     this.load.atlas('explosion', 'vfx/Explosion.png', 'vfx/Explosion.json');
+
+    // Load blood effect GIFs
+    for (let i = 1; i <= 9; i++) {
+      this.load.image(`blood-${i}`, `vfx/blood_effect_${i}.gif`);
+    }
+
     this.load.image('logo', 'logo.webp');
   }
 

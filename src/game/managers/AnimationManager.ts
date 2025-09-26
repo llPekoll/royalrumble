@@ -213,6 +213,12 @@ export class AnimationManager {
     // Create explosion at center first
     this.createCenterExplosion();
 
+    // Add full-screen blood effect when characters are eliminated
+    const eliminatedCount = Array.from(participants.values()).filter(p => p.eliminated).length;
+    if (eliminatedCount > 0) {
+      this.createBloodSplatter(this.centerX, this.centerY, true);
+    }
+
     // Apply physics only to eliminated participants
     participants.forEach((participant) => {
       if (!participant.container || !participant.container.active) return;
@@ -406,6 +412,9 @@ export class AnimationManager {
         explosion.once('animationcomplete', () => {
           explosion.destroy();
         });
+
+        // Add blood splatter at fight location
+        this.createBloodSplatter(x, y, false);
       });
     };
 
@@ -416,6 +425,52 @@ export class AnimationManager {
 
     // Screen shake throughout battle
     this.scene.cameras.main.shake(3000, 0.005);
+  }
+
+  createBloodSplatter(x: number, y: number, fullScreen: boolean = false) {
+    // Choose random blood effect
+    const bloodIndex = Math.floor(Math.random() * 9) + 1;
+    const bloodSprite = this.scene.add.image(
+      fullScreen ? this.centerX : x,
+      fullScreen ? this.centerY : y,
+      `blood-${bloodIndex}`
+    );
+
+    if (fullScreen) {
+      // Full screen blood effect - scale to cover screen
+      const screenWidth = this.scene.game.config.width as number;
+      const screenHeight = this.scene.game.config.height as number;
+      bloodSprite.setScale(
+        Math.max(screenWidth / bloodSprite.width, screenHeight / bloodSprite.height) * 1.5
+      );
+      bloodSprite.setDepth(300); // On top of everything
+      bloodSprite.setAlpha(0.7);
+
+      // Fade out the full-screen blood slowly
+      this.scene.tweens.add({
+        targets: bloodSprite,
+        alpha: 0,
+        duration: 3000,
+        delay: 1000,
+        onComplete: () => bloodSprite.destroy()
+      });
+    } else {
+      // Local blood splatter during fights
+      bloodSprite.setScale(0.5 + Math.random() * 1.5);
+      bloodSprite.setRotation(Math.random() * Math.PI * 2);
+      bloodSprite.setDepth(115);
+      bloodSprite.setAlpha(0.8);
+
+      // Fade out local blood
+      this.scene.tweens.add({
+        targets: bloodSprite,
+        alpha: 0,
+        scale: bloodSprite.scale * 1.2,
+        duration: 2000,
+        delay: 500,
+        onComplete: () => bloodSprite.destroy()
+      });
+    }
   }
 
   createFinalExplosion() {
