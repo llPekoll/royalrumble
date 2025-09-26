@@ -102,7 +102,7 @@ export const CharacterPreviewScene: React.FC<CharacterPreviewSceneProps> = ({
         sceneRef.current = null;
       }
     };
-  }, [width, height]);
+  }, [width, height, characterId, characterName]);
 
   // Load character assets and display character when character changes
   useEffect(() => {

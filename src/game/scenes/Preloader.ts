@@ -39,7 +39,7 @@ export class Preloader extends Scene {
     this.load.image('star', 'star.png');
 
     // Load explosion sprite sheet
-    this.load.atlas('explosion', 'misc/Explosion.png', 'misc/Explosion.json');
+    this.load.atlas('explosion', 'vfx/Explosion.png', 'vfx/Explosion.json');
     this.load.image('logo', 'logo.webp');
   }
 
