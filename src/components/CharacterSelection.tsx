@@ -5,6 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
+import { CharacterPreviewScene } from "./CharacterPreviewScene";
 
 interface Character {
   _id: string;
@@ -151,8 +152,14 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-amber-800 rounded-lg flex items-center justify-center text-2xl font-bold text-amber-100">
-                {currentCharacter.name.charAt(0)}
+              {/* Phaser character preview */}
+              <div className="w-16 h-16 flex-shrink-0">
+                <CharacterPreviewScene
+                  characterId={currentCharacter._id}
+                  characterName={currentCharacter.name}
+                  width={64}
+                  height={64}
+                />
               </div>
               <div>
                 <p className="text-amber-100 font-bold text-sm uppercase tracking-wide">
