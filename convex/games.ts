@@ -1,4 +1,6 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, action } from "./_generated/server";
+import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -536,7 +538,7 @@ export async function eliminateToFinalists(ctx: any, gameId: Id<"games">, finali
   }
 }
 
-// Helper: Determine winner
+// Helper: Determine winner using VRF
 export async function determineWinner(ctx: any, gameId: Id<"games">) {
   const game = await ctx.db.get(gameId);
   if (!game) return;
@@ -555,45 +557,65 @@ export async function determineWinner(ctx: any, gameId: Id<"games">) {
     // In single player mode, human always wins
     winner = participants.find((p: any) => !p.isBot) || participants[0];
   } else {
-    // Calculate weighted probabilities with randomness
-    const weights = participants.map((p: any) => {
-      // Base weight from bet amount (square root to reduce dominance)
-      const baseWeight = Math.sqrt(p.betAmount);
+    // Use VRF to determine winner fairly
+    try {
+      // Determine round number based on game type
+      const round = game.isSmallGame ? 1 : (game.status === "battle" ? 2 : 1);
 
-      // Add random factor (20-80% of base weight)
-      const randomFactor = 0.2 + (Math.random() * 0.6);
-      const randomBonus = baseWeight * randomFactor;
+      // Try to get VRF result
+      const vrfResult = await ctx.runQuery(api.vrf.getVRFResult, {
+        gameId: game._id,
+        round: round
+      });
 
-      // Final weight = base + random bonus
-      return {
-        participant: p,
-        weight: baseWeight + randomBonus,
-      };
-    });
+      if (vrfResult.exists && vrfResult.randomSeed) {
+        console.log(`🎲 Using VRF seed for game ${game._id} round ${round}`);
 
-    // Calculate total weight for probability calculation
-    const totalWeight = weights.reduce((sum: number, w: any) => sum + w.weight, 0);
+        // Use blockchain randomness for fair winner selection
+        const weights = participants.map((p: any) => p.betAmount); // Use bet amounts as weights
 
-    // Create probability distribution
-    const probabilities = weights.map((w: any) => ({
-      participant: w.participant,
-      probability: w.weight / totalWeight,
-    }));
+        const winnerResult = await ctx.runQuery(api.vrf.selectWinnerFromSeed, {
+          randomSeed: vrfResult.randomSeed,
+          participantWeights: weights
+        });
 
-    // Random selection with weighted probabilities
-    const random = Math.random();
-    let cumulative = 0;
-
-    for (const { participant, probability } of probabilities) {
-      cumulative += probability;
-      if (random <= cumulative) {
-        winner = participant;
-        break;
+        if (winnerResult.success) {
+          winner = participants[winnerResult.winnerIndex];
+          console.log(`🏆 VRF selected winner: ${winner.displayName} (index: ${winnerResult.winnerIndex})`);
+        } else {
+          throw new Error("Failed to select winner from VRF seed");
+        }
+      } else {
+        throw new Error("No VRF result available");
       }
-    }
+    } catch (error) {
+      console.error("❌ Error using VRF for winner selection, falling back to weighted random:", error);
 
-    // Fallback to highest bet if somehow no winner selected
-    winner = winner! || participants.sort((a: any, b: any) => b.betAmount - a.betAmount)[0];
+      // Fallback to weighted random selection
+      const weights = participants.map((p: any) => {
+        const baseWeight = Math.sqrt(p.betAmount);
+        const randomFactor = 0.2 + (Math.random() * 0.6);
+        const randomBonus = baseWeight * randomFactor;
+        return {
+          participant: p,
+          weight: baseWeight + randomBonus,
+        };
+      });
+
+      const totalWeight = weights.reduce((sum: number, w: any) => sum + w.weight, 0);
+      const random = Math.random();
+      let cumulative = 0;
+
+      for (const { participant, weight } of weights) {
+        cumulative += weight / totalWeight;
+        if (random <= cumulative) {
+          winner = participant;
+          break;
+        }
+      }
+
+      winner = winner! || participants.sort((a: any, b: any) => b.betAmount - a.betAmount)[0];
+    }
   }
 
   // Update winner and losers
@@ -968,7 +990,7 @@ export const cleanupOldGames = internalMutation({
   },
 });
 
-// Public mutation to start blockchain call (called by frontend)
+// Public mutation to start VRF call (called by frontend)
 export const triggerBlockchainCall = mutation({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
@@ -981,78 +1003,157 @@ export const triggerBlockchainCall = mutation({
       blockchainCallStartTime: now,
     });
 
-    console.log(`Frontend triggered blockchain call for game ${args.gameId}`);
+    console.log(`🎲 Frontend triggered VRF call for game ${args.gameId}`);
+
+    // Schedule the actual VRF request
+    await ctx.scheduler.runAfter(0, api.games.requestGameVRF, { gameId: args.gameId });
   },
 });
 
-// Start blockchain call for winner determination (internal)
-export const startBlockchainCall = internalMutation({
+// Request VRF for a game (called by scheduler)
+export const requestGameVRF = action({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
-    const game = await ctx.db.get(args.gameId);
-    if (!game || game.status !== "arena") return;
+    try {
+      console.log(`🎲 Requesting VRF for game ${args.gameId}`);
 
-    const now = Date.now();
+      // Request VRF from Solana (round 1 for now - we'll handle round 2 separately)
+      const vrfResult = await ctx.runAction(api.vrf.requestVRF, {
+        gameId: args.gameId,
+        round: 1
+      });
+
+      if (vrfResult.success) {
+        console.log(`✅ VRF requested successfully: ${vrfResult.signature}`);
+
+        // Schedule checking for VRF result in 2 seconds
+        await ctx.scheduler.runAfter(2000, api.games.checkVRFResult, {
+          gameId: args.gameId,
+          round: 1
+        });
+
+      } else {
+        console.error(`❌ VRF request failed: ${vrfResult.error}`);
+
+        // Mark as failed and use fallback
+        await ctx.runMutation(internal.games.markVRFFailed, {
+          gameId: args.gameId
+        });
+      }
+
+    } catch (error) {
+      console.error(`❌ Error requesting VRF for game ${args.gameId}:`, error);
+
+      // Mark as failed
+      await ctx.runMutation(internal.games.markVRFFailed, {
+        gameId: args.gameId
+      });
+    }
+  },
+});
+
+// Check VRF result and complete if ready
+export const checkVRFResult = action({
+  args: { gameId: v.id("games"), round: v.number() },
+  handler: async (ctx, args) => {
+    try {
+      console.log(`🔍 Checking VRF result for game ${args.gameId} round ${args.round}`);
+
+      // Add a small delay to allow blockchain finalization
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds
+
+      const vrfResult = await ctx.runQuery(api.vrf.getVRFResult, {
+        gameId: args.gameId,
+        round: args.round
+      });
+
+      if (vrfResult.exists) {
+        console.log(`✅ VRF result ready for game ${args.gameId}`);
+
+        // Mark blockchain call as completed and determine winner
+        await ctx.runMutation(internal.games.completeVRF, {
+          gameId: args.gameId
+        });
+
+      } else {
+        console.log(`⏳ VRF result not ready yet for game ${args.gameId}, will check again`);
+
+        // Check again in 1 second (max 10 retries = 10 seconds total)
+        const game = await ctx.runQuery(api.games.getGame, { gameId: args.gameId });
+        if (game && game.blockchainCallStartTime) {
+          const elapsed = Date.now() - game.blockchainCallStartTime;
+          if (elapsed < 10000) { // Less than 10 seconds elapsed
+            await ctx.scheduler.runAfter(1000, api.games.checkVRFResult, {
+              gameId: args.gameId,
+              round: args.round
+            });
+          } else {
+            console.error(`❌ VRF timeout for game ${args.gameId} after 10 seconds`);
+            await ctx.runMutation(internal.games.markVRFFailed, {
+              gameId: args.gameId
+            });
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error(`❌ Error checking VRF result for game ${args.gameId}:`, error);
+      await ctx.runMutation(internal.games.markVRFFailed, {
+        gameId: args.gameId
+      });
+    }
+  },
+});
+
+// Complete VRF and determine winner
+export const completeVRF = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
     await ctx.db.patch(args.gameId, {
-      blockchainCallStatus: "pending",
-      blockchainCallStartTime: now,
+      blockchainCallStatus: "completed"
     });
 
-    console.log(`Started blockchain call for game ${args.gameId}`);
-  },
-});
-
-// Complete blockchain call and determine winner
-export const completeBlockchainCall = internalMutation({
-  args: { gameId: v.id("games") },
-  handler: async (ctx, args) => {
-    const game = await ctx.db.get(args.gameId);
-    if (!game || game.blockchainCallStatus !== "pending") return;
-
-    // Determine the winner using existing logic
     await determineWinner(ctx, args.gameId);
-
-    // Mark blockchain call as completed
-    await ctx.db.patch(args.gameId, {
-      blockchainCallStatus: "completed",
-    });
-
-    console.log(`Completed blockchain call for game ${args.gameId}`);
+    console.log(`🏆 Winner determined for game ${args.gameId} using VRF`);
   },
 });
 
-// Simulate blockchain call processing (called by cron every 5 seconds)
+// Mark VRF as failed and use fallback
+export const markVRFFailed = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.gameId, {
+      blockchainCallStatus: "completed"
+    });
+
+    await determineWinner(ctx, args.gameId);
+    console.log(`🏆 Winner determined for game ${args.gameId} using fallback (VRF failed)`);
+  },
+});
+
+// Process VRF calls for battle phase in long games
 export const processBlockchainCalls = internalMutation({
   args: {},
   handler: async (ctx) => {
-    // Find games with pending blockchain calls
-    const gamesWithPendingCalls = await ctx.db
+    // Find long games in battle phase that need second VRF
+    const battleGames = await ctx.db
       .query("games")
-      .withIndex("by_status", (q: any) => q.eq("status", "arena"))
-      .filter((q: any) => q.eq(q.field("blockchainCallStatus"), "pending"))
+      .withIndex("by_status", (q: any) => q.eq("status", "battle"))
+      .filter((q: any) => q.eq(q.field("isSmallGame"), false))
       .collect();
 
-    const now = Date.now();
+    for (const game of battleGames) {
+      // Check if we need to request VRF for final round
+      if (game.blockchainCallStatus === "none") {
+        console.log(`🎲 Triggering final round VRF for long game ${game._id}`);
 
-    for (const game of gamesWithPendingCalls) {
-      if (!game.blockchainCallStartTime) continue;
+        await ctx.db.patch(game._id, {
+          blockchainCallStatus: "pending",
+          blockchainCallStartTime: Date.now(),
+        });
 
-      // Simulate blockchain call taking 3-8 seconds to complete
-      const callDuration = now - game.blockchainCallStartTime;
-      const minDuration = 3000; // 3 seconds minimum
-
-      // Simple simulation: complete after minimum time + random factor
-      if (callDuration >= minDuration) {
-        const shouldComplete = Math.random() > 0.3; // 70% chance per check
-        if (shouldComplete) {
-          await ctx.db.patch(game._id, {
-            blockchainCallStatus: "completed",
-          });
-
-          // Determine winner
-          await determineWinner(ctx, game._id);
-          console.log(`Blockchain call completed for game ${game._id} after ${callDuration}ms`);
-        }
+        // Schedule VRF request for round 2
+        await ctx.scheduler.runAfter(0, api.games.requestGameVRF, { gameId: game._id });
       }
     }
   },

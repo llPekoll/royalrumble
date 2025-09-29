@@ -23,6 +23,7 @@ import type * as maps from "../maps.js";
 import type * as players from "../players.js";
 import type * as solana from "../solana.js";
 import type * as transactions from "../transactions.js";
+import type * as vrf from "../vrf.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   players: typeof players;
   solana: typeof solana;
   transactions: typeof transactions;
+  vrf: typeof vrf;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
