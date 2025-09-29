@@ -574,7 +574,7 @@ export async function determineWinner(ctx: any, gameId: Id<"games">) {
         // Use blockchain randomness for fair winner selection
         const weights = participants.map((p: any) => p.betAmount); // Use bet amounts as weights
 
-        const winnerResult = await ctx.runQuery(api.vrf.selectWinnerFromSeed, {
+        const winnerResult = await ctx.runAction(api.vrf.selectWinnerFromSeed, {
           randomSeed: vrfResult.randomSeed,
           participantWeights: weights
         });
@@ -1062,7 +1062,7 @@ export const checkVRFResult = action({
       // Add a small delay to allow blockchain finalization
       await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds
 
-      const vrfResult = await ctx.runQuery(api.vrf.getVRFResult, {
+      const vrfResult = await ctx.runAction(api.vrf.getVRFResult, {
         gameId: args.gameId,
         round: args.round
       });

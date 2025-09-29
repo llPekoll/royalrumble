@@ -347,7 +347,7 @@ export const requestVRF = action({
 });
 
 // Fetch VRF result for a game
-export const getVRFResult = query({
+export const getVRFResult = action({
   args: {
     gameId: v.string(),
     round: v.number(),
@@ -417,7 +417,7 @@ export const getVRFResult = query({
 });
 
 // Helper function to convert random seed to winner index
-export const selectWinnerFromSeed = query({
+export const selectWinnerFromSeed = action({
   args: {
     randomSeed: v.array(v.number()),
     participantWeights: v.array(v.number()), // Bet amounts as weights
