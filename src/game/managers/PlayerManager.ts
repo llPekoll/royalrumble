@@ -108,6 +108,11 @@ export class PlayerManager {
 
     const sprite = this.scene.add.sprite(0, 0, textureKey);
 
+    // Mirror sprite if spawning on the right side of the screen (facing center)
+    if (targetX > this.centerX) {
+      sprite.setFlipX(true);
+    }
+
     // Only play animation if it exists
     const animKey = `${textureKey}-idle`;
     if (this.scene.anims.exists(animKey)) {
@@ -450,6 +455,11 @@ export class PlayerManager {
     }
 
     const sprite = this.scene.add.sprite(0, 0, textureKey);
+
+    // Mirror sprite if spawning on the right side of the screen (facing center)
+    if (targetX > this.centerX) {
+      sprite.setFlipX(true);
+    }
 
     // Only play animation if it exists
     const animKey = `${textureKey}-idle`;

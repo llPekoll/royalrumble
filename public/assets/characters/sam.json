@@ -1,6 +1,6 @@
 { "frames": [
    {
-    "filename": "sam 0.png",
+    "filename": "sam 0.aseprite",
     "frame": { "x": 0, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -9,7 +9,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 1.png",
+    "filename": "sam 1.aseprite",
     "frame": { "x": 23, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -18,7 +18,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 2.png",
+    "filename": "sam 2.aseprite",
     "frame": { "x": 46, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -27,7 +27,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 3.png",
+    "filename": "sam 3.aseprite",
     "frame": { "x": 69, "y": 0, "w": 23, "h": 28 },
     "rotated": false,
     "trimmed": true,
@@ -36,7 +36,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 4.png",
+    "filename": "sam 4.aseprite",
     "frame": { "x": 92, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -45,7 +45,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 5.png",
+    "filename": "sam 5.aseprite",
     "frame": { "x": 115, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -54,7 +54,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 6.png",
+    "filename": "sam 6.aseprite",
     "frame": { "x": 138, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -63,7 +63,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 7.png",
+    "filename": "sam 7.aseprite",
     "frame": { "x": 161, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -72,7 +72,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 8.png",
+    "filename": "sam 8.aseprite",
     "frame": { "x": 184, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -81,7 +81,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 9.png",
+    "filename": "sam 9.aseprite",
     "frame": { "x": 207, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -90,7 +90,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 10.png",
+    "filename": "sam 10.aseprite",
     "frame": { "x": 230, "y": 0, "w": 23, "h": 28 },
     "rotated": false,
     "trimmed": true,
@@ -99,7 +99,7 @@
     "duration": 100
    },
    {
-    "filename": "sam 11.png",
+    "filename": "sam 11.aseprite",
     "frame": { "x": 253, "y": 0, "w": 23, "h": 29 },
     "rotated": false,
     "trimmed": true,
@@ -116,6 +116,7 @@
   "size": { "w": 276, "h": 29 },
   "scale": "1",
   "frameTags": [
+   { "name": "idle", "from": 0, "to": 11, "direction": "forward", "color": "#000000ff" }
   ],
   "layers": [
    { "name": "Sprite Sheet", "opacity": 255, "blendMode": "normal" }
