@@ -73,29 +73,29 @@ export function ProfileDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-900 border-gray-700">
+      <DialogContent className="sm:max-w-[425px] bg-gradient-to-b from-amber-900/95 to-amber-950/95 backdrop-blur-sm border-2 border-amber-600/60">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
+          <DialogTitle className="text-amber-100 flex items-center gap-2">
             <User className="w-5 h-5" />
             Profile Settings
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-amber-300/80">
             Customize your profile settings and display name.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="wallet" className="text-gray-300">
+            <Label htmlFor="wallet" className="text-amber-300">
               Wallet Address
             </Label>
-            <div className="px-3 py-2 bg-gray-800 rounded-md text-gray-400 font-mono text-sm">
+            <div className="px-3 py-2 bg-black/30 rounded-md text-amber-400 font-mono text-sm border border-amber-700/50">
               {truncateAddress(walletAddress)}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="displayName" className="text-gray-300">
+            <Label htmlFor="displayName" className="text-amber-300">
               Display Name
             </Label>
             <Input
@@ -103,12 +103,12 @@ export function ProfileDialog({
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Enter your display name"
-              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+              className="bg-black/30 border-amber-700/50 text-amber-100 placeholder:text-amber-600 focus:outline-none focus:border-amber-500"
               maxLength={20}
               minLength={3}
               required
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-amber-400/70">
               3-20 characters. This will be shown in the game.
             </p>
           </div>
@@ -118,14 +118,14 @@ export function ProfileDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-amber-600/50 text-amber-300 hover:bg-amber-700/40 bg-amber-800/30"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isUpdating}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold disabled:from-gray-600 disabled:to-gray-700 disabled:opacity-50"
             >
               {isUpdating ? "Updating..." : "Save Changes"}
             </Button>

@@ -42,6 +42,15 @@ bun run typecheck
 │   ├── solana.ts     # Blockchain integration
 │   ├── schema.ts     # Database schema
 │   └── crons.ts      # Scheduled functions
+├── programs/
+│   └── domin8-vrf/   # Solana VRF program
+│       └── programs/domin8_vrf/
+│           ├── src/
+│           │   ├── lib.rs           # Program entry
+│           │   ├── state.rs         # Account structures
+│           │   ├── errors.rs        # Error definitions
+│           │   └── instructions/    # Instruction handlers
+│           └── tests/               # TypeScript tests
 ├── src/
 │   ├── game/         # Phaser game engine
 │   │   ├── scenes/   # Game scenes
@@ -55,17 +64,28 @@ bun run typecheck
 ## Key Features
 
 ### Game Mechanics
-- **Dynamic Game Duration**: Based on participant count with blockchain-based winner selection
-  - **< 8 participants**: 4 phases - Waiting (30s) → Arena (dynamic*) → Results (5s)
-  - **≥ 8 participants**: 7 phases - Waiting (30s) → Arena (10s) → Elimination → Betting (15s) → Battle (15s) → Results (5s)
-  - **\*Dynamic Arena Phase**: For small games, arena phase extends until blockchain call completes (3-8 seconds)
+
+#### Game Modes by Player Count
+- **0 players**: Demo mode with up to 20 bots (random bets 0-1 SOL)
+- **1 player (any participants)**: Play against bank with 45% player win chance
+  - If bank balance < minimum (1 SOL): Auto-refund player
+  - Player can have multiple participants
+- **2+ players, < 8 participants**: Short game (4 phases)
+  - Waiting (30s) → Arena (dynamic*) → Results (5s)
+  - **\*Dynamic Arena Phase**: Extends until blockchain call completes (3-8 seconds)
+- **2+ players, ≥ 8 participants**: Long game with top 4 betting (7 phases)
+  - Waiting (30s) → Arena (10s) → Elimination → Betting (15s) → Battle (15s) → Results (5s)
+
+#### Core Features
 - **Multiple Characters per Player**: One player can control multiple game participants
 - **Multiple Maps**: Various arenas with unique backgrounds and spawn configurations
 - **Character System**: Players start with a random character that can be re-rolled
 - **Bet-to-size**: Character size increases with bet amount
-- **Single-player mode**: Auto-refund if playing alone (runs with bots for entertainment)
-- **Demo mode**: Bot games when no players join
-- **Blockchain Winner Selection**: Uses blockchain randomness for fair winner determination in small games
+- **Phase Lock**: All game parameters locked after waiting phase ends
+- **Server-side Execution**: No disconnection issues, game runs on server
+- **Tie Resolution**: Random winner selection weighted by bet amounts
+- **Bot Limits**: Maximum 20 bots per game
+- **Bot Betting**: Random between 0-1 SOL, or matches player range if present
 
 ### Betting Rules
 - **Self-Betting**: Players can ONLY bet on themselves during game entry (waiting phase)
@@ -132,28 +152,133 @@ bun run typecheck
 
 ## Winner Selection System
 
-### Small Games (< 8 participants)
-- **Dynamic Phase Timing**: Arena phase extends until blockchain call completes
-- **Frontend Flow**:
-  1. Players move to center (2.5 seconds)
-  2. Frontend triggers `triggerBlockchainCall` mutation
-  3. Blockchain randomness dialog appears at bottom of screen
-  4. Backend processes blockchain call (3-8 second simulation)
-  5. Winner determined, elimination status updated
-  6. Dialog disappears, only eliminated participants explode
-  7. Winner remains in center for victory celebration
+### Blockchain VRF Integration (Verifiable Random Function)
 
-### Large Games (≥ 8 participants)
+#### Architecture Overview
+- **Minimal On-chain**: Only random seeds stored on blockchain
+- **Game Data**: All participant data, bets, and game state remain in Convex database
+- **Backend-controlled**: Server wallet handles all blockchain interactions automatically
+- **No User Interaction**: Players don't need wallets or to sign transactions
+
+#### What Gets Stored On-chain
+```rust
+// Global VRF State (singleton)
+pub struct VrfState {
+    pub authority: Pubkey,  // Backend wallet that can request VRF
+    pub nonce: u64,        // Counter for additional entropy
+}
+
+// Per-game seed storage
+pub struct GameSeed {
+    pub game_id: String,       // Reference to Convex database (max 32 chars)
+    pub round: u8,            // 1 for first round/quick games, 2 for final round
+    pub random_seed: [u8; 32], // VRF output for winner selection
+    pub timestamp: i64,        // When randomness was generated
+    pub used: bool,           // Track if seed was consumed
+}
+```
+
+#### VRF Transaction Strategy
+
+##### Quick Games (< 8 participants)
+- **Single VRF Transaction**: One seed determines the winner
+- **Timing**: Requested after waiting phase ends
+- **Cost**: ~0.0001 SOL per game
+
+##### Long Games (≥ 8 participants)
+- **Two VRF Transactions**: Separate seeds for each elimination round
+- **First VRF**: After arena phase - determines top 4
+- **Second VRF**: After betting phase closes - determines final winner
+- **Security**: Second seed doesn't exist during betting, preventing prediction
+- **Cost**: ~0.0002 SOL per game (two transactions)
+
+#### Why Two Transactions for Long Games?
+If we used a single seed and derived both results, players could:
+1. See the seed when top 4 is announced
+2. Calculate the final winner before betting
+3. Only bet on the guaranteed winner
+4. Break the game economy
+
+Two separate VRF requests ensure true unpredictability.
+
+#### VRF Flow
+1. **Backend Request**: Automatically requests VRF at appropriate phase
+2. **Blockchain Processing**: Solana generates verifiable random seed (1-3 seconds)
+3. **Seed Storage**: Random seed stored on-chain with gameId + round reference
+4. **Local Winner Calculation**: Backend uses seed + database data to determine winners
+5. **Verification**: Anyone can verify seeds exist on blockchain for fairness proof
+
+#### VRF Program Instructions
+1. **initialize**: One-time setup to create VrfState with authority
+2. **request_vrf(game_id, round)**: Generate and store random seed for a game/round
+3. **mark_seed_used**: Optional tracking to prevent seed reuse
+
+#### Randomness Generation
+- Multiple entropy sources: game_id, round, timestamp, slot, nonce, recent blockhashes
+- Uses Keccak hash for final seed generation
+- Practically impossible to predict or manipulate
+
+#### Implementation Status
+- **Current**: Simulated blockchain calls (3-8 second delay)
+- **Completed**: Real Solana VRF program with modular structure
+  - Located in: `programs/domin8-vrf/`
+  - Program ID: `96ZRCG9KRB7Js6AENkVpTtwNUXqaxF8ZAAWrmxa8U2QF`
+  - Structure: Separate files for state, instructions, and errors
+  - Tests: Comprehensive test suite in TypeScript
+- **Next Steps**: Deploy to devnet and integrate with Convex backend
+
+## Game Flow by Type
+
+### Quick Games (< 8 participants)
+- **VRF Requests**: 1 transaction
+- **Dynamic Phase Timing**: Arena phase extends until VRF completes
+- **Flow**:
+  1. Players move to center (2.5 seconds)
+  2. Backend automatically triggers VRF request (round 1)
+  3. Blockchain randomness dialog shows progress
+  4. VRF seed received from blockchain
+  5. Winner calculated using seed + bet weights
+  6. Only eliminated participants explode
+  7. Winner remains in center for victory
+
+### Long Games (≥ 8 participants)
+- **VRF Requests**: 2 transactions
 - **Fixed Timing**: Standard phase durations
-- Winner determined at end of battle phase
-- Elimination happens in waves (top 4 → final winner)
+- **First VRF (Round 1)**:
+  - Triggered after arena phase
+  - Determines top 4 participants
+  - Seed visible but can't predict final winner
+- **Betting Phase**: Players bet on top 4 participants
+- **Second VRF (Round 2)**:
+  - Triggered after betting closes
+  - Determines final winner from top 4
+  - Completely unpredictable until requested
+- **Elimination**: Progressive (many → top 4 → final winner)
 
 ### Backend Implementation
 ```typescript
-// Key functions in convex/games.ts
-triggerBlockchainCall()        // Frontend → Backend blockchain call initiation
-processBlockchainCalls()       // Cron job simulates blockchain completion
-determineWinner()             // Selects winner and marks losers as eliminated
+// Current (simulated)
+triggerBlockchainCall()        // Initiates simulated VRF
+processBlockchainCalls()       // Simulates blockchain delay
+determineWinner()             // Uses Math.random() currently
+
+// Target (real VRF)
+requestVRF(gameId, round)     // Sends transaction to Solana
+checkVRFResult(gameId, round) // Polls for VRF seed
+determineWinnerWithSeed()     // Uses VRF seed for fairness
+
+// Long game example
+async function handleLongGame(gameId: string) {
+  // Round 1: Determine top 4
+  const seed1 = await requestVRF(gameId, 1);
+  const top4 = determineTop4(participants, seed1);
+
+  // ... betting phase ...
+
+  // Round 2: Determine final winner (new VRF request)
+  const seed2 = await requestVRF(gameId, 2);
+  const winner = determineFinalWinner(top4, seed2);
+}
 ```
 
 ### Frontend Integration
@@ -165,11 +290,25 @@ src/game/managers/AnimationManager.ts          // Smart explosions
 src/App.tsx                                   // Event coordination
 ```
 
-## Single Player Logic
-- Runs normal game with bots for entertainment
-- Player always wins
-- Bet is refunded (no profit/loss)
-- Good for practice and learning
+### VRF Cost Analysis
+- **Quick Game**: ~0.0001 SOL (1 transaction)
+- **Long Game**: ~0.0002 SOL (2 transactions)
+- **Setup Cost**: Audit required for production ($10-50k)
+- **Break-even**: ~1-4 months depending on game volume
+- **Alternative**: Switchboard VRF (~0.002 SOL/game) for faster setup
+
+### Verification & Fairness
+- **Public Seeds**: Anyone can query blockchain for game's random seeds
+- **Reproducible**: Given seed + participant data = same winner every time
+- **No Manipulation**: Seeds generated by blockchain, not controlled by backend
+- **Audit Trail**: All game seeds permanently stored on Solana
+- **Round Separation**: Each elimination round has independent randomness
+
+### Error Handling
+- **VRF Timeout**: Retry once after 5 seconds
+- **Second Failure**: Refund all bets to players
+- **Network Issues**: Queue VRF requests for retry
+- **Typical Duration**: 1-3 seconds per VRF request
 
 ## Development Workflow
 
