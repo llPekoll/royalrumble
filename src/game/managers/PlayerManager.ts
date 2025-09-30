@@ -49,6 +49,7 @@ export class PlayerManager {
     return Array.from(this.participants.values()).filter(p => p.playerId === playerId);
   }
 
+
   updateParticipantsInWaiting(participants: any[], mapData: any) {
     this.currentMap = mapData;
 
@@ -143,10 +144,10 @@ export class PlayerManager {
     // Keep pixel art crisp when scaling
     sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
 
-    // Apply color tint if specified
-    if (participant.colorHue !== undefined) {
+    // Apply color tint if specified and not a bot
+    if (participant.colorHue !== undefined && !participant.isBot) {
       const hue = participant.colorHue / 360; // Convert to 0-1 range
-      const tint = Phaser.Display.Color.HSVToRGB(hue, 0.8, 1.0).color;
+      const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color; // Reduced saturation
       sprite.setTint(tint);
     }
 
@@ -256,6 +257,15 @@ export class PlayerManager {
           duration: 300,
           ease: 'Power2'
         });
+      }
+
+      // Update tint - simple logic
+      if (participant.colorHue !== undefined && !participant.isBot) {
+        const hue = participant.colorHue / 360;
+        const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color;
+        gameParticipant.sprite.setTint(tint);
+      } else {
+        gameParticipant.sprite.clearTint();
       }
 
       // Update elimination status from backend
@@ -486,19 +496,19 @@ export class PlayerManager {
     container.add([sprite, nameText]);
     sprite.setScale(scale);
 
-    // Apply color tint if specified
-    if (participant.colorHue !== undefined) {
+    // Apply color tint if specified and not a bot
+    if (participant.colorHue !== undefined && !participant.isBot) {
       const hue = participant.colorHue / 360;
-      const tint = Phaser.Display.Color.HSVToRGB(hue, 0.8, 1.0).color;
+      const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color; // Reduced saturation
       sprite.setTint(tint);
     }
 
     // Flash effect for new arrival
     sprite.setTint(0xffd700);
     this.scene.time.delayedCall(200, () => {
-      if (participant.colorHue !== undefined) {
+      if (participant.colorHue !== undefined && !participant.isBot) {
         const hue = participant.colorHue / 360;
-        const tint = Phaser.Display.Color.HSVToRGB(hue, 0.8, 1.0).color;
+        const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color;
         sprite.setTint(tint);
       } else {
         sprite.clearTint();
