@@ -92,7 +92,7 @@ export default function App() {
       <div className="relative z-10">
         <Header />
         <div className="min-h-screen pt-16 pb-24">
-          <div className="absolute left-4 top-20 lg:w-80 xl:w-96 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+          <div className="absolute right-4 top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
             <GameLobby />
           </div>
         </div>

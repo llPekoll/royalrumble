@@ -1,11 +1,11 @@
 import { useQuery } from "convex/react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Users, Swords } from "lucide-react";
 import { useMemo } from "react";
 
 export function MultiParticipantPanel() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey } = usePrivyWallet();
 
   // Memoize wallet address to prevent unnecessary re-queries
   const walletAddress = useMemo(() => connected && publicKey ? publicKey.toString() : null, [connected, publicKey]);

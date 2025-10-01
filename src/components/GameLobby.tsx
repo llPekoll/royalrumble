@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 export function GameLobby() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey } = usePrivyWallet();
   const [spectatorBetAmount, setSpectatorBetAmount] = useState(100);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
 
@@ -122,18 +122,16 @@ export function GameLobby() {
 
   if (!connected) {
     return (
-      <div className="space-y-4">
-        <Card className="p-6 text-center">
-          <Gamepad2 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <h2 className="text-xl font-bold mb-2">Royal Rumble</h2>
-          <p className="text-gray-400 mb-4">
-            Connect your wallet to join the battle royale
-          </p>
-          <p className="text-sm text-gray-500">
-            Control multiple characters, place strategic bets, and win rewards!
-          </p>
-        </Card>
-      </div>
+      <Card className="p-4 text-center">
+        <Gamepad2 className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+        <h2 className="text-lg font-bold mb-1">Royal Rumble</h2>
+        <p className="text-sm text-gray-400 mb-2">
+          Connect wallet to join
+        </p>
+        <p className="text-xs text-gray-500">
+          Control characters & win rewards!
+        </p>
+      </Card>
     );
   }
 

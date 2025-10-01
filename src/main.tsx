@@ -3,11 +3,10 @@ import { createRoot } from "react-dom/client";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { Toaster } from "sonner";
 import "./index.css";
-import "@solana/wallet-adapter-react-ui/styles.css";
 import App from "./App.tsx";
 import { PrivyProvider } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
-import {createSolanaRpc, createSolanaRpcSubscriptions} from '@solana/kit';
+import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 // Solana network configuration utility
 const getSolanaConfig = () => {
   const network = import.meta.env.VITE_SOLANA_NETWORK || 'devnet';
@@ -46,27 +45,29 @@ createRoot(document.getElementById("root")!).render(
         config={{
           // SOLANA EMBEDDED WALLETS ONLY
           // Login with email/social - embedded wallet created automatically
-          loginMethods: ['wallet', 'email'],
+          loginMethods: ['wallet', 'email', 'google'],
 
           // Appearance configuration
           appearance: {
             theme: 'dark',
             accentColor: '#6366f1',
             showWalletLoginFirst: true,
-            walletChainType: 'solana-only'
+            walletChainType: 'solana-only',
+            walletList: ['phantom', 'solflare', 'backpack', 'metamask']
           },
           externalWallets: {
-                   solana: {
-                     connectors: toSolanaWalletConnectors() // For detecting EOA browser wallets
-                   }
-                 },
+            solana: {
+              connectors: toSolanaWalletConnectors() // For detecting EOA browser wallets
+            }
+          },
           // NO external wallets - prevents redirect to wallet websites
           // Users get embedded Solana wallet automatically
 
           // Embedded wallets - create for ALL users
           embeddedWallets: {
-            createOnLogin: 'all-users',
-            requireUserPasswordOnCreate: false,
+            solana: {
+              createOnLogin: 'users-without-wallets'
+            },
           },
           solana: {
             rpcs: {
@@ -82,16 +83,16 @@ createRoot(document.getElementById("root")!).render(
           },
 
           // Solana cluster configuration
-          solanaClusters: [
-            {
-              name: 'devnet',
-              rpcUrl: !solanaConfig.isMainnet ? solanaConfig.rpcUrl : 'https://api.devnet.solana.com',
-            },
-            {
-              name: 'mainnet-beta',
-              rpcUrl: solanaConfig.isMainnet ? solanaConfig.rpcUrl : 'https://api.mainnet-beta.solana.com',
-            },
-          ],
+          // solanaClusters: [
+          //   {
+          //     name: 'devnet',
+          //     rpcUrl: !solanaConfig.isMainnet ? solanaConfig.rpcUrl : 'https://api.devnet.solana.com',
+          //   },
+          //   {
+          //     name: 'mainnet-beta',
+          //     rpcUrl: solanaConfig.isMainnet ? solanaConfig.rpcUrl : 'https://api.mainnet-beta.solana.com',
+          //   },
+          // ],
 
           // Configure legal and terms
           // legal: {

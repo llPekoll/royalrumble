@@ -1,12 +1,12 @@
 import { useQuery } from "convex/react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { useState } from "react";
 
 export function Leaderboard() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey } = usePrivyWallet();
   const [sortBy, setSortBy] = useState<"earnings" | "wins" | "winRate">("earnings");
   const [showMore, setShowMore] = useState(false);
 

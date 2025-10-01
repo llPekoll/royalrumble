@@ -1,5 +1,6 @@
 import { usePrivy } from "@privy-io/react-auth";
-import { useWallets, useSignAndSendTransaction } from "@privy-io/react-auth/solana";
+import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
+import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect, useRef } from "react";
@@ -22,9 +23,8 @@ import styles from "./ButtonShine.module.css";
 
 export function Header() {
   const { ready, authenticated, login, logout, user } = usePrivy();
-  const { wallets } = useWallets();
+  const { connected, publicKey, wallet: solanaWallet } = usePrivyWallet();
   const { signAndSendTransaction } = useSignAndSendTransaction();
-  const solanaWallet = wallets[0]; // Get first embedded Solana wallet
 
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -33,9 +33,6 @@ export function Header() {
   const initiateDeposit = useMutation(api.solana.initiateDeposit);
   const createPlayer = useMutation(api.players.createPlayer);
 
-  // Get public key from Privy embedded wallet
-  const publicKey = solanaWallet?.address ? new PublicKey(solanaWallet.address) : null;
-  const connected = authenticated && !!publicKey;
 
   const playerData = useQuery(
     api.players.getPlayer,

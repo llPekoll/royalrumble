@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
@@ -19,7 +19,7 @@ interface CharacterSelectionProps {
 }
 
 const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded }: CharacterSelectionProps) {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey } = usePrivyWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("100");
   const [isSubmitting, setIsSubmitting] = useState(false);
