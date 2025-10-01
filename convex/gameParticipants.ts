@@ -31,9 +31,9 @@ export const addParticipant = mutation({
       throw new Error("Insufficient game coins");
     }
 
-    // Validate bet amount
-    if (args.betAmount < 10 || args.betAmount > 10000) {
-      throw new Error("Bet amount must be between 10 and 10,000 coins");
+    // Validate bet amount (lamports - 0.1 SOL = 10000, 10 SOL = 1000000)
+    if (args.betAmount < 10000 || args.betAmount > 1000000) {
+      throw new Error("Bet amount must be between 0.1 and 10 SOL");
     }
 
     // Check map participant limit
@@ -54,8 +54,9 @@ export const addParticipant = mutation({
     // Calculate spawn index
     const spawnIndex = existingParticipants.length;
 
-    // Calculate size and power based on bet
-    const size = 1 + (args.betAmount / 1000) * 0.5; // Size scales from 1 to 1.5
+    // Calculate size and power based on bet (lamports scale)
+    // 0.1 SOL (10k lamports) = 1.05x size, 10 SOL (1M lamports) = 6.0x size
+    const size = 1 + (args.betAmount / 1000000) * 5; // Size scales from 1.0 to 6.0
     const power = args.betAmount; // Power equals bet amount directly
 
     // Create participant
@@ -223,7 +224,8 @@ export const addBotParticipant = mutation({
       .collect();
 
     const spawnIndex = existingParticipants.length;
-    const size = 1 + (args.betAmount / 1000) * 0.5;
+    // 0.1 SOL (10k lamports) = 1.05x size, 10 SOL (1M lamports) = 6.0x size
+    const size = 1 + (args.betAmount / 1000000) * 5; // Size scales from 1.0 to 6.0
     const power = args.betAmount; // Power equals bet amount directly
 
     const participantId = await ctx.db.insert("gameParticipants", {

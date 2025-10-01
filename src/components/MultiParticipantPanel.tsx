@@ -21,7 +21,12 @@ export function MultiParticipantPanel() {
 
   const maxParticipants = currentGame?.map?.spawnConfiguration?.maxPlayers || 20;
   const currentParticipantCount = allParticipants?.length || 0;
-  // const totalBetAmount = allParticipants?.reduce((sum: number, p: any) => sum + (p.betAmount || 0), 0) || 0;
+
+  // Calculate total pot for percentage calculations
+  const totalPot = useMemo(() => {
+    if (!allParticipants) return 0;
+    return allParticipants.reduce((sum: number, p: any) => sum + (p.betAmount || 0), 0);
+  }, [allParticipants]);
 
   if (!currentGame) {
     return null;
@@ -53,6 +58,8 @@ export function MultiParticipantPanel() {
               {allParticipants.map((participant: any) => {
                 const isOwn = participant.walletAddress === walletAddress;
                 const isEliminated = participant.eliminated;
+                // Calculate win percentage based on bet amount
+                const winPercentage = totalPot > 0 ? ((participant.betAmount / totalPot) * 100).toFixed(1) : "0.0";
 
                 return (
                   <div
@@ -107,15 +114,17 @@ export function MultiParticipantPanel() {
                         </div>
                       </div>
 
-                      {/* Bet Amount */}
+                      {/* Bet Amount and Win Chance */}
                       <div className="text-right">
                         <div className={`
-                          font-bold text-xs
+                          font-bold text-sm
                           ${isOwn ? 'text-green-300' : isEliminated ? 'text-red-300' : 'text-amber-300'}
                         `}>
-                          {participant.betAmount}
+                          {(participant.betAmount/100000).toFixed(2)} SOL
                         </div>
-                        <div className="text-amber-600 text-xs">SOL</div>
+                        <div className={`text-xs ${isEliminated ? 'text-red-500' : 'text-amber-500'}`}>
+                          {!isEliminated ? `${winPercentage}% win` : 'Eliminated'}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -135,8 +144,8 @@ export function MultiParticipantPanel() {
           <div className="p-3 border-t border-amber-700/50">
             <div className="flex items-center justify-between text-xs">
               <span className="text-amber-400 uppercase tracking-wide">Total Pot</span>
-              <span className="text-amber-300 font-bold">
-                {allParticipants.reduce((sum: number, p: any) => sum + (p.betAmount/10000 || 0), 0).toFixed(2)} SOL
+              <span className="text-amber-300 font-bold text-sm">
+                {(totalPot/100000).toFixed(2)} SOL
               </span>
             </div>
           </div>

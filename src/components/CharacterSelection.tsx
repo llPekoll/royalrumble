@@ -21,7 +21,7 @@ interface CharacterSelectionProps {
 const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded }: CharacterSelectionProps) {
   const { connected, publicKey } = usePrivyWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
-  const [betAmount, setBetAmount] = useState<string>("100");
+  const [betAmount, setBetAmount] = useState<string>("0.1");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Memoize wallet address to prevent unnecessary re-queries
@@ -83,14 +83,14 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       return;
     }
 
-    const amount = parseInt(betAmount);
-    if (isNaN(amount) || amount < 10 || amount > 10000) {
-      toast.error("Bet amount must be between 10 and 10,000 coins");
+    const amount = parseFloat(betAmount);
+    if (isNaN(amount) || amount < 0.1 || amount > 10) {
+      toast.error("Bet amount must be between 0.1 and 10 SOL");
       return;
     }
 
-    if (amount > gameCoins) {
-      toast.error(`Insufficient coins. You have ${gameCoins} coins`);
+    if (amount > gameCoins/100000) {
+      toast.error(`Insufficient SOL. You have ${gameCoins/100000} SOL`);
       return;
     }
 
@@ -107,11 +107,11 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
         playerId: playerData._id,
         walletAddress: publicKey.toString(),
         characterId: currentCharacter._id as Id<"characters">,
-        betAmount: amount,
+        betAmount: amount * 100000, // Convert SOL to lamports for backend
         displayName: `${playerData.displayName || "Player"}`,
         colorHue: Math.random() * 360,
       });
-      setBetAmount("100");
+      setBetAmount("0.1");
 
       // Auto-reroll to a new character for the next participant
       if (allCharacters && allCharacters.length > 0) {
@@ -182,7 +182,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
         <div className="p-3 space-y-3">
           <div className="flex items-center justify-between text-xs uppercase tracking-wide">
             <span className="text-amber-400">Your Bet</span>
-            <span className="text-amber-300">{gameCoins} coins</span>
+            <span className="text-amber-300">{gameCoins/100000} Sol</span>
           </div>
 
           <div className="relative">
@@ -191,32 +191,32 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
               value={betAmount}
               onChange={(e) => setBetAmount(e.target.value)}
               placeholder="Amount"
-              min={10}
-              max={10000}
+              min={0.1}
+              max={10}
               className="w-full px-3 py-2 bg-black/30 border border-amber-700/50 rounded-lg text-amber-900 placeholder-amber-600 text-center text-lg font-bold focus:outline-none focus:border-amber-900"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm font-bold">coins</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm font-bold">Sol</span>
           </div>
 
           {/* Quick bet buttons */}
           <div className="grid grid-cols-3 gap-1">
             <button
-              onClick={() => handleQuickBet(100)}
+              onClick={() => handleQuickBet(0.1)}
               className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
             >
-              100 coins
+              0.1 Sol
             </button>
             <button
-              onClick={() => handleQuickBet(500)}
+              onClick={() => handleQuickBet(0.5)}
               className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
             >
-              500 coins
+              0.5 Sol
             </button>
             <button
-              onClick={() => handleQuickBet(1000)}
+              onClick={() => handleQuickBet(1)}
               className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
             >
-              1000 coins
+              1 Sol
             </button>
           </div>
 

@@ -1,5 +1,3 @@
-import { usePrivy } from "@privy-io/react-auth";
-import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -22,9 +20,7 @@ import { generateRandomName } from "../lib/nameGenerator";
 import styles from "./ButtonShine.module.css";
 
 export function Header() {
-  const { ready, authenticated, login, logout, user } = usePrivy();
   const { connected, publicKey, wallet: solanaWallet } = usePrivyWallet();
-  const { signAndSendTransaction } = useSignAndSendTransaction();
 
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -172,22 +168,6 @@ export function Header() {
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
 
-        // Serialize transaction to Uint8Array for Privy
-        const serializedTransaction = transaction.serialize({
-          requireAllSignatures: false,
-          verifySignatures: false,
-        });
-
-        // Sign and send transaction via Privy embedded wallet
-        const { signature } = await signAndSendTransaction({
-          transaction: serializedTransaction,
-          wallet: solanaWallet,
-          chain: 'solana:devnet',
-        });
-
-        // Convert signature Uint8Array to base58 string
-        const signatureBase58 = Buffer.from(signature).toString('base64');
-
         // Wait for confirmation (using the signature bytes)
         // Note: We may need to reconstruct the signature properly
 
@@ -261,7 +241,7 @@ export function Header() {
                   <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/30 rounded-lg p-3 border border-amber-600/50 backdrop-blur-sm flex items-center space-x-3 shadow-lg shadow-amber-500/20">
                     <div className="text-right">
                       <div className="text-amber-300 font-bold text-lg flex items-center">
-                        {gameCoins.toLocaleString()} <span className="text-amber-400 ml-1 text-sm">coins</span>
+                        {(gameCoins/100).toLocaleString()} <span className="text-amber-400 ml-1 text-sm">Sol</span>
                       </div>
                       {pendingCoins > 0 && (
                         <div className="text-amber-200 font-semibold text-xs animate-pulse">

@@ -31,97 +31,6 @@ if (typeof globalThis.Buffer === 'undefined') {
 const VRF_PROGRAM_ID = new PublicKey("96ZRCG9KRB7Js6AENkVpTtwNUXqaxF8ZAAWrmxa8U2QF");
 const VRF_STATE_PDA = new PublicKey("8BqRVTALxkW5HxiV7DLSJuTqbB4FvfHhPcNU5mEDaRD3");
 
-// VRF Program IDL (Interface Definition)
-const VRF_IDL = {
-  "version": "0.1.0",
-  "name": "domin8_vrf",
-  "address": "96ZRCG9KRB7Js6AENkVpTtwNUXqaxF8ZAAWrmxa8U2QF",
-  "instructions": [
-    {
-      "name": "initialize",
-      "accounts": [
-        { "name": "vrfState", "isMut": true, "isSigner": false },
-        { "name": "authority", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
-      ],
-      "args": []
-    },
-    {
-      "name": "requestVrf",
-      "accounts": [
-        { "name": "vrfState", "isMut": true, "isSigner": false },
-        { "name": "gameSeed", "isMut": true, "isSigner": false },
-        { "name": "authority", "isMut": true, "isSigner": true },
-        { "name": "recentBlockhashes", "isMut": false, "isSigner": false },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
-      ],
-      "args": [
-        { "name": "gameId", "type": "string" },
-        { "name": "round", "type": "u8" }
-      ]
-    },
-    {
-      "name": "markSeedUsed",
-      "accounts": [
-        { "name": "gameSeed", "isMut": true, "isSigner": false },
-        { "name": "vrfState", "isMut": false, "isSigner": false },
-        { "name": "authority", "isMut": false, "isSigner": true }
-      ],
-      "args": []
-    }
-  ],
-  "accounts": [
-    {
-      "name": "VrfState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          { "name": "authority", "type": "publicKey" },
-          { "name": "nonce", "type": "u64" }
-        ]
-      }
-    },
-    {
-      "name": "GameSeed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          { "name": "gameId", "type": "string" },
-          { "name": "round", "type": "u8" },
-          { "name": "randomSeed", "type": { "array": ["u8", 32] } },
-          { "name": "timestamp", "type": "i64" },
-          { "name": "used", "type": "bool" }
-        ]
-      }
-    }
-  ],
-  "types": [
-    {
-      "name": "VrfState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          { "name": "authority", "type": "publicKey" },
-          { "name": "nonce", "type": "u64" }
-        ]
-      }
-    },
-    {
-      "name": "GameSeed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          { "name": "gameId", "type": "string" },
-          { "name": "round", "type": "u8" },
-          { "name": "randomSeed", "type": { "array": ["u8", 32] } },
-          { "name": "timestamp", "type": "i64" },
-          { "name": "used", "type": "bool" }
-        ]
-      }
-    }
-  ]
-};
-
 // Helper function to get Helius connection
 function getConnection(): Connection {
   const heliusApiKey = process.env.HELIUS_API_KEY;
@@ -170,15 +79,6 @@ function concatUint8Arrays(...arrays: Uint8Array[]): Uint8Array {
   return result;
 }
 
-// Helper function to convert hex string to Uint8Array
-function hexToUint8Array(hex: string): Uint8Array {
-  const bytes = [];
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes.push(parseInt(hex.substr(i, 2), 16));
-  }
-  return new Uint8Array(bytes);
-}
-
 // Helper function to create little-endian 32-bit integer
 function createLittleEndianU32(value: number): Uint8Array {
   const arr = new Uint8Array(4);
@@ -209,7 +109,7 @@ export const requestVRF = action({
     gameId: v.string(),
     round: v.number(), // 1 or 2
   },
-  handler: async (ctx, args) => {
+  handler: async (_, args) => {
     try {
       console.log(`🎲 Requesting VRF for game: ${args.gameId}, round: ${args.round}`);
 
@@ -236,19 +136,6 @@ export const requestVRF = action({
         // Account doesn't exist, which is what we want
       }
 
-      // Create a NodeWallet-like interface for the backend
-      // We'll bypass Anchor's wallet interface since we're in a backend environment
-      const dummyWallet = {
-        publicKey: authority.publicKey,
-        signTransaction: async <T extends Transaction>(tx: T): Promise<T> => {
-          tx.sign(authority);
-          return tx;
-        },
-        signAllTransactions: async <T extends Transaction>(txs: T[]): Promise<T[]> => {
-          txs.forEach(tx => tx.sign(authority));
-          return txs;
-        }
-      };
 
       // Create instruction data manually
       const encoder = new TextEncoder();
@@ -352,7 +239,7 @@ export const getVRFResult = action({
     gameId: v.string(),
     round: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_, args) => {
     try {
       const connection = getConnection();
       const gameSeedPDA = getGameSeedPDA(args.gameId, args.round);
@@ -422,7 +309,7 @@ export const selectWinnerFromSeed = action({
     randomSeed: v.array(v.number()),
     participantWeights: v.array(v.number()), // Bet amounts as weights
   },
-  handler: async (ctx, args) => {
+  handler: async (_, args) => {
     try {
       // Convert seed bytes to a big number
       let seedValue = 0n;
@@ -479,7 +366,7 @@ export const selectWinnerFromSeed = action({
 // Check VRF system status
 export const getVRFStatus = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async () => {
     try {
       const connection = getConnection();
 
