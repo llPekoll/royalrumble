@@ -14,6 +14,8 @@ A fast-paced battle royale betting game on Solana where players control multiple
 - **State**: Convex React hooks
 
 ## Commands
+
+### Frontend/Backend
 ```bash
 # Install dependencies
 bun install
@@ -34,6 +36,24 @@ bun run lint
 bun run typecheck
 ```
 
+### Smart Contract (Anchor)
+```bash
+# Navigate to smart contract directory
+cd programs/domin8-game
+
+# Build the smart contract
+anchor build
+
+# Run tests (starts local validator, deploys, runs tests)
+anchor test
+
+# Deploy to devnet (requires SOL in wallet)
+anchor deploy --provider.cluster devnet
+
+# Deploy to localnet (for testing)
+anchor deploy
+```
+
 ## Project Structure
 ```
 /
@@ -52,14 +72,17 @@ bun run typecheck
 │   │       │   ├── errors.rs        # Error definitions
 │   │       │   └── instructions/    # Instruction handlers
 │   │       └── tests/               # TypeScript tests
-│   └── domin8-game/  # Game bet escrow program
-│       └── programs/domin8_game/
-│           ├── src/
-│           │   ├── lib.rs           # Program entry
-│           │   ├── state.rs         # GamePool, Bet structs
-│           │   ├── errors.rs        # Error definitions
-│           │   └── instructions/    # place_bet, settle_game, refund
-│           └── tests/               # TypeScript tests
+│   └── domin8-game/  # Game bet escrow program (Anchor workspace)
+│       ├── Anchor.toml              # Anchor configuration
+│       ├── programs/domin8_game/
+│       │   ├── src/
+│       │   │   ├── lib.rs           # Program entry (11 instructions)
+│       │   │   ├── state.rs         # Game & Authority PDAs
+│       │   │   ├── errors.rs        # 26 error codes
+│       │   │   └── instructions/    # 11 instruction modules
+│       │   └── Cargo.toml
+│       └── tests/
+│           └── domin8-game.ts       # Comprehensive test suite
 ├── src/
 │   ├── game/         # Phaser game engine
 │   │   ├── scenes/   # Game scenes
@@ -248,30 +271,73 @@ pub struct GameSeed {
 
 ##### Game Bet Escrow Program State
 ```rust
-// Game pool holding all bets for a specific game
-pub struct GamePool {
-    pub game_id: String,           // Reference to Convex game (max 32 chars)
-    pub total_pool: u64,          // Total lamports in pool
-    pub house_wallet: Pubkey,     // House wallet for 5% fee
-    pub status: GameStatus,       // Waiting, Playing, Completed, Refunded
-    pub vrf_seed_account: Pubkey, // Link to VRF GameSeed account
-    pub winner: Option<Pubkey>,   // Winner's wallet (set during settlement)
-    pub bump: u8,                 // PDA bump seed
+// Single reusable Game PDA - holds all game state
+// Cost optimized: ~0.004 SOL one-time vs 0.00089 SOL per bet (97% savings)
+pub struct Game {
+    // Game metadata
+    pub game_id: u64,              // Increments each game
+    pub status: GameStatus,         // EntryPhase → SpectatorPhase → Settled
+    pub game_mode: GameMode,        // Unknown → Short/Long
+
+    // Escrow pools
+    pub entry_pool: u64,            // Phase 1 total bets
+    pub spectator_pool: u64,        // Phase 2 total bets
+
+    // Entry phase bets (arrays, max 64 bets)
+    pub entry_bets: [u64; 64],           // Bet amounts
+    pub entry_players: [Pubkey; 64],     // Player wallets
+    pub entry_bet_count: u8,             // Number of bets placed
+
+    // Spectator phase bets (arrays, max 64 bets)
+    pub spectator_bets: [u64; 64],       // Bet amounts
+    pub spectator_players: [Pubkey; 64], // Player wallets
+    pub spectator_targets: [i8; 64],     // Which top_four they bet on (0-3)
+    pub spectator_bet_count: u8,         // Number of bets placed
+
+    // Winners
+    pub top_four: [i8; 4],          // Entry bet positions (long games only)
+    pub winner: i8,                 // Winning entry bet position
+
+    // Timing
+    pub entry_phase_start: i64,          // Unix timestamp
+    pub entry_phase_duration: i64,       // 45 seconds
+    pub spectator_phase_start: i64,      // Unix timestamp
+    pub spectator_phase_duration: i64,   // 45 seconds
+
+    // Settlement tracking
+    pub house_collected: bool,           // House fees claimed
+    pub entry_winnings_claimed: bool,    // Winner claimed entry pool
+    pub entry_refunded: [bool; 64],      // Per-bet refund tracking
+    pub spectator_refunded: [bool; 64],  // Per-bet refund tracking
+
+    // Safety features
+    pub last_game_end: i64,         // Time lock (5 seconds between games)
+    pub vrf_seed_top_four: Option<Pubkey>,  // VRF for top 4 selection
+    pub vrf_seed_winner: Option<Pubkey>,    // VRF for final winner
+    pub house_wallet: Pubkey,       // House fee destination
+    pub bump: u8,                   // PDA bump
 }
 
 pub enum GameStatus {
-    Waiting,    // Accepting bets
-    Playing,    // Game in progress, no more bets
-    Completed,  // Winner determined, payouts done
-    Refunded,   // Game cancelled, all bets returned
+    EntryPhase,        // Accepting entry bets
+    SelectingTopFour,  // Backend selecting top 4 (long games)
+    SpectatorPhase,    // Accepting spectator bets (long games)
+    SelectingWinner,   // Backend selecting winner
+    Settled,           // Payouts available
+    Cancelled,         // Game cancelled, refunds available
 }
 
-// Individual bet record (stored in GamePool.bets vector)
-pub struct Bet {
-    pub player: Pubkey,           // Player's Privy wallet
-    pub amount: u64,              // Lamports bet
-    pub participant_id: String,   // Reference to Convex gameParticipant
-    pub timestamp: i64,           // When bet was placed
+pub enum GameMode {
+    Unknown,  // Not yet determined
+    Short,    // 2-7 participants (one winner selection)
+    Long,     // ≥8 participants (top 4 + spectator betting)
+}
+
+// Authority PDA - controls backend access
+pub struct Authority {
+    pub admin: Pubkey,    // Can emergency withdraw, update backend
+    pub backend: Pubkey,  // Can set winners, collect fees
+    pub bump: u8,
 }
 ```
 
@@ -333,129 +399,111 @@ Two separate VRF requests ensure true unpredictability.
 
 ### Smart Contract Bet Escrow System
 
-#### Game Bet Escrow Program Instructions
+#### Game Bet Escrow Program Instructions (11 total)
 
-##### 1. initialize_game_pool
-```rust
-// Creates new GamePool PDA for a game
-// Authority: Backend wallet
-pub fn initialize_game_pool(
-    ctx: Context<InitializeGamePool>,
-    game_id: String,
-) -> Result<()>
-```
-**Purpose**: Create escrow account when real game starts
-**Triggers**: First player clicks "Bet" (demo → real transition)
+##### 1. initialize_authority
+- **Authority**: Admin (one-time setup)
+- **Purpose**: Create Authority PDA with admin and backend wallets
+- **When**: Program deployment initialization
 
-##### 2. place_bet
-```rust
-// Player locks SOL into GamePool
-// Authority: Player's Privy wallet
-pub fn place_bet(
-    ctx: Context<PlaceBet>,
-    amount: u64,
-    participant_id: String,
-) -> Result<()>
-```
-**Purpose**: User places bet, SOL transferred to GamePool PDA
-**Timing**: During waiting phase (30 seconds)
-**UX**: Privy signs transaction seamlessly (1-2 second confirmation)
+##### 2. initialize_game
+- **Authority**: Backend
+- **Purpose**: Reset/create Game PDA for new round
+- **Safety**: 5-second time lock between games
+- **What it does**: Increments game_id, resets all arrays and pools, clears previous game state
 
-##### 3. lock_game
-```rust
-// Prevents new bets, transitions to Playing status
-// Authority: Backend wallet
-pub fn lock_game(
-    ctx: Context<LockGame>,
-) -> Result<()>
-```
-**Purpose**: Close betting when waiting phase ends
-**Timing**: After 30-second countdown
+##### 3. place_entry_bet
+- **Authority**: Player (via Privy)
+- **Purpose**: Player places bet during entry phase
+- **Validations**:
+  - Game must be in EntryPhase status
+  - Minimum 0.01 SOL bet
+  - Max 64 bets total
+- **Flow**: Transfers SOL to Game PDA, records in entry_bets array
 
-##### 4. settle_game
-```rust
-// Pays out winner, sends 5% to house
-// Authority: Backend wallet
-pub fn settle_game(
-    ctx: Context<SettleGame>,
-    winner_pubkey: Pubkey,
-    vrf_seed_account: Pubkey,
-) -> Result<()>
-```
-**Purpose**: Distribute winnings based on VRF-determined winner
-**Flow**:
-1. Verify VRF seed exists on-chain for this game
-2. Calculate payouts (95% to winner, 5% to house)
-3. Transfer SOL from GamePool PDA to winner's Privy wallet
-4. Mark GamePool as Completed
+##### 4. place_spectator_bet
+- **Authority**: Player (via Privy)
+- **Purpose**: Spectator bets on top 4 participant during spectator phase (long games only)
+- **Validations**:
+  - Game must be in SpectatorPhase
+  - Target must be 0-3 (valid top_four index)
+  - Player must NOT be in top 4 (can't bet on yourself)
+- **Flow**: Transfers SOL to Game PDA, records target choice
 
-##### 5. refund_game
-```rust
-// Returns all bets to players
-// Authority: Backend wallet
-pub fn refund_game(
-    ctx: Context<RefundGame>,
-) -> Result<()>
-```
-**Purpose**: Cancel game and refund all players
-**Triggers**:
-- Solo player, insufficient bank balance
-- VRF timeout/failure
-- Technical error during game
+##### 5. set_top_four
+- **Authority**: Backend (VRF-based)
+- **Purpose**: Select top 4 finalists from entry bets (long games ≥8 participants)
+- **Validations**: Entry phase must be complete, exactly 4 valid positions
+- **State transition**: EntryPhase → SpectatorPhase
+
+##### 6. set_winner
+- **Authority**: Backend (VRF-based)
+- **Purpose**: Select final winner from all participants (short) or top 4 (long)
+- **Validations**:
+  - Short games: Winner from any entry bet
+  - Long games: Winner must be in top_four array
+- **State transition**: SelectingWinner → Settled
+- **Side effect**: Records last_game_end for time lock
+
+##### 7. claim_entry_winnings
+- **Authority**: Winner
+- **Purpose**: Winner claims 95% of entry pool
+- **Validations**: Game settled, caller is winner, not already claimed
+- **Payout**: Transfers entry_pool * 95% to winner
+
+##### 8. claim_spectator_winnings
+- **Authority**: Spectator
+- **Purpose**: Winning spectators claim proportional share of spectator pool
+- **Logic**:
+  - Find which top_four won
+  - Calculate total bets on that winner
+  - Player gets proportional share: (player_bet / total_winning_bets) * 95% of spectator_pool
+- **Protection**: Uses spectator_refunded array to prevent double claims
+
+##### 9. collect_house_fees
+- **Authority**: Backend
+- **Purpose**: Collect 5% house fee from both pools
+- **Payout**: (entry_pool + spectator_pool) * 5% to house_wallet
+- **Protection**: One-time flag prevents double collection
+
+##### 10. cancel_and_refund
+- **Authority**: Backend
+- **Purpose**: Refund specific player when game cancelled
+- **Validations**: Game status must be Cancelled
+- **Logic**: Finds all player's bets (entry + spectator), returns full amounts
+- **Protection**: Tracks refunds per bet position to prevent doubles
+
+##### 11. emergency_withdraw
+- **Authority**: Admin
+- **Purpose**: Emergency fund recovery if game stuck for 24+ hours
+- **Safety**: Requires 24-hour timeout, admin-only access
+- **Use case**: Smart contract bug, VRF failure, backend crash
 
 #### Bet Escrow Flow
 
+**Short Game (2-7 participants):**
 ```
-┌──────────────────────────────────────────────────┐
-│ DEMO MODE                                         │
-│ - No smart contract interaction                  │
-│ - Pure Convex database + animations              │
-└──────────────────────────────────────────────────┘
-                      ↓
-          First player clicks "Bet"
-                      ↓
-┌──────────────────────────────────────────────────┐
-│ INITIALIZE GAME POOL                             │
-│ - Backend calls initialize_game_pool(game_id)    │
-│ - Creates GamePool PDA on-chain                  │
-│ - Status: Waiting                                │
-└──────────────────────────────────────────────────┘
-                      ↓
-┌──────────────────────────────────────────────────┐
-│ PLACE BETS (30 second window)                    │
-│ - User: Bet 0.5 SOL via Privy                    │
-│ - Privy signs place_bet() transaction            │
-│ - SOL locked in GamePool PDA                     │
-│ - Convex caches bet record                       │
-│ - More players can join                          │
-└──────────────────────────────────────────────────┘
-                      ↓
-          Countdown ends
-                      ↓
-┌──────────────────────────────────────────────────┐
-│ LOCK GAME                                        │
-│ - Backend calls lock_game()                      │
-│ - Status: Waiting → Playing                     │
-│ - No more bets accepted                          │
-└──────────────────────────────────────────────────┘
-                      ↓
-┌──────────────────────────────────────────────────┐
-│ GAME PLAYS (off-chain)                           │
-│ - Convex runs game logic                         │
-│ - Phaser renders animations                      │
-│ - VRF determines winner                          │
-└──────────────────────────────────────────────────┘
-                      ↓
-┌──────────────────────────────────────────────────┐
-│ SETTLE GAME                                      │
-│ - Backend calls settle_game(winner, vrf_seed)    │
-│ - Contract verifies VRF seed on-chain            │
-│ - 95% → Winner's Privy wallet                    │
-│ - 5% → House wallet                              │
-│ - Status: Playing → Completed                   │
-└──────────────────────────────────────────────────┘
-                      ↓
-          Return to demo mode
+Demo Mode → Player Bets → initialize_game →
+Entry Bets (place_entry_bet) → set_winner →
+claim_entry_winnings + collect_house_fees →
+Return to Demo
+```
+
+**Long Game (≥8 participants):**
+```
+Demo Mode → Player Bets → initialize_game →
+Entry Bets (place_entry_bet) → set_top_four →
+Spectator Bets (place_spectator_bet) → set_winner →
+claim_entry_winnings + claim_spectator_winnings + collect_house_fees →
+Return to Demo
+```
+
+**Cancelled Game:**
+```
+Demo Mode → Player Bets → initialize_game →
+Entry Bets → [Error/Timeout] →
+Set status to Cancelled → cancel_and_refund (for each player) →
+Return to Demo
 ```
 
 #### Security Features
