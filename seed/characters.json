@@ -1,22 +1,52 @@
 [
-    {
-      "name": "Orc",
-      "assetPath": "/characters/orc.png",
-      "description": "A mighty fighter with high power and defense",
-      "animations": {
-        "idle": { "start": 0, "end": 5 },
-        "walk": { "start": 6, "end": 13 }
-      },
-      "isActive": true
+  {
+    "name": "Orc",
+    "assetPath": "/characters/orc.png",
+    "description": "A mighty fighter with high power and defense",
+    "animations": {
+      "idle": { "start": 0, "end": 5 },
+      "walk": { "start": 6, "end": 13 }
     },
-    {
-      "name": "Soldier",
-      "assetPath": "/characters/Soldier.png",
-      "description": "A holy knight with exceptional power and defense",
-      "animations": {
-        "idle": { "start": 0, "end": 5 },
-        "walk": { "start": 6, "end": 13 }
-      },
-      "isActive": true
-    }
-  ]
+    "isActive": true
+  },
+  {
+    "name": "Soldier",
+    "assetPath": "/characters/Soldier.png",
+    "description": "A holy knight with exceptional power and defense",
+    "animations": {
+      "idle": { "start": 0, "end": 5 },
+      "walk": { "start": 6, "end": 13 }
+    },
+    "isActive": true
+  },
+  {
+    "name": "Male",
+    "assetPath": "/characters/male.png",
+    "description": "A versatile warrior with balanced stats",
+    "animations": {
+      "idle": { "start": 0, "end": 4 },
+      "walk": { "start": 0, "end": 4 }
+    },
+    "isActive": true
+  },
+  {
+    "name": "Warrior",
+    "assetPath": "/characters/warrior.png",
+    "description": "A skilled fighter with quick movements",
+    "animations": {
+      "idle": { "start": 0, "end": 5 },
+      "walk": { "start": 0, "end": 5 }
+    },
+    "isActive": true
+  },
+  {
+    "name": "Sam",
+    "assetPath": "/characters/sam.png",
+    "description": "An agile character with unique abilities",
+    "animations": {
+      "idle": { "start": 0, "end": 11 },
+      "walk": { "start": 0, "end": 11 }
+    },
+    "isActive": true
+  }
+]
