@@ -20,32 +20,32 @@
     "isActive": true
   },
   {
-    "name": "Male",
+    "name": "male",
     "assetPath": "/characters/male.png",
     "description": "A versatile warrior with balanced stats",
     "animations": {
-      "idle": { "start": 0, "end": 4 },
-      "walk": { "start": 0, "end": 4 }
+      "idle": { "start": 0, "end": 9 },
+      "walk": { "start": 0, "end": 9 }
     },
     "isActive": true
   },
   {
-    "name": "Warrior",
-    "assetPath": "/characters/warrior.png",
-    "description": "A skilled fighter with quick movements",
-    "animations": {
-      "idle": { "start": 0, "end": 5 },
-      "walk": { "start": 0, "end": 5 }
-    },
-    "isActive": true
-  },
-  {
-    "name": "Sam",
+    "name": "sam",
     "assetPath": "/characters/sam.png",
-    "description": "An agile character with unique abilities",
+    "description": "A quick and agile fighter",
     "animations": {
       "idle": { "start": 0, "end": 11 },
       "walk": { "start": 0, "end": 11 }
+    },
+    "isActive": true
+  },
+  {
+    "name": "warrior",
+    "assetPath": "/characters/warrior.png",
+    "description": "A seasoned combatant with strong defense",
+    "animations": {
+      "idle": { "start": 0, "end": 5 },
+      "walk": { "start": 0, "end": 5 }
     },
     "isActive": true
   }
