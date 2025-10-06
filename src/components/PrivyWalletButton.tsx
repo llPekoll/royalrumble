@@ -27,14 +27,32 @@ export function PrivyWalletButton({
   compact = false,
   onWalletConnected,
 }: PrivyWalletButtonProps) {
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready, authenticated, login, logout, user } = usePrivy();
   const { wallets } = useWallets();
   const { fundWallet } = useFundWallet();
   const [isMounted, setIsMounted] = useState(false);
   const [hasPhantom, setHasPhantom] = useState(false);
 
-  const solanaWallet = wallets[0];
+  // Get Privy embedded wallet from user.linkedAccounts (more reliable)
+  const embeddedWalletAccount = user?.linkedAccounts?.find(
+    (account) =>
+      account.type === "wallet" &&
+      "walletClientType" in account &&
+      "chainType" in account &&
+      (account.walletClientType === "privy" || !account.walletClientType) &&
+      account.chainType === "solana"
+  );
+
+  // Find the corresponding wallet object from useWallets()
+  const embeddedWallet =
+    embeddedWalletAccount && "address" in embeddedWalletAccount
+      ? wallets.find((w) => w.address === embeddedWalletAccount.address)
+      : null;
+
+  // Primary wallet for display (prefer Privy embedded, fallback to first wallet)
+  const solanaWallet = embeddedWallet || wallets[0];
   const walletAddress = solanaWallet?.address;
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +76,6 @@ export function PrivyWalletButton({
     }
   }, [dropdownOpen]);
 
-  // Handle login with helpful message if Phantom not installed
   const handleLogin = () => {
     if (!hasPhantom) {
       toast.info(
@@ -76,44 +93,28 @@ export function PrivyWalletButton({
     }
   }, [authenticated, walletAddress, onWalletConnected]);
 
-  // Menu handlers
   const handleAddFunds = async () => {
     setDropdownOpen(false);
 
-    if (!walletAddress) {
-      toast.error("No wallet connected");
-      return;
-    }
-
-    // Check if this is a Privy embedded wallet
-    const isPrivyEmbedded =
-      solanaWallet?.walletClientType === "privy" ||
-      (!solanaWallet?.walletBrand && !solanaWallet?.connectorType);
-
-    if (!isPrivyEmbedded) {
-      toast.info(
-        "Funding is only available for Privy embedded wallets. Please use your external wallet to add funds."
-      );
+    if (!embeddedWallet) {
+      toast.error("No in-game wallet found. Please reconnect to create one.");
       return;
     }
 
     try {
       await fundWallet({
-        address: walletAddress,
+        address: embeddedWallet.address,
         options: {
           chain: `solana:${import.meta.env.VITE_SOLANA_NETWORK}`,
-          amount: "0.01", // Default suggested amount: 0.1 SOL
+          amount: "0.01",
         },
       });
     } catch (error: any) {
-      console.log({ error });
-      // Handle specific error for funding not enabled
       if (error?.message?.includes("not enabled")) {
-        // Fallback: Copy address to clipboard
         try {
-          await navigator.clipboard.writeText(walletAddress);
-          toast.info("Funding not yet enabled. Wallet address copied!", {
-            description: "Send SOL to this address to fund your wallet",
+          await navigator.clipboard.writeText(embeddedWallet.address);
+          toast.info("Funding not yet enabled. In-game wallet address copied!", {
+            description: "Send SOL to this address to fund your in-game wallet",
             duration: 5000,
           });
         } catch {
@@ -130,13 +131,11 @@ export function PrivyWalletButton({
 
   const handleWithdraw = () => {
     setDropdownOpen(false);
-    // Open Privy withdrawal flow
     toast.info("Withdraw functionality coming soon");
   };
 
   const handleProfile = () => {
     setDropdownOpen(false);
-    // Navigate to profile page
     toast.info("Profile page coming soon");
   };
 
@@ -145,7 +144,6 @@ export function PrivyWalletButton({
     logout();
   };
 
-  // Loading state
   if (!isMounted || !ready) {
     return (
       <Button disabled className="bg-gray-700 text-gray-300" size={compact ? "sm" : "default"}>
@@ -154,7 +152,6 @@ export function PrivyWalletButton({
     );
   }
 
-  // Not authenticated - show login button
   if (!authenticated || !walletAddress) {
     return (
       <div className="flex items-center gap-2">
@@ -167,7 +164,6 @@ export function PrivyWalletButton({
           {compact ? "Connect" : "Connect Wallet"}
         </Button>
 
-        {/* Show Phantom install button if not detected */}
         {!hasPhantom && (
           <Button
             onClick={openPhantomDownload}
@@ -183,7 +179,6 @@ export function PrivyWalletButton({
     );
   }
 
-  // Authenticated - show wallet info with dropdown
   if (compact) {
     return (
       <div className={`relative ${className}`} ref={dropdownRef}>
@@ -204,7 +199,7 @@ export function PrivyWalletButton({
           <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-700 bg-gray-800 shadow-xl z-50">
             <div className="py-1">
               <button
-                onClick={handleAddFunds}
+                onClick={() => void handleAddFunds()}
                 className="w-full px-4 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -239,7 +234,6 @@ export function PrivyWalletButton({
     );
   }
 
-  // Full desktop version with dropdown
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button

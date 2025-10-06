@@ -77,10 +77,10 @@ createRoot(document.getElementById("root")!).render(
           // NO external wallets - prevents redirect to wallet websites
           // Users get embedded Solana wallet automatically
 
-          // Embedded wallets - create for ALL users
+          // Embedded wallets - create for ALL users (in-game wallet)
           embeddedWallets: {
             solana: {
-              createOnLogin: "users-without-wallets",
+              createOnLogin: "all-users", // Always create embedded wallet for in-game funds
             },
           },
 

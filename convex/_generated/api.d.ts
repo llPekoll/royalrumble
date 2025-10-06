@@ -22,6 +22,7 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as maps from "../maps.js";
 import type * as mockSmartContract from "../mockSmartContract.js";
 import type * as players from "../players.js";
+import type * as privy from "../privy.js";
 import type * as solana from "../solana.js";
 import type * as transactions from "../transactions.js";
 import type * as vrf from "../vrf.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   maps: typeof maps;
   mockSmartContract: typeof mockSmartContract;
   players: typeof players;
+  privy: typeof privy;
   solana: typeof solana;
   transactions: typeof transactions;
   vrf: typeof vrf;
