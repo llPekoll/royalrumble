@@ -24,14 +24,7 @@ export class Preloader extends Scene {
   }
 
   preload() {
-    //  Load the assets for the game
     this.load.setPath('assets');
-
-    console.log('📦 Preloader received:', {
-      charactersData: charactersData?.length || 0,
-      currentMapData: currentMapData?.name || 'none',
-      allMapsData: allMapsData?.length || 0
-    });
 
     // Load all character sprites dynamically from database
     if (charactersData && charactersData.length > 0) {
@@ -47,20 +40,14 @@ export class Preloader extends Scene {
       this.load.image(currentMapData.background, currentMapData.assetPath);
     }
 
-    // Load ALL active maps for demo mode
+    // Load all active maps for demo mode
     if (allMapsData && allMapsData.length > 0) {
-      console.log(`Loading ${allMapsData.length} maps for demo mode`);
       allMapsData.forEach(map => {
-        if (map.background && map.assetPath) {
-          // Only load if not already loaded
-          if (map.background !== currentMapData?.background) {
-            this.load.image(map.background, map.assetPath);
-          }
+        if (map.background && map.assetPath && map.background !== currentMapData?.background) {
+          this.load.image(map.background, map.assetPath);
         }
       });
     } else {
-      // Load a default background if no map data available
-      console.log('No map data available, loading default background');
       this.load.image('default-arena', '/maps/arena_volcano.png');
     }
 
@@ -168,14 +155,7 @@ export class Preloader extends Scene {
       });
     });
 
-    // Debug: Scene name at bottom
-    this.add.text(512, 750, 'Scene: Preloader', {
-      fontFamily: 'Arial', fontSize: 16, color: '#ffff00',
-      stroke: '#000000', strokeThickness: 2,
-      align: 'center'
-    }).setOrigin(0.5).setDepth(1000);
-
-    // Start with DemoScene by default (shows demo until player bets)
+    // Start with DemoScene by default
     this.scene.start('DemoScene');
   }
 }

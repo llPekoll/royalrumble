@@ -37,12 +37,6 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
 
   useLayoutEffect(() => {
     if (game.current === null && mapData && characters && allMaps) {
-      console.log('🎮 Starting Phaser with:', {
-        mapData: mapData?.name,
-        characters: characters.length,
-        allMaps: allMaps.length
-      });
-
       // Pass current game's map data to Phaser before starting the game
       setCurrentMapData(mapData);
       // Pass characters data to Phaser

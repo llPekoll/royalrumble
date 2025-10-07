@@ -99,6 +99,15 @@ export function generateDemoWinner(participants: DemoParticipant[]): DemoPartici
  */
 export function generateRandomSpawnIntervals(count: number, totalTime: number = 30000): number[] {
   const intervals: number[] = [];
+
+  // For testing with small counts, spawn immediately
+  if (count <= 3) {
+    for (let i = 0; i < count; i++) {
+      intervals.push(1000 * (i + 1)); // 1s, 2s, 3s
+    }
+    return intervals;
+  }
+
   const minInterval = 800; // Minimum 0.8 seconds between spawns
   const maxInterval = 2500; // Maximum 2.5 seconds between spawns
 

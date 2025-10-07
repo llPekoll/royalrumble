@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
@@ -34,14 +34,18 @@ export interface DemoStateForUI {
 
 export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGameManagerProps) {
   const [countdown, setCountdown] = useState(30);
-  const [participants, setParticipants] = useState<DemoParticipant[]>([]);
+  const [spawnedParticipants, setSpawnedParticipants] = useState<DemoParticipant[]>([]);
   const [phase, setPhase] = useState<DemoPhase>("spawning");
   const [demoMap, setDemoMap] = useState<any>(null);
+  const isSpawningRef = useRef(false);
 
   // Get random map for demo mode (only fetch once per demo session)
   const randomMap = useQuery(api.maps.getRandomMap);
   // Get all characters from database
-  const characters = useQuery(api.characters.getActiveCharacters);
+  const charactersQuery = useQuery(api.characters.getActiveCharacters);
+
+  // Memoize characters to prevent reference changes from triggering re-spawns
+  const characters = useMemo(() => charactersQuery, [charactersQuery?.length]);
 
   // Notify parent of state changes
   useEffect(() => {
@@ -49,17 +53,18 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       onStateChange({
         phase,
         countdown,
-        participantCount: participants.length,
+        participantCount: spawnedParticipants.length,
       });
     }
-  }, [phase, countdown, participants.length, onStateChange]);
+  }, [phase, countdown, spawnedParticipants.length, onStateChange]);
 
   // Initialize demo mode when activated
   useEffect(() => {
     if (isActive) {
       setCountdown(30);
-      setParticipants([]);
+      setSpawnedParticipants([]);
       setPhase("spawning");
+      isSpawningRef.current = false;
       // Set random map when entering demo mode
       if (randomMap && !demoMap) {
         setDemoMap(randomMap);
@@ -67,7 +72,8 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     } else {
       // Clean up when deactivated
       setDemoMap(null);
-      setParticipants([]);
+      setSpawnedParticipants([]);
+      isSpawningRef.current = false;
     }
   }, [isActive, randomMap, demoMap]);
 
@@ -91,7 +97,11 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
   // Gradually spawn demo bots with random intervals during the 30-second spawning phase
   useEffect(() => {
-    if (!isActive || phase !== "spawning" || !demoMap || !characters || characters.length === 0) return;
+    if (!isActive || phase !== "spawning" || !demoMap || !characters || characters.length === 0 || isSpawningRef.current) {
+      return;
+    }
+
+    isSpawningRef.current = true;
 
     // Generate map config from the random map
     const mapConfig = demoMap?.spawnConfiguration
@@ -112,7 +122,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       cumulativeTime += interval;
 
       const timeout = setTimeout(() => {
-        setParticipants((prev) => {
+        setSpawnedParticipants((prev) => {
           if (prev.length >= DEMO_PARTICIPANT_COUNT) {
             return prev;
           }
@@ -120,16 +130,13 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
           const newParticipant = generateDemoParticipant(
             prev.length,
             DEMO_PARTICIPANT_COUNT,
-            characters, // Pass database characters
+            characters,
             mapConfig
           );
 
-          // Notify DemoScene to spawn this participant
-          if (phaserRef.current?.scene) {
-            const scene = phaserRef.current.scene;
-            if (scene.scene.key === "DemoScene") {
-              (scene as any).spawnDemoParticipant?.(newParticipant);
-            }
+          // Spawn in Phaser scene
+          if (phaserRef.current?.scene?.scene.key === "DemoScene") {
+            (phaserRef.current.scene as any).spawnDemoParticipant?.(newParticipant);
           }
 
           return [...prev, newParticipant];
@@ -143,11 +150,11 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     return () => {
       timeouts.forEach((timeout) => clearTimeout(timeout));
     };
-  }, [isActive, phase, demoMap, characters, phaserRef]);
+  }, [isActive, phase, demoMap?.name, characters?.length]);
 
   // Handle arena phase: move bots to center and determine winner
   useEffect(() => {
-    if (!isActive || phase !== "arena" || participants.length === 0) return;
+    if (!isActive || phase !== "arena" || spawnedParticipants.length === 0) return;
 
     // Immediately move all participants to center when arena starts
     if (phaserRef.current?.scene) {
@@ -158,9 +165,9 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     }
 
     // After 5-8 seconds of battle animation, determine winner
-    const battleDuration = 5000 + Math.random() * 3000; // 5-8 seconds
+    const battleDuration = 5000 + Math.random() * 3000;
     const arenaTimer = setTimeout(() => {
-      const winner = generateDemoWinner(participants);
+      const winner = generateDemoWinner(spawnedParticipants);
 
       // Notify DemoScene about winner
       if (phaserRef.current?.scene) {
@@ -184,13 +191,14 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
         // Reset demo state
         setCountdown(30);
-        setParticipants([]);
+        setSpawnedParticipants([]);
+        isSpawningRef.current = false;
         setPhase("spawning");
       }, 5000);
     }, battleDuration);
 
     return () => clearTimeout(arenaTimer);
-  }, [isActive, phase, participants, phaserRef]);
+  }, [isActive, phase, spawnedParticipants]);
 
   // Set demo map when it's loaded
   useEffect(() => {
@@ -200,7 +208,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     if (scene.scene.key === "DemoScene") {
       (scene as any).setDemoMap?.(demoMap);
     }
-  }, [isActive, demoMap, phaserRef]);
+  }, [isActive, demoMap]);
 
   // This component doesn't render anything, it just manages state
   return null;
