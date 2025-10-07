@@ -1,11 +1,43 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Get all active maps (for demo mode preloading)
+export const getAllActiveMaps = query({
+  args: {},
+  handler: async (ctx) => {
+    const maps = await ctx.db
+      .query("maps")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+
+    return maps;
+  },
+});
+
 // Get map by ID
 export const getMap = query({
   args: { mapId: v.id("maps") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.mapId);
+  },
+});
+
+// Get a random map for demo mode (client-side only, nothing stored)
+export const getRandomMap = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get all active maps
+    const maps = await ctx.db
+      .query("maps")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+
+    if (maps.length === 0) {
+      return null;
+    }
+
+    // Return a random map
+    return maps[Math.floor(Math.random() * maps.length)];
   },
 });
 
@@ -18,11 +50,11 @@ export const getDefaultMap = query({
       .query("maps")
       .withIndex("by_active", (q) => q.eq("isActive", true))
       .collect();
-    
+
     if (maps.length === 0) {
       return null;
     }
-    
+
     // Return a random map or the first one
     return maps[Math.floor(Math.random() * maps.length)];
   },

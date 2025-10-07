@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { currentMapData, charactersData } from '../main';
+import { currentMapData, charactersData, allMapsData } from '../main';
 
 export class Preloader extends Scene {
   constructor() {
@@ -26,6 +26,13 @@ export class Preloader extends Scene {
   preload() {
     //  Load the assets for the game
     this.load.setPath('assets');
+
+    console.log('📦 Preloader received:', {
+      charactersData: charactersData?.length || 0,
+      currentMapData: currentMapData?.name || 'none',
+      allMapsData: allMapsData?.length || 0
+    });
+
     // Load all character sprites dynamically from database
     if (charactersData && charactersData.length > 0) {
       charactersData.forEach(character => {
@@ -35,9 +42,22 @@ export class Preloader extends Scene {
       });
     }
 
-    // Load map background if available
+    // Load current game map if available
     if (currentMapData && currentMapData.background && currentMapData.assetPath) {
       this.load.image(currentMapData.background, currentMapData.assetPath);
+    }
+
+    // Load ALL active maps for demo mode
+    if (allMapsData && allMapsData.length > 0) {
+      console.log(`Loading ${allMapsData.length} maps for demo mode`);
+      allMapsData.forEach(map => {
+        if (map.background && map.assetPath) {
+          // Only load if not already loaded
+          if (map.background !== currentMapData?.background) {
+            this.load.image(map.background, map.assetPath);
+          }
+        }
+      });
     } else {
       // Load a default background if no map data available
       console.log('No map data available, loading default background');
@@ -155,7 +175,7 @@ export class Preloader extends Scene {
       align: 'center'
     }).setOrigin(0.5).setDepth(1000);
 
-    // Start with RoyalRumble scene directly for the game view
-    this.scene.start('RoyalRumble');
+    // Start with DemoScene by default (shows demo until player bets)
+    this.scene.start('DemoScene');
   }
 }

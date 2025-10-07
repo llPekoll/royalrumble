@@ -71,17 +71,23 @@ export class PlayerManager {
     });
   }
 
-  addParticipant(participant: any) {
+  addParticipant(participant: any, withFanfare: boolean = false) {
     // Calculate spawn position based on map configuration and spawn index
     const { targetX, targetY } = this.calculateSpawnPosition(participant.spawnIndex);
     const spawnX = targetX;
     const spawnY = -50; // Above the screen
 
-    // Get character from database
+    // Get character key (prioritize character.key, fallback to name)
     let characterKey = 'warrior'; // Default fallback
-    if (participant.character && participant.character.name) {
-      characterKey = participant.character.name.toLowerCase().replace(/\s+/g, '-');
+    if (participant.character) {
+      if (participant.character.key) {
+        characterKey = participant.character.key;
+      } else if (participant.character.name) {
+        characterKey = participant.character.name.toLowerCase().replace(/\s+/g, '-');
+      }
     }
+
+    console.log(`🎭 Spawning ${participant.displayName} as ${characterKey}`, participant.character);
 
     // Create a container to hold both sprite and name
     const container = this.scene.add.container(spawnX, spawnY);
@@ -125,10 +131,15 @@ export class PlayerManager {
     // Use size from database or calculate scale based on bet amount
     const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
 
+    // Calculate name position based on sprite size to prevent overlap
+    // Assuming sprite base height is ~32px, scaled by the size multiplier
+    const spriteHeight = 32 * scale;
+    const nameYOffset = (spriteHeight / 2) + 20; // Half sprite height + 20px gap
+
     // Create name text (positioned below sprite, relative to container)
-    const nameText = this.scene.add.text(0, 40, participant.displayName, {
+    const nameText = this.scene.add.text(0, nameYOffset, participant.displayName, {
       fontFamily: 'Arial',
-      fontSize: 14,
+      fontSize: 12, // Slightly smaller for less clutter
       color: '#ffffff',
       stroke: '#000000',
       strokeThickness: 2,
@@ -141,6 +152,10 @@ export class PlayerManager {
     // Scale only the sprite, not the text
     sprite.setScale(scale);
 
+    // Show names during spawning for demo mode (helps identify bots)
+    // In real games, names show player identity
+    nameText.setVisible(true);
+
     // Keep pixel art crisp when scaling
     sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
 
@@ -151,17 +166,20 @@ export class PlayerManager {
       sprite.setTint(tint);
     }
 
-    // Add bot indicator for bots
-    if (participant.isBot) {
-      const botText = this.scene.add.text(0, -40, 'BOT', {
-        fontFamily: 'Arial',
-        fontSize: 10,
-        color: '#888888',
-        stroke: '#000000',
-        strokeThickness: 1,
-        align: 'center'
-      }).setOrigin(0.5);
-      container.add(botText);
+    // Note: Removed "BOT" label for cleaner UI - name is sufficient
+
+    // Add flash effect for late joiners (fanfare)
+    if (withFanfare) {
+      sprite.setTint(0xffd700);
+      this.scene.time.delayedCall(200, () => {
+        if (participant.colorHue !== undefined && !participant.isBot) {
+          const hue = participant.colorHue / 360;
+          const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color;
+          sprite.setTint(tint);
+        } else {
+          sprite.clearTint();
+        }
+      });
     }
 
     // Animate container dropping straight down (sprite and text move together)
@@ -289,6 +307,8 @@ export class PlayerManager {
 
   moveParticipantsToCenter() {
     this.participants.forEach((participant) => {
+      // Names already visible - just animate movement
+
       // Animate container moving towards center (sprite and text move together)
       this.scene.tweens.add({
         targets: participant.container,
@@ -424,125 +444,8 @@ export class PlayerManager {
       return;
     }
 
-    // Add new participant with special effects
-    this.addParticipantWithFanfare(participant);
-  }
-
-  private addParticipantWithFanfare(participant: any) {
-    // Calculate spawn position
-    const { targetX, targetY } = this.calculateSpawnPosition(participant.spawnIndex);
-    const spawnX = targetX;
-    const spawnY = -50;
-
-    // Get character
-    let characterKey = 'warrior';
-    if (participant.character && participant.character.name) {
-      characterKey = participant.character.name.toLowerCase().replace(/\s+/g, '-');
-    }
-
-    // Create container
-    const container = this.scene.add.container(spawnX, spawnY);
-    container.setDepth(100);
-
-    // Create sprite
-    // First check if the texture exists, if not use default
-    let textureKey = characterKey;
-    if (!this.scene.textures.exists(characterKey)) {
-      console.warn(`Texture '${characterKey}' not found, using default 'warrior'`);
-      textureKey = 'warrior';
-
-      // If even warrior doesn't exist, create a fallback colored rectangle
-      if (!this.scene.textures.exists('warrior')) {
-        console.warn("Default 'warrior' texture not found, creating fallback rectangle");
-        if (!this.scene.textures.exists('fallback-sprite')) {
-          this.scene.add.graphics()
-            .fillStyle(0x00ff00, 1)
-            .fillRect(0, 0, 32, 32)
-            .generateTexture('fallback-sprite', 32, 32);
-        }
-        textureKey = 'fallback-sprite';
-      }
-    }
-
-    const sprite = this.scene.add.sprite(0, 0, textureKey);
-
-    // Mirror sprite if spawning on the right side of the screen (facing center)
-    if (targetX > this.centerX) {
-      sprite.setFlipX(true);
-    }
-
-    // Only play animation if it exists
-    const animKey = `${textureKey}-idle`;
-    if (this.scene.anims.exists(animKey)) {
-      sprite.play(animKey);
-    } else {
-      console.warn(`Animation '${animKey}' not found, sprite will remain static`);
-    }
-
-    // Calculate scale
-    const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
-
-    // Create name text
-    const nameText = this.scene.add.text(0, 40, participant.displayName, {
-      fontFamily: 'Arial',
-      fontSize: 14,
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
-      align: 'center'
-    }).setOrigin(0.5);
-
-    // Add to container
-    container.add([sprite, nameText]);
-    sprite.setScale(scale);
-
-    // Apply color tint if specified and not a bot
-    if (participant.colorHue !== undefined && !participant.isBot) {
-      const hue = participant.colorHue / 360;
-      const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color; // Reduced saturation
-      sprite.setTint(tint);
-    }
-
-    // Flash effect for new arrival
-    sprite.setTint(0xffd700);
-    this.scene.time.delayedCall(200, () => {
-      if (participant.colorHue !== undefined && !participant.isBot) {
-        const hue = participant.colorHue / 360;
-        const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color;
-        sprite.setTint(tint);
-      } else {
-        sprite.clearTint();
-      }
-    });
-
-    // Animate container drop
-    this.scene.tweens.add({
-      targets: container,
-      y: targetY,
-      duration: 1000,
-      ease: 'Bounce.easeOut'
-    });
-
-    // Store participant data
-    const gameParticipant: GameParticipant = {
-      id: participant._id,
-      playerId: participant.playerId,
-      container,
-      sprite,
-      nameText,
-      characterKey: textureKey, // Use the actual texture key that was loaded
-      displayName: participant.displayName,
-      betAmount: participant.betAmount,
-      size: scale,
-      colorHue: participant.colorHue,
-      isBot: participant.isBot || false,
-      eliminated: participant.eliminated || false,
-      targetX,
-      targetY,
-      spawnIndex: participant.spawnIndex
-    };
-
-    this.participants.set(participant._id, gameParticipant);
+    // Add new participant with fanfare effect (golden flash)
+    this.addParticipant(participant, true);
   }
 
   // Update participants in any phase (not just waiting)

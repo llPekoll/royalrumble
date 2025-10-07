@@ -1,181 +1,96 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
 import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
 import { BlockchainRandomnessDialog } from "./components/BlockchainRandomnessDialog";
 import { DemoModeIndicator } from "./components/DemoModeIndicator";
+import { DemoGameManager } from "./components/DemoGameManager";
 import { api } from "../convex/_generated/api";
-import { DemoParticipant, generateDemoParticipant, generateDemoWinner } from "./lib/demoGenerator";
 
 export default function App() {
   const [previousParticipants, setPreviousParticipants] = useState<any[]>([]);
   const [showBlockchainDialog, setShowBlockchainDialog] = useState(false);
-  
-  // Demo mode state (client-side only)
-  const [demoMode, setDemoMode] = useState(false);
-  const [demoCountdown, setDemoCountdown] = useState(30);
-  const [demoParticipants, setDemoParticipants] = useState<DemoParticipant[]>([]);
-  const [demoPhase, setDemoPhase] = useState<'waiting' | 'arena' | 'results'>('waiting');
 
-  //  References to the PhaserGame component (game and scene are exposed)
+  // References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
 
   // Get current game state
   const currentGame = useQuery(api.games.getCurrentGame);
-  
-  // Start demo mode when no real game exists
-  useEffect(() => {
-    if (currentGame === null) {
-      setDemoMode(true);
-      setDemoCountdown(30);
-      setDemoParticipants([]);
-      setDemoPhase('waiting');
-    } else {
-      setDemoMode(false);
-    }
-  }, [currentGame]);
-  
-  // Demo countdown timer
-  useEffect(() => {
-    if (!demoMode) return;
-    
-    const timer = setInterval(() => {
-      setDemoCountdown((prev) => {
-        if (prev <= 1) {
-          setDemoPhase('arena');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [demoMode]);
-  
-  // Spawn demo participants randomly
-  useEffect(() => {
-    if (!demoMode || demoPhase !== 'waiting') return;
-    
-    const spawnInterval = setInterval(() => {
-      setDemoParticipants((prev) => {
-        if (prev.length >= 8) return prev; // Max 8 demo participants
-        
-        const newParticipant = generateDemoParticipant(prev.length, 8);
-        
-        // Notify Phaser scene about new demo participant
-        if (phaserRef.current?.scene) {
-          const scene = phaserRef.current.scene;
-          if (scene.scene.key === 'RoyalRumble') {
-            (scene as any).spawnDemoParticipant?.(newParticipant);
-          }
-        }
-        
-        return [...prev, newParticipant];
-      });
-    }, 3000); // Spawn a new bot every 3 seconds
-    
-    return () => clearInterval(spawnInterval);
-  }, [demoMode, demoPhase]);
-  
-  // Handle demo phase transitions
-  useEffect(() => {
-    if (!demoMode || demoPhase !== 'arena') return;
-    
-    // After 10 seconds in arena, determine winner and show results
-    const arenaTimer = setTimeout(() => {
-      const winner = generateDemoWinner(demoParticipants);
-      
-      // Notify Phaser about demo winner
-      if (phaserRef.current?.scene) {
-        const scene = phaserRef.current.scene;
-        if (scene.scene.key === 'RoyalRumble') {
-          (scene as any).showDemoWinner?.(winner);
-        }
-      }
-      
-      setDemoPhase('results');
-      
-      // After 5 seconds, restart demo
-      setTimeout(() => {
-        setDemoCountdown(30);
-        setDemoParticipants([]);
-        setDemoPhase('waiting');
-      }, 5000);
-    }, 10000);
-    
-    return () => clearTimeout(arenaTimer);
-  }, [demoMode, demoPhase, demoParticipants]);
+
+  // Demo mode is active when no real game exists
+  const isDemoMode = currentGame === null;
+
+  // State to track demo info for UI (passed from DemoGameManager via ref or context if needed)
+  const [demoState, setDemoState] = useState({
+    phase: 'spawning' as 'spawning' | 'arena' | 'results',
+    countdown: 30,
+    participantCount: 0
+  });
 
   // Mutation to trigger blockchain call
   const triggerBlockchainCall = useMutation(api.games.triggerBlockchainCall);
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
-    // Update Phaser scene with game state when it's ready
-    if (scene && scene.scene.key === 'RoyalRumble') {
-      if (currentGame) {
-        (scene as any).updateGameState?.(currentGame);
-      } else if (demoMode) {
-        // Pass demo state to scene
-        (scene as any).updateDemoState?.({
-          isDemo: true,
-          countdown: demoCountdown,
-          phase: demoPhase,
-          participants: demoParticipants
-        });
-      }
-    }
+    // Handle scene based on whether we're in demo or real game
+    if (scene.scene.key === 'RoyalRumble' && currentGame) {
+      // Real game scene - update with game state
+      (scene as any).updateGameState?.(currentGame);
 
-    // Set up blockchain call event listener
-    if (scene && scene.scene.key === 'RoyalRumble') {
-      // Remove existing listener to prevent duplicates
+      // Set up blockchain call event listener
       scene.events.off('triggerBlockchainCall');
-
-      // Add event listener for blockchain call trigger
       scene.events.on('triggerBlockchainCall', () => {
         if (currentGame && currentGame._id) {
           console.log('Triggering blockchain call from frontend');
           triggerBlockchainCall({ gameId: currentGame._id });
         }
       });
+    } else if (scene.scene.key === 'DemoScene') {
+      // Demo scene is ready - DemoGameManager will handle it
+      console.log('DemoScene is ready');
     }
   };
 
-  // Update Phaser scene when game state or demo state changes
+  // Switch scenes when transitioning between demo and real game
   useEffect(() => {
-    if (phaserRef.current?.scene) {
-      const scene = phaserRef.current.scene;
-      if (scene.scene.key === 'RoyalRumble') {
-        if (currentGame) {
-          (scene as any).updateGameState?.(currentGame);
-        } else if (demoMode) {
-          (scene as any).updateDemoState?.({
-            isDemo: true,
-            countdown: demoCountdown,
-            phase: demoPhase,
-            participants: demoParticipants
-          });
-        }
+    if (!phaserRef.current?.scene) return;
 
-        // Detect new players joining in real-time
-        if (currentGame && currentGame.status === 'waiting' && currentGame.participants) {
-          const newPlayers = currentGame.participants.filter((p: any) =>
-            !previousParticipants.some(prev => prev._id === p._id)
-          );
+    const scene = phaserRef.current.scene;
 
-          // Spawn each new player with special effects
-          newPlayers.forEach((player: any) => {
-            console.log('New player joined:', player.displayName);
-            (scene as any).spawnPlayerImmediately?.(player);
-          });
+    // If real game starts and we're in demo scene, switch to game scene
+    if (currentGame && scene.scene.key === 'DemoScene') {
+      console.log('Switching from DemoScene to RoyalRumble');
+      scene.scene.start('RoyalRumble');
+    }
 
-          // Update previous participants list
-          setPreviousParticipants(currentGame.participants);
-        }
+    // If no game and we're in game scene, switch back to demo
+    if (!currentGame && scene.scene.key === 'RoyalRumble') {
+      console.log('Switching from RoyalRumble to DemoScene');
+      scene.scene.start('DemoScene');
+    }
+
+    // Update game scene with real game state
+    if (currentGame && scene.scene.key === 'RoyalRumble') {
+      (scene as any).updateGameState?.(currentGame);
+
+      // Detect new players joining in real-time
+      if (currentGame.status === 'waiting' && currentGame.participants) {
+        const newPlayers = currentGame.participants.filter((p: any) =>
+          !previousParticipants.some(prev => prev._id === p._id)
+        );
+
+        // Spawn each new player with special effects
+        newPlayers.forEach((player: any) => {
+          console.log('New player joined:', player.displayName);
+          (scene as any).spawnPlayerImmediately?.(player);
+        });
+
+        // Update previous participants list
+        setPreviousParticipants(currentGame.participants);
       }
     }
-  }, [currentGame, previousParticipants, demoMode, demoCountdown, demoPhase, demoParticipants]);
+  }, [currentGame, previousParticipants]);
 
   // Show blockchain dialog when blockchain call is pending
   useEffect(() => {
@@ -193,6 +108,13 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      {/* Demo Game Manager - handles all demo logic */}
+      <DemoGameManager
+        isActive={isDemoMode}
+        phaserRef={phaserRef}
+        onStateChange={setDemoState}
+      />
+
       {/* Full Background Phaser Game */}
       <div className="fixed inset-0 w-full h-full">
         <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
@@ -201,16 +123,16 @@ export default function App() {
       {/* Overlay UI Elements */}
       <div className="relative z-10">
         <Header />
-        
+
         {/* Demo Mode Indicator */}
-        {demoMode && (
-          <DemoModeIndicator 
-            countdown={demoCountdown}
-            phase={demoPhase}
-            participantCount={demoParticipants.length}
+        {isDemoMode && (
+          <DemoModeIndicator
+            countdown={demoState.countdown}
+            phase={demoState.phase}
+            participantCount={demoState.participantCount}
           />
         )}
-        
+
         <div className="min-h-screen pt-16 pb-24">
           <div className="absolute right-4 top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
             <GameLobby />

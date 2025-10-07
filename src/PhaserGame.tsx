@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import StartGame, { setCurrentMapData, setCharactersData } from './game/main';
+import StartGame, { setCurrentMapData, setCharactersData, setAllMapsData } from './game/main';
 import { EventBus } from './game/EventBus';
 
 export interface IRefPhaserGame {
@@ -18,6 +18,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
   const currentGame = useQuery(api.games.getCurrentGame);
   const defaultMap = useQuery(api.maps.getDefaultMap);
   const characters = useQuery(api.characters.getActiveCharacters);
+  const allMaps = useQuery(api.maps.getAllActiveMaps); // Fetch all maps for demo mode
 
   // Memoize map data to prevent unnecessary re-renders when other game properties change
   // Use game map if available, otherwise use default map for display
@@ -35,11 +36,19 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
   ]);
 
   useLayoutEffect(() => {
-    if (game.current === null && mapData && characters) {
+    if (game.current === null && mapData && characters && allMaps) {
+      console.log('🎮 Starting Phaser with:', {
+        mapData: mapData?.name,
+        characters: characters.length,
+        allMaps: allMaps.length
+      });
+
       // Pass current game's map data to Phaser before starting the game
       setCurrentMapData(mapData);
       // Pass characters data to Phaser
       setCharactersData(characters);
+      // Pass all maps data for demo mode
+      setAllMapsData(allMaps);
 
       game.current = StartGame("game-container");
 
@@ -59,7 +68,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
         }
       }
     }
-  }, [ref, mapData, characters]);
+  }, [ref, mapData, characters, allMaps]);
 
   useEffect(() => {
     EventBus.on('current-scene-ready', (scene_instance: Phaser.Scene) => {
