@@ -44,8 +44,8 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     (p: any) => p.walletAddress === walletAddress
   ).length || 0;
 
-  // Mutation to add participant
-  const addParticipant = useMutation(api.gameParticipants.addParticipant);
+  // Mutation to join game (creates game if needed)
+  const joinGame = useMutation(api.games.joinGame);
 
   const gameCoins = playerData?.gameCoins || 0;
 
@@ -78,8 +78,8 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !currentGame || !playerData || !currentCharacter) {
-      toast.error("Please wait for game data to load");
+    if (!connected || !publicKey || !playerData || !currentCharacter) {
+      toast.error("Please wait for data to load");
       return;
     }
 
@@ -94,7 +94,8 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       return;
     }
 
-    if (currentGame.status !== "waiting") {
+    // Allow joining if no game exists (will create one) or game is in waiting phase
+    if (currentGame && currentGame.status !== "waiting") {
       toast.error("Can only join during waiting phase");
       return;
     }
@@ -102,14 +103,11 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     setIsSubmitting(true);
 
     try {
-      await addParticipant({
-        gameId: currentGame._id,
-        playerId: playerData._id,
+      // Use joinGame which will create a game if none exists
+      await joinGame({
         walletAddress: publicKey.toString(),
+        betAmount: amount * 100, // Convert to game coins (0.1 SOL = 10 coins)
         characterId: currentCharacter._id as Id<"characters">,
-        betAmount: amount * 100000, // Convert SOL to lamports for backend
-        displayName: `${playerData.displayName || "Player"}`,
-        colorHue: Math.random() * 360,
       });
       setBetAmount("0.1");
 
@@ -130,10 +128,11 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     } finally {
       setIsSubmitting(false);
     }
-  }, [connected, publicKey, currentGame, playerData, currentCharacter, betAmount, gameCoins, addParticipant, onParticipantAdded]);
+  }, [connected, publicKey, currentGame, playerData, currentCharacter, betAmount, gameCoins, joinGame, onParticipantAdded, allCharacters]);
 
-  // Don't render if not connected, no character, or game is not in waiting phase
-  if (!connected || !currentCharacter || currentGame?.status !== 'waiting') {
+  // Don't render if not connected or no character
+  // Allow rendering when no game exists OR game is in waiting phase
+  if (!connected || !currentCharacter || (currentGame && currentGame.status !== 'waiting')) {
     return null;
   }
 

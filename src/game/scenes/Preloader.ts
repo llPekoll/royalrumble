@@ -27,13 +27,22 @@ export class Preloader extends Scene {
     //  Load the assets for the game
     this.load.setPath('assets');
     // Load all character sprites dynamically from database
-    charactersData.forEach(character => {
-      const key = character.name.toLowerCase().replace(/\s+/g, '-');
-      const jsonPath = character.assetPath.replace('.png', '.json');
-      this.load.atlas(key, character.assetPath, jsonPath);
-    });
+    if (charactersData && charactersData.length > 0) {
+      charactersData.forEach(character => {
+        const key = character.name.toLowerCase().replace(/\s+/g, '-');
+        const jsonPath = character.assetPath.replace('.png', '.json');
+        this.load.atlas(key, character.assetPath, jsonPath);
+      });
+    }
 
-    this.load.image(currentMapData.background, currentMapData.assetPath);
+    // Load map background if available
+    if (currentMapData && currentMapData.background && currentMapData.assetPath) {
+      this.load.image(currentMapData.background, currentMapData.assetPath);
+    } else {
+      // Load a default background if no map data available
+      console.log('No map data available, loading default background');
+      this.load.image('default-arena', '/maps/arena_volcano.png');
+    }
 
     // Load explosion sprite sheet
     this.load.atlas('explosion', 'vfx/Explosion.png', 'vfx/Explosion.json');

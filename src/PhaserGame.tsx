@@ -16,16 +16,22 @@ interface IProps {
 export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame({ currentActiveScene }, ref) {
   const game = useRef<Phaser.Game | null>(null);
   const currentGame = useQuery(api.games.getCurrentGame);
+  const defaultMap = useQuery(api.maps.getDefaultMap);
   const characters = useQuery(api.characters.getActiveCharacters);
 
   // Memoize map data to prevent unnecessary re-renders when other game properties change
+  // Use game map if available, otherwise use default map for display
   const mapData = useMemo(() => {
-    return currentGame?.map;
+    return currentGame?.map || defaultMap;
   }, [
     currentGame?.map?._id,
     currentGame?.map?.name,
     currentGame?.map?.background,
-    currentGame?.map?.assetPath
+    currentGame?.map?.assetPath,
+    defaultMap?._id,
+    defaultMap?.name,
+    defaultMap?.background,
+    defaultMap?.assetPath
   ]);
 
   useLayoutEffect(() => {

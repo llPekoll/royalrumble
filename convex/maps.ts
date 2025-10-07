@@ -8,6 +8,25 @@ export const getMap = query({
     return await ctx.db.get(args.mapId);
   },
 });
+
+// Get a default map for display when no game is active
+export const getDefaultMap = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get first active map
+    const maps = await ctx.db
+      .query("maps")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+    
+    if (maps.length === 0) {
+      return null;
+    }
+    
+    // Return a random map or the first one
+    return maps[Math.floor(Math.random() * maps.length)];
+  },
+});
 // Calculate spawn positions for a map
 export const calculateSpawnPositions = query({
   args: {

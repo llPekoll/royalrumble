@@ -228,13 +228,43 @@ export const joinGame = mutation({
     }
 
     // Get current game in waiting phase
-    const game = await ctx.db
+    let game = await ctx.db
       .query("games")
       .withIndex("by_status", (q: any) => q.eq("status", "waiting"))
       .first();
 
+    // If no game exists, create one
     if (!game) {
-      throw new Error("No game available to join");
+      const now = Date.now();
+      const selectedMap = await selectRandomMap(ctx);
+      
+      const gameId = await ctx.db.insert("games", {
+        status: "waiting",
+        phase: 1,
+        phaseStartTime: now,
+        nextPhaseTime: now + (PHASE_DURATIONS.WAITING * 1000),
+        startTime: now,
+        playerCount: 0,
+        participantCount: 0,
+        totalPot: 0,
+        selfBetPool: 0,
+        spectatorBetPool: 0,
+        isSinglePlayer: false,
+        isSmallGame: true,
+        mapId: selectedMap._id,
+        blockchainCallStatus: "none",
+        blockchainCallStartTime: undefined,
+      });
+      
+      game = await ctx.db.get(gameId);
+      console.log("Created new game on first player bet");
+      
+      // Schedule the game loop to start monitoring this game
+      // The cron will pick it up automatically on next interval
+    }
+
+    if (!game) {
+      throw new Error("Failed to create or get game");
     }
 
     // Check if player already joined
@@ -1135,6 +1165,13 @@ export const markVRFFailed = internalMutation({
 export const processBlockchainCalls = internalMutation({
   args: {},
   handler: async (ctx) => {
+    // Quick check if any games exist at all
+    const anyGame = await ctx.db.query("games").first();
+    if (!anyGame) {
+      // No games in database at all - skip processing entirely
+      return;
+    }
+
     // Find long games in battle phase that need second VRF
     const battleGames = await ctx.db
       .query("games")
@@ -1163,6 +1200,13 @@ export const processBlockchainCalls = internalMutation({
 export const gameLoop = internalMutation({
   args: {},
   handler: async (ctx) => {
+    // Quick check if any games exist at all
+    const anyGame = await ctx.db.query("games").first();
+    if (!anyGame) {
+      // No games in database at all - skip processing entirely
+      return;
+    }
+
     // Check for active game
     const activeGame = await ctx.db
       .query("games")
@@ -1173,45 +1217,8 @@ export const gameLoop = internalMutation({
     const now = Date.now();
 
     if (!activeGame) {
-      // Check if we recently had a game deleted (to avoid rapid game creation)
-      const recentGames = await ctx.db
-        .query("games")
-        .withIndex("by_start_time")
-        .order("desc")
-        .take(5);
-
-      // If the last game was very recent (within 10 seconds), don't create immediately
-      const lastGameTime = recentGames.length > 0 ? recentGames[0].startTime : 0;
-      const timeSinceLastGame = now - lastGameTime;
-
-      // Only create a new game if enough time has passed (10 seconds = 10,000ms)
-      // or if there was no recent game
-      if (timeSinceLastGame > 10000 || recentGames.length === 0) {
-        // Select a random map
-        const selectedMap = await selectRandomMap(ctx);
-
-        await ctx.db.insert("games", {
-          status: "waiting",
-          phase: 1,
-          phaseStartTime: now,
-          nextPhaseTime: now + (PHASE_DURATIONS.WAITING * 1000),
-          startTime: now,
-          playerCount: 0,
-          participantCount: 0,
-          totalPot: 0,
-          selfBetPool: 0,
-          spectatorBetPool: 0,
-          isSinglePlayer: false,
-          isSmallGame: true,
-          mapId: selectedMap._id,
-          blockchainCallStatus: "none",
-          blockchainCallStartTime: undefined,
-        });
-
-        console.log("Created new game");
-      } else {
-        console.log(`Waiting ${Math.ceil((10000 - timeSinceLastGame) / 1000)}s before creating new game`);
-      }
+      // No active game - system is waiting for players
+      // Games are now created when the first player places a bet
       return;
     }
 
