@@ -104,14 +104,36 @@ export class DemoScene extends Scene {
   }
 
   public showDemoWinner(winner: any) {
-    const demoGameState = {
-      status: "results",
-      winnerId: winner._id || winner.id,
-      participants: Array.from(this.playerManager.getParticipants().values()),
-      isDemo: true,
-    };
+    // Mark all non-winners as eliminated
+    const participants = this.playerManager.getParticipants();
+    participants.forEach((participant) => {
+      if (participant.id !== winner._id && participant.id !== winner.id) {
+        participant.eliminated = true;
+      } else {
+        participant.eliminated = false; // Winner stays
+      }
+    });
 
-    this.playerManager.showResults(demoGameState);
+    // Explode losers outward with physics (includes explosions, blood, shake)
+    this.animationManager.explodeParticipantsOutward(participants);
+
+    // After 3 seconds: Show winner celebration
+    this.time.delayedCall(3000, () => {
+      const demoGameState = {
+        status: "results",
+        winnerId: winner._id || winner.id,
+        participants: Array.from(participants.values()),
+        isDemo: true,
+      };
+
+      // Show winner with PlayerManager (scales up, golden tint, etc.)
+      const winnerParticipant = this.playerManager.showResults(demoGameState);
+
+      // Add celebration animations (confetti, text, bounce)
+      if (winnerParticipant) {
+        this.animationManager.addWinnerCelebration(winnerParticipant, winner);
+      }
+    });
   }
 
   public clearDemoParticipants() {

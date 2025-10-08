@@ -1,5 +1,5 @@
-import { Scene } from 'phaser';
-import { calculateEllipsePosition, SPAWN_CONFIG } from '../../config/spawnConfig';
+import { Scene } from "phaser";
+import { calculateEllipsePosition, SPAWN_CONFIG } from "../../config/spawnConfig";
 
 export interface GameParticipant {
   id: string;
@@ -25,6 +25,7 @@ export class PlayerManager {
   private centerX: number;
   private centerY: number;
   private currentMap: any = null;
+  private readonly BASE_SCALE_MULTIPLIER = 3.0; // 5x bigger base size
 
   constructor(scene: Scene, centerX: number, centerY: number) {
     this.scene = scene;
@@ -47,9 +48,8 @@ export class PlayerManager {
 
   // Get all participants for a specific player
   getPlayerParticipants(playerId: string): GameParticipant[] {
-    return Array.from(this.participants.values()).filter(p => p.playerId === playerId);
+    return Array.from(this.participants.values()).filter((p) => p.playerId === playerId);
   }
-
 
   updateParticipantsInWaiting(participants: any[], mapData: any) {
     this.currentMap = mapData;
@@ -74,47 +74,48 @@ export class PlayerManager {
 
   addParticipant(participant: any, withFanfare: boolean = false) {
     const participantId = participant._id || participant.id;
-    
-    console.log('[PlayerManager] addParticipant called', {
+
+    console.log("[PlayerManager] addParticipant called", {
       id: participantId,
       existingCount: this.participants.size,
-      alreadyExists: this.participants.has(participantId)
+      alreadyExists: this.participants.has(participantId),
     });
-    
+
     // Double-check participant doesn't already exist
     if (this.participants.has(participantId)) {
-      console.error('[PlayerManager] Participant already exists!', participantId);
+      console.error("[PlayerManager] Participant already exists!", participantId);
       return;
     }
-    
+
     const { targetX, targetY } = this.calculateSpawnPosition(participant.spawnIndex);
     const spawnX = targetX;
     const spawnY = -50;
 
-    let characterKey = 'warrior';
+    let characterKey = "warrior";
     if (participant.character) {
       if (participant.character.key) {
         characterKey = participant.character.key;
       } else if (participant.character.name) {
-        characterKey = participant.character.name.toLowerCase().replace(/\s+/g, '-');
+        characterKey = participant.character.name.toLowerCase().replace(/\s+/g, "-");
       }
     }
 
-    console.log('[PlayerManager] Creating container for', participantId);
+    console.log("[PlayerManager] Creating container for", participantId);
     const container = this.scene.add.container(spawnX, spawnY);
     container.setDepth(100);
     let textureKey = characterKey;
     if (!this.scene.textures.exists(characterKey)) {
-      textureKey = 'warrior';
+      textureKey = "warrior";
 
-      if (!this.scene.textures.exists('warrior')) {
-        if (!this.scene.textures.exists('fallback-sprite')) {
-          this.scene.add.graphics()
+      if (!this.scene.textures.exists("warrior")) {
+        if (!this.scene.textures.exists("fallback-sprite")) {
+          this.scene.add
+            .graphics()
             .fillStyle(0x00ff00, 1)
             .fillRect(0, 0, 32, 32)
-            .generateTexture('fallback-sprite', 32, 32);
+            .generateTexture("fallback-sprite", 32, 32);
         }
-        textureKey = 'fallback-sprite';
+        textureKey = "fallback-sprite";
       }
     }
 
@@ -129,27 +130,31 @@ export class PlayerManager {
       sprite.play(animKey);
     }
 
-    const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
+    // Apply base 5x multiplier + bet scaling
+    const betScale = participant.size || this.calculateParticipantScale(participant.betAmount);
+    const scale = betScale * this.BASE_SCALE_MULTIPLIER;
     const spriteHeight = 32 * scale;
-    const nameYOffset = (spriteHeight / 2) + 30;
-    
+    const nameYOffset = spriteHeight / 2 + 30;
+
     // Style bot names differently
     const isBot = participant.isBot && !participant.playerId;
-    const nameColor = isBot ? '#ffff99' : '#ffffff'; // Light yellow for bots
-    const strokeColor = isBot ? '#666600' : '#000000'; // Darker yellow stroke for bots
-    
-    const nameText = this.scene.add.text(0, nameYOffset, participant.displayName, {
-      fontFamily: 'Arial',
-      fontSize: 12,
-      color: nameColor,
-      stroke: strokeColor,
-      strokeThickness: 2,
-      align: 'center'
-    }).setOrigin(0.5);
+    const nameColor = isBot ? "#ffff99" : "#ffffff"; // Light yellow for bots
+    const strokeColor = isBot ? "#666600" : "#000000"; // Darker yellow stroke for bots
+
+    const nameText = this.scene.add
+      .text(0, nameYOffset, participant.displayName, {
+        fontFamily: "Arial",
+        fontSize: 12,
+        color: nameColor,
+        stroke: strokeColor,
+        strokeThickness: 2,
+        align: "center",
+      })
+      .setOrigin(0.5);
 
     container.add([sprite, nameText]);
     sprite.setScale(scale);
-    
+
     // Show names immediately in demo mode, hide in real games during spawn
     nameText.setVisible(isBot);
     sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
@@ -175,7 +180,7 @@ export class PlayerManager {
       targets: container,
       y: targetY,
       duration: 1000,
-      ease: 'Bounce.easeOut'
+      ease: "Bounce.easeOut",
     });
     const gameParticipant: GameParticipant = {
       id: participantId,
@@ -192,13 +197,13 @@ export class PlayerManager {
       eliminated: participant.eliminated || false,
       targetX,
       targetY,
-      spawnIndex: participant.spawnIndex
+      spawnIndex: participant.spawnIndex,
     };
 
     this.participants.set(participantId, gameParticipant);
-    console.log('[PlayerManager] Participant added successfully', {
+    console.log("[PlayerManager] Participant added successfully", {
       id: participantId,
-      newCount: this.participants.size
+      newCount: this.participants.size,
     });
   }
 
@@ -220,7 +225,7 @@ export class PlayerManager {
       const position = calculateEllipsePosition(angle, radius, this.centerX, this.centerY, true);
       return {
         targetX: position.x,
-        targetY: position.y
+        targetY: position.y,
       };
     }
 
@@ -230,23 +235,30 @@ export class PlayerManager {
 
     // Use centralized config for variations
     const radiusVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.RADIUS_VARIATION / 2.5); // Scale down for real games
-    const angleVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.ANGLE_VARIATION / 2);     // Scale down for real games
+    const angleVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.ANGLE_VARIATION / 2); // Scale down for real games
     const finalRadius = spawnRadius + radiusVariation;
     const finalAngle = angle + angleVariation;
 
     // calculateEllipsePosition now includes jitter by default
-    const position = calculateEllipsePosition(finalAngle, finalRadius, this.centerX, this.centerY, true);
+    const position = calculateEllipsePosition(
+      finalAngle,
+      finalRadius,
+      this.centerX,
+      this.centerY,
+      true
+    );
     return {
       targetX: position.x,
-      targetY: position.y
+      targetY: position.y,
     };
   }
 
   updateParticipantData(participant: any) {
     const gameParticipant = this.participants.get(participant._id);
     if (gameParticipant) {
-      // Update scale if bet amount changed
-      const newScale = participant.size || this.calculateParticipantScale(participant.betAmount);
+      // Update scale if bet amount changed (apply base multiplier)
+      const betScale = participant.size || this.calculateParticipantScale(participant.betAmount);
+      const newScale = betScale * this.BASE_SCALE_MULTIPLIER;
       if (gameParticipant.size !== newScale) {
         gameParticipant.size = newScale;
         gameParticipant.betAmount = participant.betAmount;
@@ -257,7 +269,7 @@ export class PlayerManager {
           scaleX: newScale,
           scaleY: newScale,
           duration: 300,
-          ease: 'Power2'
+          ease: "Power2",
         });
       }
 
@@ -300,7 +312,7 @@ export class PlayerManager {
         x: this.centerX + (Math.random() - 0.5) * 100,
         y: this.centerY + (Math.random() - 0.5) * 100,
         duration: 800 + Math.random() * 400,
-        ease: 'Power2.easeInOut'
+        ease: "Power2.easeInOut",
       });
 
       // Change to walking animation
@@ -319,7 +331,7 @@ export class PlayerManager {
       if (isSurvivor) {
         // Highlight survivors
         participant.sprite.setTint(0xffd700); // Golden tint
-        participant.nameText.setColor('#ffd700'); // Golden name
+        participant.nameText.setColor("#ffd700"); // Golden name
 
         // Add glowing effect to container (affects both sprite and text)
         this.scene.tweens.add({
@@ -327,12 +339,12 @@ export class PlayerManager {
           alpha: { from: 1, to: 0.7 },
           duration: 500,
           yoyo: true,
-          repeat: -1
+          repeat: -1,
         });
       } else {
         // Fade out eliminated participants
         participant.sprite.setTint(0x666666);
-        participant.container.setAlpha(0.3);  // Fades both sprite and text
+        participant.container.setAlpha(0.3); // Fades both sprite and text
         participant.eliminated = true;
       }
     });
@@ -348,9 +360,9 @@ export class PlayerManager {
           x: this.centerX + (Math.random() - 0.5) * 200,
           y: this.centerY + (Math.random() - 0.5) * 200,
           duration: 300,
-          ease: 'Power2.easeInOut',
+          ease: "Power2.easeInOut",
           repeat: 5,
-          yoyo: true
+          yoyo: true,
         });
 
         // Change to attack animation
@@ -378,7 +390,7 @@ export class PlayerManager {
             duration: 500,
             onComplete: () => {
               participant.container.setVisible(false);
-            }
+            },
           });
         }
       });
@@ -391,7 +403,7 @@ export class PlayerManager {
           x: this.centerX,
           y: this.centerY,
           duration: 1000,
-          ease: 'Power2.easeInOut'
+          ease: "Power2.easeInOut",
         });
 
         // Scale up the winner sprite
@@ -400,14 +412,14 @@ export class PlayerManager {
           scaleX: winnerParticipant.sprite.scaleX * 2,
           scaleY: winnerParticipant.sprite.scaleY * 2,
           duration: 1000,
-          ease: 'Back.easeOut'
+          ease: "Back.easeOut",
         });
 
         // Make winner golden
         winnerParticipant.sprite.setTint(0xffd700);
-        winnerParticipant.nameText.setColor('#ffd700');
+        winnerParticipant.nameText.setColor("#ffd700");
         winnerParticipant.nameText.setFontSize(20);
-        winnerParticipant.nameText.setStroke('#000000', 4);
+        winnerParticipant.nameText.setStroke("#000000", 4);
 
         // Victory animation
         const victoryAnimKey = `${winnerParticipant.characterKey}-idle`;
@@ -447,7 +459,7 @@ export class PlayerManager {
   }
 
   clearParticipants() {
-    this.participants.forEach(participant => {
+    this.participants.forEach((participant) => {
       participant.container.destroy();
     });
     this.participants.clear();

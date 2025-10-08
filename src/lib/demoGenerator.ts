@@ -1,11 +1,31 @@
 // Demo mode utilities - all client-side, no database
-import { DEMO_TIMINGS } from '../config/demoTimings';
-import { SPAWN_CONFIG, calculateEllipsePosition } from '../config/spawnConfig';
+import { DEMO_TIMINGS } from "../config/demoTimings";
 
 export const DEMO_BOT_NAMES = [
-  "Shadow", "Blaze", "Frost", "Thunder", "Viper", "Phoenix", "Storm", "Titan",
-  "Ghost", "Spark", "Crusher", "Ninja", "Savage", "Fury", "Chaos", "Doom",
-  "Reaper", "Ace", "Nova", "Echo", "Bolt", "Striker", "Hunter", "Warrior"
+  "Shadow",
+  "Blaze",
+  "Frost",
+  "Thunder",
+  "Viper",
+  "Phoenix",
+  "Storm",
+  "Titan",
+  "Ghost",
+  "Spark",
+  "Crusher",
+  "Ninja",
+  "Savage",
+  "Fury",
+  "Chaos",
+  "Doom",
+  "Reaper",
+  "Ace",
+  "Nova",
+  "Echo",
+  "Bolt",
+  "Striker",
+  "Hunter",
+  "Warrior",
 ];
 
 export const DEMO_PARTICIPANT_COUNT = 20; // Always 20 for long game format
@@ -30,11 +50,13 @@ export function generateDemoParticipant(
   index: number,
   totalCount: number,
   dbCharacters: any[], // Accept database characters as parameter
-  mapConfig?: { spawnRadius: number; centerX: number; centerY: number }
+  mapConfig?: { spawnRadius: number; centerX: number; centerY: number },
+  position: { x: number; y: number } // Position is now required (pre-calculated)
 ): DemoParticipant {
   // Random bot name (ensure unique)
-  const name = DEMO_BOT_NAMES[Math.floor(Math.random() * DEMO_BOT_NAMES.length)] +
-               Math.floor(Math.random() * 999);
+  const name =
+    DEMO_BOT_NAMES[Math.floor(Math.random() * DEMO_BOT_NAMES.length)] +
+    Math.floor(Math.random() * 999);
 
   // Random character type from database
   const character = dbCharacters[Math.floor(Math.random() * dbCharacters.length)];
@@ -42,26 +64,7 @@ export function generateDemoParticipant(
   // Random bet amount (0.01 - 1 SOL equivalent, represented as 10-1000 coins)
   const betAmount = Math.floor(Math.random() * 990) + 10;
 
-  // Calculate spawn position with MORE randomness
-  const angleStep = (Math.PI * 2) / Math.max(totalCount, 8);
-  const baseAngle = index * angleStep;
-  // Angle variation from config (±0.4 radians = ~±23 degrees)
-  const angleVariation = (Math.random() - 0.5) * SPAWN_CONFIG.ANGLE_VARIATION;
-  const angle = baseAngle + angleVariation;
-
-  // Use map config if provided, otherwise use defaults
-  const centerX = mapConfig?.centerX ?? 512;
-  const centerY = mapConfig?.centerY ?? 384;
-  const spawnRadius = mapConfig?.spawnRadius ?? SPAWN_CONFIG.DEFAULT_SPAWN_RADIUS;
-
-  // Large radius variation for messy effect (±100 pixels)
-  const radiusVariation = (Math.random() - 0.5) * SPAWN_CONFIG.RADIUS_VARIATION;
-  const finalRadius = Math.max(150, spawnRadius + radiusVariation); // Ensure minimum radius
-
   const id = `demo_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-
-  // Calculate elliptical position (wider on X, flatter on Y) with additional jitter for messy effect
-  const position = calculateEllipsePosition(angle, finalRadius, centerX, centerY);
 
   return {
     _id: id, // Primary id for database compatibility
@@ -75,7 +78,7 @@ export function generateDemoParticipant(
     position,
     spawnIndex: index,
     eliminated: false,
-    isBot: true
+    isBot: true,
   };
 }
 

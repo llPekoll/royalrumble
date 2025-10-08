@@ -15,7 +15,7 @@ export const DEMO_TIMINGS = {
   ARENA_PHASE_RANDOM_RANGE: 1000, // Random additional time (0-3 seconds)
 
   // Results Phase
-  RESULTS_PHASE_DURATION: 5000, // 5 seconds
+  RESULTS_PHASE_DURATION: 15000, // 15 seconds (10 more seconds to enjoy celebration)
 
   // Testing (for small bot counts)
   TEST_MODE_SPAWN_INTERVAL: 1000, // 1 second per bot when testing with ≤3 bots
