@@ -3,6 +3,7 @@ import { Scene } from "phaser";
 import { PlayerManager } from "../managers/PlayerManager";
 import { AnimationManager } from "../managers/AnimationManager";
 import { BackgroundManager } from "../managers/BackgroundManager";
+import { demoMapData } from "../main";
 
 /**
  * DemoScene - Pure client-side demo mode
@@ -40,6 +41,15 @@ export class DemoScene extends Scene {
     this.playerManager = new PlayerManager(this, this.centerX, this.centerY);
     this.animationManager = new AnimationManager(this, this.centerX, this.centerY);
     this.backgroundManager = new BackgroundManager(this, this.centerX, this.centerY);
+
+    // Initialize background immediately with preloaded demo map
+    if (demoMapData?.background) {
+      console.log('[DemoScene] Initializing background with:', demoMapData.background);
+      this.backgroundManager.setTexture(demoMapData.background);
+      this.demoMap = demoMapData;
+    } else {
+      console.warn('[DemoScene] No demo map data available!');
+    }
 
     this.scale.on("resize", () => this.handleResize(), this);
     EventBus.emit("current-scene-ready", this);

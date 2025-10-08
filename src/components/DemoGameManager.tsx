@@ -36,25 +36,18 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
   const [countdown, setCountdown] = useState(30);
   const [spawnedParticipants, setSpawnedParticipants] = useState<DemoParticipant[]>([]);
   const [phase, setPhase] = useState<DemoPhase>("spawning");
-  const [demoMap, setDemoMap] = useState<any>(null);
   const isSpawningRef = useRef(false);
   const spawnTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const spawnCountRef = useRef(0);
 
-
-  // Get all maps and just use the first one - simple!
-  const firstMap = useQuery(api.maps.getRandomMap);
-  console.log({ firstMap })
-  // const firstMap = allMaps?.[0];
-  // Get all characters from database
+  // Get the preloaded demo map and characters from Phaser
+  // These are already loaded in Preloader, so we just fetch them for reference
+  const demoMapQuery = useQuery(api.maps.getRandomMap);
   const charactersQuery = useQuery(api.characters.getActiveCharacters);
-  console.log({ charactersQuery })
 
-  // Memoize characters to prevent reference changes from triggering re-spawns
+  // Memoize to prevent reference changes from triggering re-spawns
   const characters = useMemo(() => charactersQuery, [charactersQuery?.length]);
-
-  // Memoize map to prevent reference changes
-  const stableMap = useMemo(() => demoMap, [demoMap?.name, demoMap?.spawnConfiguration?.spawnRadius]);
+  const demoMap = useMemo(() => demoMapQuery, [demoMapQuery?._id]);
 
   // Notify parent of state changes
   useEffect(() => {
@@ -77,11 +70,9 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       spawnCountRef.current = 0;
       spawnTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
       spawnTimeoutsRef.current = [];
-      // Don't set map here, do it in separate effect
     } else {
       // Clean up when deactivated
       console.log('[DemoGameManager] Deactivating demo mode');
-      setDemoMap(null);
       setSpawnedParticipants([]);
       isSpawningRef.current = false;
       spawnCountRef.current = 0;
@@ -89,14 +80,6 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       spawnTimeoutsRef.current = [];
     }
   }, [isActive]);
-
-  // Set first map when it becomes available - simple!
-  useEffect(() => {
-    if (isActive && firstMap && !demoMap) {
-      console.log('[DemoGameManager] Setting first map from Convex:', firstMap.name);
-      setDemoMap(firstMap);
-    }
-  }, [isActive, firstMap, demoMap]);
 
   // Demo countdown timer (30s spawning phase)
   useEffect(() => {
@@ -130,7 +113,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       existingTimeouts: spawnTimeoutsRef.current.length
     });
 
-    if (!isActive || phase !== "spawning" || !stableMap || !characters || characters.length === 0) {
+    if (!isActive || phase !== "spawning" || !demoMap || !characters || characters.length === 0) {
       console.log('[DemoGameManager] Spawn effect early return - conditions not met');
       return;
     }
@@ -148,10 +131,10 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     isSpawningRef.current = true;
     spawnCountRef.current = 0; // Reset spawn count
 
-    // Generate map config from the random map
-    const mapConfig = stableMap?.spawnConfiguration
+    // Generate map config from the demo map
+    const mapConfig = demoMap?.spawnConfiguration
       ? {
-        spawnRadius: stableMap.spawnConfiguration.spawnRadius,
+        spawnRadius: demoMap.spawnConfiguration.spawnRadius,
         centerX: 512, // Standard canvas center
         centerY: 384,
       }
@@ -216,7 +199,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       spawnTimeoutsRef.current = [];
       // Don't reset isSpawningRef here - only reset when phase changes to spawning
     };
-  }, [isActive, phase, stableMap, characters]);
+  }, [isActive, phase, demoMap, characters]);
 
   // Handle arena phase: move bots to center and determine winner
   useEffect(() => {
@@ -269,46 +252,32 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     return () => clearTimeout(arenaTimer);
   }, [isActive, phase, spawnedParticipants]);
 
-  // Set demo map when it's loaded
+  // Set demo map when scene is ready and map is loaded
   useEffect(() => {
     console.log('[DemoGameManager] Set map effect triggered', {
       isActive,
       hasDemoMap: !!demoMap,
-      hasStableMap: !!stableMap,
-      mapName: stableMap?.name,
-      backgroundKey: stableMap?.background,
+      mapName: demoMap?.name,
+      backgroundKey: demoMap?.background,
       sceneExists: !!phaserRef.current?.scene,
       sceneKey: phaserRef.current?.scene?.scene.key,
       setDemoMapExists: typeof (phaserRef.current?.scene as any)?.setDemoMap === 'function'
     });
 
-    if (!isActive) {
-      console.log('[DemoGameManager] Not active, skipping map set');
-      return;
-    }
-
-    if (!phaserRef.current?.scene) {
-      console.log('[DemoGameManager] No scene available, skipping map set');
-      return;
-    }
-
-    if (!stableMap) {
-      console.log('[DemoGameManager] No stable map available, skipping map set');
+    if (!isActive || !demoMap || !phaserRef.current?.scene) {
       return;
     }
 
     const scene = phaserRef.current.scene;
     if (scene.scene.key === "DemoScene") {
       console.log('[DemoGameManager] Calling setDemoMap on DemoScene with:', {
-        mapName: stableMap.name,
-        backgroundKey: stableMap.background,
-        assetPath: stableMap.assetPath
+        mapName: demoMap.name,
+        backgroundKey: demoMap.background,
+        assetPath: demoMap.assetPath
       });
-      (scene as any).setDemoMap?.(stableMap);
-    } else {
-      console.log('[DemoGameManager] Scene is not DemoScene, current scene:', scene.scene.key);
+      (scene as any).setDemoMap?.(demoMap);
     }
-  }, [isActive, stableMap]);
+  }, [isActive, demoMap, phaserRef.current?.scene]);
 
   // This component doesn't render anything, it just manages state
   return null;
