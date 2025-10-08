@@ -8,8 +8,8 @@ import { Preloader } from './scenes/Preloader';
 export let currentMapData: any = null;
 // Global storage for characters data
 export let charactersData: any[] = [];
-// Global storage for all maps (for demo mode)
-export let allMapsData: any[] = [];
+// Global storage for demo mode map (single random map)
+export let demoMapData: any = null;
 
 export const setCurrentMapData = (map: any) => {
   currentMapData = map;
@@ -19,8 +19,8 @@ export const setCharactersData = (characters: any[]) => {
   charactersData = characters;
 };
 
-export const setAllMapsData = (maps: any[]) => {
-  allMapsData = maps;
+export const setDemoMapData = (map: any) => {
+  demoMapData = map;
 };
 
 const config: Phaser.Types.Core.GameConfig = {

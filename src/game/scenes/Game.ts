@@ -4,10 +4,10 @@ import { PlayerManager } from '../managers/PlayerManager';
 import { AnimationManager } from '../managers/AnimationManager';
 import { GamePhaseManager } from '../managers/GamePhaseManager';
 import { UIManager } from '../managers/UIManager';
+import { BackgroundManager } from '../managers/BackgroundManager';
 
 export class Game extends Scene {
   camera!: Phaser.Cameras.Scene2D.Camera;
-  background!: Phaser.GameObjects.Image;
   gameState: any = null;
   centerX: number = 0;
   centerY: number = 0;
@@ -17,6 +17,7 @@ export class Game extends Scene {
   private animationManager!: AnimationManager;
   private gamePhaseManager!: GamePhaseManager;
   private uiManager!: UIManager;
+  private backgroundManager!: BackgroundManager;
 
   constructor() {
     super('RoyalRumble');
@@ -29,18 +30,18 @@ export class Game extends Scene {
     this.centerX = this.camera.centerX;
     this.centerY = this.camera.centerY;
 
-    // Background will be set when gameState is first updated
-    // Use first available map texture as default, will be updated from game state
-    const defaultTexture = 'arena_classic'; // This will be loaded from database
-    this.background = this.add.image(this.centerX, this.centerY, defaultTexture);
-    this.background.setOrigin(0.5, 0.5);
-    this.background.setAlpha(1);
-
     // Initialize managers
     this.playerManager = new PlayerManager(this, this.centerX, this.centerY);
     this.animationManager = new AnimationManager(this, this.centerX, this.centerY);
     this.gamePhaseManager = new GamePhaseManager(this, this.playerManager, this.animationManager);
     this.uiManager = new UIManager(this, this.centerX);
+    this.backgroundManager = new BackgroundManager(this, this.centerX, this.centerY);
+
+    // Set default background (will be updated when gameState is received)
+    const defaultTexture = 'arena_classic';
+    if (this.textures.exists(defaultTexture)) {
+      this.backgroundManager.setTexture(defaultTexture);
+    }
 
     // Create UI elements
     this.uiManager.create();
@@ -56,10 +57,8 @@ export class Game extends Scene {
     this.centerX = this.camera.centerX;
     this.centerY = this.camera.centerY;
 
-    // Reposition background
-    this.background.setPosition(this.centerX, this.centerY);
-
     // Update managers with new center coordinates
+    this.backgroundManager.updateCenter(this.centerX, this.centerY);
     this.playerManager.updateCenter(this.centerX, this.centerY);
     this.animationManager.updateCenter(this.centerX, this.centerY);
     this.uiManager.updateCenter(this.centerX);
@@ -73,13 +72,13 @@ export class Game extends Scene {
 
     // Update map background based on game data
     if (gameState.map && gameState.map.background) {
-      this.background.setTexture(gameState.map.background);
+      this.backgroundManager.setTexture(gameState.map.background);
 
       // Update center position if map specifies it
       if (gameState.map.centerX && gameState.map.centerY) {
         this.centerX = gameState.map.centerX;
         this.centerY = gameState.map.centerY;
-        this.background.setPosition(this.centerX, this.centerY);
+        this.backgroundManager.updateCenter(this.centerX, this.centerY);
       }
     }
 

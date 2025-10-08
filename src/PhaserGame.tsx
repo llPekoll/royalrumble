@@ -1,8 +1,8 @@
-import { forwardRef, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import StartGame, { setCurrentMapData, setCharactersData, setAllMapsData } from './game/main';
-import { EventBus } from './game/EventBus';
+import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import StartGame, { setCurrentMapData, setCharactersData, setDemoMapData } from "./game/main";
+import { EventBus } from "./game/EventBus";
 
 export interface IRefPhaserGame {
   game: Phaser.Game | null;
@@ -10,48 +10,41 @@ export interface IRefPhaserGame {
 }
 
 interface IProps {
-  currentActiveScene?: (scene_instance: Phaser.Scene) => void
+  currentActiveScene?: (scene_instance: Phaser.Scene) => void;
 }
 
-export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame({ currentActiveScene }, ref) {
+export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame(
+  { currentActiveScene },
+  ref
+) {
   const game = useRef<Phaser.Game | null>(null);
   const currentGame = useQuery(api.games.getCurrentGame);
-  const defaultMap = useQuery(api.maps.getDefaultMap);
   const characters = useQuery(api.characters.getActiveCharacters);
-  const allMaps = useQuery(api.maps.getAllActiveMaps); // Fetch all maps for demo mode
+  const demoMap = useQuery(api.maps.getRandomMap); // Fetch single random map for demo mode
 
-  // Memoize map data to prevent unnecessary re-renders when other game properties change
-  // Use game map if available, otherwise use default map for display
-  const mapData = useMemo(() => {
-    return currentGame?.map || defaultMap;
-  }, [
-    currentGame?.map?._id,
-    currentGame?.map?.name,
-    currentGame?.map?.background,
-    currentGame?.map?.assetPath,
-    defaultMap?._id,
-    defaultMap?.name,
-    defaultMap?.background,
-    defaultMap?.assetPath
-  ]);
+  // Check if all required data is loaded
+  const isDataReady = characters && characters.length > 0 && demoMap;
 
   useLayoutEffect(() => {
-    if (game.current === null && mapData && characters && allMaps) {
-      // Pass current game's map data to Phaser before starting the game
-      setCurrentMapData(mapData);
+    if (game.current === null && isDataReady) {
+      // Pass current game's map data to Phaser before starting the game (if exists)
+      if (currentGame?.map) {
+        setCurrentMapData(currentGame.map);
+      }
+
       // Pass characters data to Phaser
       setCharactersData(characters);
-      // Pass all maps data for demo mode
-      setAllMapsData(allMaps);
+
+      // Pass single demo map for demo mode
+      setDemoMapData(demoMap);
 
       game.current = StartGame("game-container");
 
-      if (typeof ref === 'function') {
+      if (typeof ref === "function") {
         ref({ game: game.current, scene: null });
       } else if (ref) {
         ref.current = { game: game.current, scene: null };
       }
-
     }
 
     return () => {
@@ -61,30 +54,25 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
           game.current = null;
         }
       }
-    }
-  }, [ref, mapData, characters, allMaps]);
+    };
+  }, [ref, isDataReady, characters, demoMap, currentGame]);
 
   useEffect(() => {
-    EventBus.on('current-scene-ready', (scene_instance: Phaser.Scene) => {
-      if (currentActiveScene && typeof currentActiveScene === 'function') {
-
+    EventBus.on("current-scene-ready", (scene_instance: Phaser.Scene) => {
+      if (currentActiveScene && typeof currentActiveScene === "function") {
         currentActiveScene(scene_instance);
-
       }
 
-      if (typeof ref === 'function') {
+      if (typeof ref === "function") {
         ref({ game: game.current, scene: scene_instance });
       } else if (ref) {
         ref.current = { game: game.current, scene: scene_instance };
       }
-
     });
     return () => {
-      EventBus.removeListener('current-scene-ready');
-    }
+      EventBus.removeListener("current-scene-ready");
+    };
   }, [currentActiveScene, ref]);
 
-  return (
-    <div id="game-container" className="w-full h-full"></div>
-  );
+  return <div id="game-container" className="w-full h-full"></div>;
 });
