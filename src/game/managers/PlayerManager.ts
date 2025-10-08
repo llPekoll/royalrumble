@@ -102,7 +102,12 @@ export class PlayerManager {
 
     console.log("[PlayerManager] Creating container for", participantId);
     const container = this.scene.add.container(spawnX, spawnY);
-    container.setDepth(100);
+
+    // Set depth based on Y position - higher Y = further back = lower depth
+    // This creates proper visual layering
+    const baseDepth = 100;
+    const depthFromY = Math.floor(targetY); // Use target Y position for depth
+    container.setDepth(baseDepth + depthFromY);
     let textureKey = characterKey;
     if (!this.scene.textures.exists(characterKey)) {
       textureKey = "warrior";
