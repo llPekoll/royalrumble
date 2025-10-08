@@ -9,6 +9,7 @@ import {
   DEMO_PARTICIPANT_COUNT,
 } from "../lib/demoGenerator";
 import { IRefPhaserGame } from "../PhaserGame";
+import { DEMO_TIMINGS, getRandomArenaDuration } from "../config/demoTimings";
 
 export type DemoPhase = "spawning" | "arena" | "results";
 
@@ -63,7 +64,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
   // Initialize demo mode when activated
   useEffect(() => {
     if (isActive) {
-      setCountdown(30);
+      setCountdown(DEMO_TIMINGS.SPAWNING_PHASE_DURATION / 1000); // Convert to seconds
       setSpawnedParticipants([]);
       setPhase("spawning");
       isSpawningRef.current = false;
@@ -213,8 +214,8 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       }
     }
 
-    // After 5-8 seconds of battle animation, determine winner
-    const battleDuration = 5000 + Math.random() * 3000;
+    // After random arena duration (5-8 seconds), determine winner
+    const battleDuration = getRandomArenaDuration();
     const arenaTimer = setTimeout(() => {
       const winner = generateDemoWinner(spawnedParticipants);
 
@@ -228,7 +229,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
       setPhase("results");
 
-      // After 5 seconds, restart demo
+      // After results phase duration, restart demo
       setTimeout(() => {
         // Clear participants in DemoScene
         if (phaserRef.current?.scene) {
@@ -239,14 +240,14 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         }
 
         // Reset demo state
-        setCountdown(30);
+        setCountdown(DEMO_TIMINGS.SPAWNING_PHASE_DURATION / 1000); // Convert to seconds
         setSpawnedParticipants([]);
         isSpawningRef.current = false;
         spawnCountRef.current = 0;
         spawnTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
         spawnTimeoutsRef.current = [];
         setPhase("spawning");
-      }, 5000);
+      }, DEMO_TIMINGS.RESULTS_PHASE_DURATION);
     }, battleDuration);
 
     return () => clearTimeout(arenaTimer);

@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { calculateEllipsePosition, SPAWN_CONFIG } from '../../config/spawnConfig';
 
 export interface GameParticipant {
   id: string;
@@ -215,23 +216,29 @@ export class PlayerManager {
     if (!this.currentMap || !this.currentMap.spawnConfiguration) {
       const angle = (spawnIndex / 20) * Math.PI * 2;
       const radius = 200;
+      // Use ellipse position with randomness
+      const position = calculateEllipsePosition(angle, radius, this.centerX, this.centerY, true);
       return {
-        targetX: this.centerX + Math.cos(angle) * radius,
-        targetY: this.centerY + Math.sin(angle) * radius
+        targetX: position.x,
+        targetY: position.y
       };
     }
 
     const { spawnRadius } = this.currentMap.spawnConfiguration;
     const totalParticipants = Math.max(8, spawnIndex + 1);
     const angle = (spawnIndex / totalParticipants) * Math.PI * 2;
-    const radiusVariation = (Math.random() - 0.5) * 40;
-    const angleVariation = (Math.random() - 0.5) * 0.2;
+
+    // Use centralized config for variations
+    const radiusVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.RADIUS_VARIATION / 2.5); // Scale down for real games
+    const angleVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.ANGLE_VARIATION / 2);     // Scale down for real games
     const finalRadius = spawnRadius + radiusVariation;
     const finalAngle = angle + angleVariation;
 
+    // calculateEllipsePosition now includes jitter by default
+    const position = calculateEllipsePosition(finalAngle, finalRadius, this.centerX, this.centerY, true);
     return {
-      targetX: this.centerX + Math.cos(finalAngle) * finalRadius,
-      targetY: this.centerY + Math.sin(finalAngle) * finalRadius
+      targetX: position.x,
+      targetY: position.y
     };
   }
 

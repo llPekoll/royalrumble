@@ -1,4 +1,7 @@
 // Demo mode utilities - all client-side, no database
+import { DEMO_TIMINGS } from '../config/demoTimings';
+import { SPAWN_CONFIG, calculateEllipsePosition } from '../config/spawnConfig';
+
 export const DEMO_BOT_NAMES = [
   "Shadow", "Blaze", "Frost", "Thunder", "Viper", "Phoenix", "Storm", "Titan",
   "Ghost", "Spark", "Crusher", "Ninja", "Savage", "Fury", "Chaos", "Doom",
@@ -42,20 +45,23 @@ export function generateDemoParticipant(
   // Calculate spawn position with MORE randomness
   const angleStep = (Math.PI * 2) / Math.max(totalCount, 8);
   const baseAngle = index * angleStep;
-  // Much more angle variation (-0.3 to +0.3 radians = ~±17 degrees)
-  const angleVariation = (Math.random() - 0.5) * 0.6;
+  // Angle variation from config (±0.4 radians = ~±23 degrees)
+  const angleVariation = (Math.random() - 0.5) * SPAWN_CONFIG.ANGLE_VARIATION;
   const angle = baseAngle + angleVariation;
 
   // Use map config if provided, otherwise use defaults
   const centerX = mapConfig?.centerX ?? 512;
   const centerY = mapConfig?.centerY ?? 384;
-  const spawnRadius = mapConfig?.spawnRadius ?? 250;
+  const spawnRadius = mapConfig?.spawnRadius ?? SPAWN_CONFIG.DEFAULT_SPAWN_RADIUS;
 
-  // Much larger radius variation (±80 pixels instead of ±20)
-  const radiusVariation = (Math.random() - 0.5) * 160;
+  // Large radius variation for messy effect (±100 pixels)
+  const radiusVariation = (Math.random() - 0.5) * SPAWN_CONFIG.RADIUS_VARIATION;
   const finalRadius = Math.max(150, spawnRadius + radiusVariation); // Ensure minimum radius
 
   const id = `demo_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+
+  // Calculate elliptical position (wider on X, flatter on Y) with additional jitter for messy effect
+  const position = calculateEllipsePosition(angle, finalRadius, centerX, centerY);
 
   return {
     _id: id, // Primary id for database compatibility
@@ -66,10 +72,7 @@ export function generateDemoParticipant(
     betAmount,
     size: Math.max(0.8, Math.min(2.0, betAmount / 500)),
     power: betAmount,
-    position: {
-      x: centerX + Math.cos(angle) * finalRadius,
-      y: centerY + Math.sin(angle) * finalRadius
-    },
+    position,
     spawnIndex: index,
     eliminated: false,
     isBot: true
@@ -97,19 +100,22 @@ export function generateDemoWinner(participants: DemoParticipant[]): DemoPartici
  * Creates varied timing instead of fixed 1.5s intervals
  * Total time will be approximately 30 seconds
  */
-export function generateRandomSpawnIntervals(count: number, totalTime: number = 30000): number[] {
+export function generateRandomSpawnIntervals(
+  count: number,
+  totalTime: number = DEMO_TIMINGS.SPAWNING_PHASE_DURATION
+): number[] {
   const intervals: number[] = [];
 
   // For testing with small counts, spawn immediately
   if (count <= 3) {
     for (let i = 0; i < count; i++) {
-      intervals.push(1000 * (i + 1)); // 1s, 2s, 3s
+      intervals.push(DEMO_TIMINGS.TEST_MODE_SPAWN_INTERVAL * (i + 1));
     }
     return intervals;
   }
 
-  const minInterval = 800; // Minimum 0.8 seconds between spawns
-  const maxInterval = 2500; // Maximum 2.5 seconds between spawns
+  const minInterval = DEMO_TIMINGS.BOT_SPAWN_MIN_INTERVAL;
+  const maxInterval = DEMO_TIMINGS.BOT_SPAWN_MAX_INTERVAL;
 
   let remainingTime = totalTime;
   let remainingBots = count;

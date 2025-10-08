@@ -59,6 +59,12 @@ export const getDefaultMap = query({
     return maps[Math.floor(Math.random() * maps.length)];
   },
 });
+// Ellipse configuration (hardcoded since Convex can't import from src/config)
+const ELLIPSE_RATIO_X = 1.8;     // 80% wider on horizontal axis
+const ELLIPSE_RATIO_Y = 0.5;     // 50% flatter on vertical axis
+const POSITION_JITTER_X = 60;    // Additional random X offset (±30 pixels)
+const POSITION_JITTER_Y = 40;    // Additional random Y offset (±20 pixels)
+
 // Calculate spawn positions for a map
 export const calculateSpawnPositions = query({
   args: {
@@ -74,15 +80,25 @@ export const calculateSpawnPositions = query({
     const { spawnRadius } = map.spawnConfiguration;
     const positions = [];
 
-    // Calculate positions in a circle around center
+    // Calculate positions in an ellipse around center with randomness
     const angleStep = (Math.PI * 2) / Math.max(args.participantCount, 8);
 
     for (let i = 0; i < args.participantCount; i++) {
       const angle = i * angleStep;
-      const x = 512 + Math.cos(angle) * spawnRadius; // Assuming 1024x768 canvas, center at 512
-      const y = 384 + Math.sin(angle) * spawnRadius; // Center at 384
 
-      positions.push({ x, y, angle });
+      // Apply ellipse transformation: wider on X-axis, flatter on Y-axis
+      const baseX = 512 + Math.cos(angle) * spawnRadius * ELLIPSE_RATIO_X;
+      const baseY = 384 + Math.sin(angle) * spawnRadius * ELLIPSE_RATIO_Y;
+
+      // Add random jitter to make it messy
+      const jitterX = (Math.random() - 0.5) * POSITION_JITTER_X;
+      const jitterY = (Math.random() - 0.5) * POSITION_JITTER_Y;
+
+      positions.push({
+        x: baseX + jitterX,
+        y: baseY + jitterY,
+        angle
+      });
     }
 
     return positions;
