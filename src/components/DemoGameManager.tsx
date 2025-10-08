@@ -38,6 +38,22 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
   const [phase, setPhase] = useState<DemoPhase>("spawning");
   const [demoMap, setDemoMap] = useState<any>(null);
   const isSpawningRef = useRef(false);
+  const spawnTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
+  const renderCountRef = useRef(0);
+  const spawnCountRef = useRef(0);
+  
+  // Log render count
+  useEffect(() => {
+    renderCountRef.current++;
+    console.log(`[DemoGameManager] Render #${renderCountRef.current}`, {
+      isActive,
+      phase,
+      spawnedCount: spawnedParticipants.length,
+      isSpawning: isSpawningRef.current,
+      hasMap: !!demoMap,
+      hasCharacters: !!charactersQuery
+    });
+  });
 
   // Get random map for demo mode (only fetch once per demo session)
   const randomMap = useQuery(api.maps.getRandomMap);
@@ -46,6 +62,9 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
   // Memoize characters to prevent reference changes from triggering re-spawns
   const characters = useMemo(() => charactersQuery, [charactersQuery?.length]);
+  
+  // Memoize map to prevent reference changes
+  const stableMap = useMemo(() => demoMap, [demoMap?.name, demoMap?.spawnConfiguration?.spawnRadius]);
 
   // Notify parent of state changes
   useEffect(() => {
@@ -65,17 +84,25 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       setSpawnedParticipants([]);
       setPhase("spawning");
       isSpawningRef.current = false;
+      spawnCountRef.current = 0;
+      spawnTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      spawnTimeoutsRef.current = [];
       // Set random map when entering demo mode
       if (randomMap && !demoMap) {
+        console.log('[DemoGameManager] Setting demo map:', randomMap?.name);
         setDemoMap(randomMap);
       }
     } else {
       // Clean up when deactivated
+      console.log('[DemoGameManager] Deactivating demo mode');
       setDemoMap(null);
       setSpawnedParticipants([]);
       isSpawningRef.current = false;
+      spawnCountRef.current = 0;
+      spawnTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      spawnTimeoutsRef.current = [];
     }
-  }, [isActive, randomMap, demoMap]);
+  }, [isActive]);
 
   // Demo countdown timer (30s spawning phase)
   useEffect(() => {
@@ -97,16 +124,40 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
   // Gradually spawn demo bots with random intervals during the 30-second spawning phase
   useEffect(() => {
-    if (!isActive || phase !== "spawning" || !demoMap || !characters || characters.length === 0 || isSpawningRef.current) {
+    console.log('[DemoGameManager] Spawn effect triggered', {
+      isActive,
+      phase,
+      hasDemoMap: !!demoMap,
+      mapName: demoMap?.name,
+      hasCharacters: !!characters,
+      charLength: characters?.length,
+      isSpawning: isSpawningRef.current,
+      spawnedCount: spawnedParticipants.length,
+      existingTimeouts: spawnTimeoutsRef.current.length
+    });
+    
+    if (!isActive || phase !== "spawning" || !stableMap || !characters || characters.length === 0) {
+      console.log('[DemoGameManager] Spawn effect early return - conditions not met');
       return;
     }
 
+    // Check if already spawning to prevent double spawning
+    if (isSpawningRef.current || spawnTimeoutsRef.current.length > 0) {
+      console.log('[DemoGameManager] Already spawning or timeouts exist, skipping', {
+        isSpawning: isSpawningRef.current,
+        timeoutCount: spawnTimeoutsRef.current.length
+      });
+      return;
+    }
+
+    console.log('[DemoGameManager] Starting spawn sequence');
     isSpawningRef.current = true;
+    spawnCountRef.current = 0; // Reset spawn count
 
     // Generate map config from the random map
-    const mapConfig = demoMap?.spawnConfiguration
+    const mapConfig = stableMap?.spawnConfiguration
       ? {
-          spawnRadius: demoMap.spawnConfiguration.spawnRadius,
+          spawnRadius: stableMap.spawnConfiguration.spawnRadius,
           centerX: 512, // Standard canvas center
           centerY: 384,
         }
@@ -114,7 +165,10 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
     // Generate random spawn intervals for all bots
     const spawnIntervals = generateRandomSpawnIntervals(DEMO_PARTICIPANT_COUNT);
-    const timeouts: NodeJS.Timeout[] = [];
+
+    // Clear any existing timeouts first
+    spawnTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    spawnTimeoutsRef.current = [];
 
     // Schedule each bot spawn with its random interval
     let cumulativeTime = 0;
@@ -122,35 +176,53 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       cumulativeTime += interval;
 
       const timeout = setTimeout(() => {
+        // Use ref-based counting to avoid race conditions
+        if (spawnCountRef.current >= DEMO_PARTICIPANT_COUNT) {
+          console.log(`[DemoGameManager] Spawn ${index}: Max participants reached via ref`);
+          return;
+        }
+
+        const currentSpawnIndex = spawnCountRef.current;
+        spawnCountRef.current++;
+
+        const newParticipant = generateDemoParticipant(
+          currentSpawnIndex,
+          DEMO_PARTICIPANT_COUNT,
+          characters,
+          mapConfig
+        );
+
+        console.log(`[DemoGameManager] Spawn ${index}: Creating participant`, {
+          id: newParticipant._id,
+          spawnIndex: currentSpawnIndex,
+          totalSpawned: spawnCountRef.current,
+          sceneKey: phaserRef.current?.scene?.scene.key
+        });
+
+        // Spawn in Phaser scene first
+        if (phaserRef.current?.scene?.scene.key === "DemoScene") {
+          console.log(`[DemoGameManager] Calling spawnDemoParticipant for ${newParticipant._id}`);
+          (phaserRef.current.scene as any).spawnDemoParticipant?.(newParticipant);
+        }
+
+        // Then update state
         setSpawnedParticipants((prev) => {
-          if (prev.length >= DEMO_PARTICIPANT_COUNT) {
-            return prev;
-          }
-
-          const newParticipant = generateDemoParticipant(
-            prev.length,
-            DEMO_PARTICIPANT_COUNT,
-            characters,
-            mapConfig
-          );
-
-          // Spawn in Phaser scene
-          if (phaserRef.current?.scene?.scene.key === "DemoScene") {
-            (phaserRef.current.scene as any).spawnDemoParticipant?.(newParticipant);
-          }
-
+          console.log(`[DemoGameManager] Updating state: prev.length=${prev.length}, adding ${newParticipant._id}`);
           return [...prev, newParticipant];
         });
       }, cumulativeTime);
 
-      timeouts.push(timeout);
+      spawnTimeoutsRef.current.push(timeout);
     });
 
     // Cleanup all timeouts on unmount or phase change
     return () => {
-      timeouts.forEach((timeout) => clearTimeout(timeout));
+      console.log('[DemoGameManager] Spawn effect cleanup, clearing timeouts');
+      spawnTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      spawnTimeoutsRef.current = [];
+      // Don't reset isSpawningRef here - only reset when phase changes to spawning
     };
-  }, [isActive, phase, demoMap?.name, characters?.length]);
+  }, [isActive, phase, stableMap, characters]);
 
   // Handle arena phase: move bots to center and determine winner
   useEffect(() => {
@@ -193,6 +265,9 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         setCountdown(30);
         setSpawnedParticipants([]);
         isSpawningRef.current = false;
+        spawnCountRef.current = 0;
+        spawnTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+        spawnTimeoutsRef.current = [];
         setPhase("spawning");
       }, 5000);
     }, battleDuration);
@@ -202,13 +277,21 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
   // Set demo map when it's loaded
   useEffect(() => {
-    if (!isActive || !phaserRef.current?.scene || !demoMap) return;
+    console.log('[DemoGameManager] Set map effect', {
+      isActive,
+      hasDemoMap: !!demoMap,
+      mapName: demoMap?.name,
+      sceneKey: phaserRef.current?.scene?.scene.key
+    });
+    
+    if (!isActive || !phaserRef.current?.scene || !stableMap) return;
 
     const scene = phaserRef.current.scene;
     if (scene.scene.key === "DemoScene") {
-      (scene as any).setDemoMap?.(demoMap);
+      console.log('[DemoGameManager] Setting demo map in scene:', stableMap.name);
+      (scene as any).setDemoMap?.(stableMap);
     }
-  }, [isActive, demoMap]);
+  }, [isActive, stableMap]);
 
   // This component doesn't render anything, it just manages state
   return null;

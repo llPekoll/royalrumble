@@ -60,7 +60,7 @@ export function generateDemoParticipant(
   return {
     _id: id, // Primary id for database compatibility
     id, // Keep for backward compatibility
-    displayName: name,
+    displayName: `${name} (BOT)`, // Add BOT label to make it clear
     character,
     colorHue: Math.floor(Math.random() * 360),
     betAmount,

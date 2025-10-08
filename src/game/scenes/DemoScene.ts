@@ -80,12 +80,30 @@ export class DemoScene extends Scene {
   }
 
   public spawnDemoParticipant(participant: any) {
-    if (this.playerManager.getParticipant(participant._id || participant.id)) {
+    const participantId = participant._id || participant.id;
+    
+    console.log('[DemoScene] spawnDemoParticipant called', {
+      id: participantId,
+      currentParticipantsCount: this.participants.length,
+      playerManagerCount: this.playerManager.getParticipants().size
+    });
+    
+    // Check if participant already exists to prevent double spawning
+    if (this.playerManager.getParticipant(participantId)) {
+      console.warn(`[DemoScene] Participant ${participantId} already exists in PlayerManager, skipping duplicate spawn`);
       return;
     }
 
+    // Also check in our local participants array
+    if (this.participants.find(p => (p._id || p.id) === participantId)) {
+      console.warn(`[DemoScene] Participant ${participantId} found in local array, skipping duplicate spawn`);
+      return;
+    }
+
+    console.log(`[DemoScene] Adding participant ${participantId} to scene`);
     this.playerManager.addParticipant(participant);
     this.participants.push(participant);
+    console.log(`[DemoScene] Participant ${participantId} added successfully`);
   }
 
   public moveParticipantsToCenter() {
@@ -104,6 +122,9 @@ export class DemoScene extends Scene {
   }
 
   public clearDemoParticipants() {
+    console.log('[DemoScene] Clearing demo participants', {
+      count: this.participants.length
+    });
     this.playerManager.clearParticipants();
     this.participants = [];
   }

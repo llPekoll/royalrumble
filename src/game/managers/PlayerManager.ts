@@ -72,6 +72,20 @@ export class PlayerManager {
   }
 
   addParticipant(participant: any, withFanfare: boolean = false) {
+    const participantId = participant._id || participant.id;
+    
+    console.log('[PlayerManager] addParticipant called', {
+      id: participantId,
+      existingCount: this.participants.size,
+      alreadyExists: this.participants.has(participantId)
+    });
+    
+    // Double-check participant doesn't already exist
+    if (this.participants.has(participantId)) {
+      console.error('[PlayerManager] Participant already exists!', participantId);
+      return;
+    }
+    
     const { targetX, targetY } = this.calculateSpawnPosition(participant.spawnIndex);
     const spawnX = targetX;
     const spawnY = -50;
@@ -85,6 +99,7 @@ export class PlayerManager {
       }
     }
 
+    console.log('[PlayerManager] Creating container for', participantId);
     const container = this.scene.add.container(spawnX, spawnY);
     container.setDepth(100);
     let textureKey = characterKey;
@@ -116,18 +131,26 @@ export class PlayerManager {
     const scale = participant.size || this.calculateParticipantScale(participant.betAmount);
     const spriteHeight = 32 * scale;
     const nameYOffset = (spriteHeight / 2) + 30;
+    
+    // Style bot names differently
+    const isBot = participant.isBot && !participant.playerId;
+    const nameColor = isBot ? '#ffff99' : '#ffffff'; // Light yellow for bots
+    const strokeColor = isBot ? '#666600' : '#000000'; // Darker yellow stroke for bots
+    
     const nameText = this.scene.add.text(0, nameYOffset, participant.displayName, {
       fontFamily: 'Arial',
       fontSize: 12,
-      color: '#ffffff',
-      stroke: '#000000',
+      color: nameColor,
+      stroke: strokeColor,
       strokeThickness: 2,
       align: 'center'
     }).setOrigin(0.5);
 
     container.add([sprite, nameText]);
     sprite.setScale(scale);
-    nameText.setVisible(false); // Hide names during spawn to prevent overlap
+    
+    // Show names immediately in demo mode, hide in real games during spawn
+    nameText.setVisible(isBot);
     sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     if (participant.colorHue !== undefined && !participant.isBot) {
       const hue = participant.colorHue / 360;
@@ -154,7 +177,7 @@ export class PlayerManager {
       ease: 'Bounce.easeOut'
     });
     const gameParticipant: GameParticipant = {
-      id: participant._id,
+      id: participantId,
       playerId: participant.playerId,
       container,
       sprite,
@@ -171,7 +194,11 @@ export class PlayerManager {
       spawnIndex: participant.spawnIndex
     };
 
-    this.participants.set(participant._id, gameParticipant);
+    this.participants.set(participantId, gameParticipant);
+    console.log('[PlayerManager] Participant added successfully', {
+      id: participantId,
+      newCount: this.participants.size
+    });
   }
 
   private calculateParticipantScale(betAmountInCoins: number): number {
