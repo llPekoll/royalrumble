@@ -41,15 +41,24 @@ export class Preloader extends Scene {
     }
 
     // Load all active maps for demo mode
+    console.log('[Preloader] Loading maps:', {
+      allMapsCount: allMapsData?.length || 0,
+      currentMapBackground: currentMapData?.background,
+      allMaps: allMapsData?.map(m => ({ name: m.name, background: m.background, assetPath: m.assetPath })) || []
+    });
+    
     if (allMapsData && allMapsData.length > 0) {
       allMapsData.forEach(map => {
         if (map.background && map.assetPath && map.background !== currentMapData?.background) {
+          console.log('[Preloader] Loading map texture:', map.background, 'from', map.assetPath);
           this.load.image(map.background, map.assetPath);
         }
       });
-    } else {
-      this.load.image('default-arena', '/maps/arena_volcano.png');
     }
+    
+    // Always load a guaranteed fallback
+    console.log('[Preloader] Loading fallback arena texture');
+    this.load.image('fallback-arena', '/maps/arena_volcano.png');
 
     // Load explosion sprite sheet
     this.load.atlas('explosion', 'vfx/Explosion.png', 'vfx/Explosion.json');
