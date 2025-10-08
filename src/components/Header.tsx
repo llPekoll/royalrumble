@@ -122,12 +122,12 @@ export function Header() {
                 <div className="flex flex-col items-center text-amber-300">
                   <div className="flex items-center gap-2">
                     <Map className="w-4 h-4 text-amber-400" />
-                    <div className="font-bold text-amber-300 text-sm uppercase tracking-wide">
+                    <div className="font-bold text-amber-300 text-lg uppercase tracking-wide">
                       {currentGame.map?.name || "Loading"}
                     </div>
                   </div>
                   {currentGame.isSmallGame && (
-                    <div className="text-amber-300 text-xs flex items-center gap-1 mt-1">
+                    <div className="text-amber-300 text-sm flex items-center gap-1 mt-1">
                       <span className="text-yellow-300">⚡</span>
                       Quick Game Mode: 3 phases (45 seconds total)
                     </div>
@@ -144,24 +144,24 @@ export function Header() {
                     title={playerData?.displayName || "Profile"}
                   >
                     <User className="h-5 w-5" />
-                    <span className="ml-2 hidden sm:inline">
+                    <span className="ml-2 hidden sm:inline text-lg">
                       {playerData?.displayName || "Profile"}
                     </span>
                   </Button>
 
                   <div className="bg-gradient-to-r from-indigo-900/30 to-indigo-800/30 rounded-lg px-4 py-2 border border-indigo-600/50 backdrop-blur-sm shadow-lg shadow-indigo-500/20">
                     <div className="text-right">
-                      <div className="text-xs text-gray-400 mb-0.5">Wallet Balance</div>
-                      <div className="text-indigo-300 font-bold text-lg flex items-center justify-end">
+                      <div className="text-sm text-gray-400 mb-0.5">Wallet Balance</div>
+                      <div className="text-indigo-300 font-bold text-xl flex items-center justify-end">
                         {isLoadingBalance ? (
-                          <span className="text-sm">Loading...</span>
+                          <span className="text-lg">Loading...</span>
                         ) : balance !== null ? (
                           <>
                             {balance.toFixed(4)}{" "}
-                            <span className="text-indigo-400 ml-1 text-sm">SOL</span>
+                            <span className="text-indigo-400 ml-1 text-lg">SOL</span>
                           </>
                         ) : (
-                          <span className="text-sm">--</span>
+                          <span className="text-lg">--</span>
                         )}
                       </div>
                     </div>

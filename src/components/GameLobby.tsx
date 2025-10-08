@@ -185,7 +185,7 @@ export function GameLobby() {
   if (!currentGame) {
     return (
       <div className="space-y-4">
-        <Card className="p-6 text-center bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700">
+        {/*<Card className="p-6 text-center bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700">
           <Gamepad2 className="w-12 h-12 mx-auto mb-3 text-blue-400 animate-pulse" />
           <h2 className="text-xl font-bold mb-2">Waiting for Players</h2>
           <p className="text-gray-400 mb-4">
@@ -194,13 +194,13 @@ export function GameLobby() {
           <p className="text-sm text-gray-500 mb-4">
             Game will begin when you place your first bet
           </p>
-        </Card>
-        
+        </Card>*/}
+
         {/* Character Selection - allows first player to start the game */}
         <CharacterSelection
           onParticipantAdded={handleParticipantAdded}
         />
-        
+
         {/* Multi-Participant Control */}
         <MultiParticipantPanel />
       </div>

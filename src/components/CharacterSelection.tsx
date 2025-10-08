@@ -89,8 +89,8 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       return;
     }
 
-    if (amount > gameCoins/100000) {
-      toast.error(`Insufficient SOL. You have ${gameCoins/100000} SOL`);
+    if (amount > gameCoins / 100000) {
+      toast.error(`Insufficient SOL. You have ${gameCoins / 100000} SOL`);
       return;
     }
 
@@ -144,7 +144,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           {/* Player participant count indicator */}
           {playerParticipantCount > 0 && (
             <div className="mb-2 text-center">
-              <span className="text-xs text-amber-400 uppercase tracking-wide">
+              <span className="text-sm text-amber-400 uppercase tracking-wide">
                 You have {playerParticipantCount} participant{playerParticipantCount > 1 ? 's' : ''} in this game
               </span>
             </div>
@@ -161,10 +161,10 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
                 />
               </div>
               <div>
-                <p className="text-amber-100 font-bold text-sm uppercase tracking-wide">
+                <p className="text-amber-100 font-bold text-xl uppercase tracking-wide">
                   {currentCharacter.name}
                 </p>
-                <p className="text-amber-400 text-xs">Ready for battle</p>
+                <p className="text-amber-400 text-base">Ready for battle</p>
               </div>
             </div>
             <button
@@ -179,9 +179,9 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
 
         {/* Betting Section */}
         <div className="p-3 space-y-3">
-          <div className="flex items-center justify-between text-xs uppercase tracking-wide">
+          <div className="flex items-center justify-between text-lg uppercase tracking-wide">
             <span className="text-amber-400">Your Bet</span>
-            <span className="text-amber-300">{gameCoins/100000} Sol</span>
+            <span className="text-amber-300">{gameCoins / 100000} Sol</span>
           </div>
 
           <div className="relative">
@@ -201,19 +201,19 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           <div className="grid grid-cols-3 gap-1">
             <button
               onClick={() => handleQuickBet(0.1)}
-              className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
+              className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-lg font-bold transition-colors"
             >
               0.1 Sol
             </button>
             <button
               onClick={() => handleQuickBet(0.5)}
-              className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
+              className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-lg font-bold transition-colors"
             >
               0.5 Sol
             </button>
             <button
               onClick={() => handleQuickBet(1)}
-              className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-xs font-bold transition-colors"
+              className="py-1.5 bg-amber-800/30 hover:bg-amber-700/40 border border-amber-600/50 rounded text-amber-300 text-lg font-bold transition-colors"
             >
               1 Sol
             </button>
@@ -223,9 +223,9 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           <button
             onClick={() => void handlePlaceBet()}
             disabled={isSubmitting || !currentGame || currentGame.status !== "waiting"}
-            className={`w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-sm transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
+            className={`w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
-            {isSubmitting ? "Placing..." : "Place Bet"}
+            {isSubmitting ? "Inserting..." : "Insert coin"}
           </button>
         </div>
       </div>
