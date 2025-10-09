@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { ProfileDialog } from "./ProfileDialog";
 import { PrivyWalletButton } from "./PrivyWalletButton";
+import { SoundControl } from "./SoundControl";
 import { toast } from "sonner";
 import { User, Map } from "lucide-react";
 import { generateRandomName } from "../lib/nameGenerator";
@@ -134,6 +135,9 @@ export function Header() {
                   )}
                 </div>
               )}
+
+              {/* Sound Control */}
+              <SoundControl />
 
               {connected && (
                 <>

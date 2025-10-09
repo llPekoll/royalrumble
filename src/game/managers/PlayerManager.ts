@@ -111,20 +111,12 @@ export class PlayerManager {
     let textureKey = characterKey;
     if (!this.scene.textures.exists(characterKey)) {
       textureKey = "warrior";
-
-      if (!this.scene.textures.exists("warrior")) {
-        if (!this.scene.textures.exists("fallback-sprite")) {
-          this.scene.add
-            .graphics()
-            .fillStyle(0x00ff00, 1)
-            .fillRect(0, 0, 32, 32)
-            .generateTexture("fallback-sprite", 32, 32);
-        }
-        textureKey = "fallback-sprite";
-      }
     }
 
     const sprite = this.scene.add.sprite(0, 0, textureKey);
+
+    // Set sprite origin to bottom-center for consistent positioning
+    sprite.setOrigin(0.5, 1.0);
 
     if (targetX > this.centerX) {
       sprite.setFlipX(true);
@@ -135,11 +127,26 @@ export class PlayerManager {
       sprite.play(animKey);
     }
 
-    // Apply base 5x multiplier + bet scaling
+    // Apply base 5x multiplier + bet scaling FIRST
     const betScale = participant.size || this.calculateParticipantScale(participant.betAmount);
     const scale = betScale * this.BASE_SCALE_MULTIPLIER;
-    const spriteHeight = 32 * scale;
-    const nameYOffset = spriteHeight / 2 + 30;
+    sprite.setScale(scale);
+    sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+    // Character-specific Y offset adjustments (scales with sprite size)
+    // These values are in original sprite pixels and will be scaled automatically
+    const spriteOffsetsInPixels: { [key: string]: number } = {
+      male: 48, // Transparent space at bottom in original sprite
+      orc: 42, // Transparent space at bottom in original sprite
+      soldier: 42, // Transparent space at bottom in original sprite
+      // Add other characters here if needed
+    };
+    const offsetPixels = spriteOffsetsInPixels[textureKey] || 0;
+    const scaledOffset = offsetPixels * scale;
+    sprite.setY(scaledOffset);
+
+    // With bottom-origin sprite, name goes below with consistent gap
+    const nameYOffset = 10; // Fixed gap below sprite bottom
 
     // Style bot names differently
     const isBot = participant.isBot && !participant.playerId;
@@ -157,12 +164,12 @@ export class PlayerManager {
       })
       .setOrigin(0.5);
 
-    container.add([sprite, nameText]);
-    sprite.setScale(scale);
-
     // Show names immediately in demo mode, hide in real games during spawn
     nameText.setVisible(isBot);
-    sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+    // Add sprite first, then name text (render order matters)
+    container.add(sprite);
+    container.add(nameText);
     if (participant.colorHue !== undefined && !participant.isBot) {
       const hue = participant.colorHue / 360;
       const tint = Phaser.Display.Color.HSVToRGB(hue, 0.3, 1.0).color;
@@ -185,7 +192,7 @@ export class PlayerManager {
       targets: container,
       y: targetY,
       duration: 1000,
-      ease: "Bounce.easeOut",
+      ease: "Cubic.easeOut", // Smooth landing with minimal bounce
       onComplete: () => {
         // Wait 1 second then play sand step sound when character hits the ground
         this.scene.time.delayedCall(1000, () => {

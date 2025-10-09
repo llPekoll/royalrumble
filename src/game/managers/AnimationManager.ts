@@ -36,8 +36,8 @@ export class AnimationManager {
   private celebrationObjects: Phaser.GameObjects.GameObject[] = [];
 
   clearCelebration() {
-    console.log('[AnimationManager] Clearing celebration objects:', this.celebrationObjects.length);
-    this.celebrationObjects.forEach(obj => {
+    console.log("[AnimationManager] Clearing celebration objects:", this.celebrationObjects.length);
+    this.celebrationObjects.forEach((obj) => {
       if (obj && obj.active) {
         obj.destroy();
       }
@@ -60,7 +60,7 @@ export class AnimationManager {
 
         // Scale up the explosion for dramatic effect
         explosion.setScale(2 + Math.random());
-        explosion.setDepth(150);
+        explosion.setDepth(500); // On top of everything
 
         // Play explosion animation
         if (this.scene.anims.exists("explosion")) {
@@ -124,7 +124,7 @@ export class AnimationManager {
         align: "center",
       })
       .setOrigin(0.5)
-      .setDepth(200);
+      .setDepth(600);
 
     // Winner name below
     const nameText = this.scene.add
@@ -243,7 +243,7 @@ export class AnimationManager {
     const explosion = this.scene.add.sprite(this.centerX, this.centerY, "explosion");
 
     explosion.setScale(15); // 5x bigger (was 3, now 15)
-    explosion.setDepth(150);
+    explosion.setDepth(500); // On top of everything
     if (this.scene.anims.exists("explosion")) {
       explosion.play("explosion");
     }
@@ -352,6 +352,11 @@ export class AnimationManager {
 
       // Only explode eliminated participants, leave the winner alone
       if (!participant.eliminated) return;
+
+      // Hide the name text immediately for eliminated participants
+      if (participant.nameText) {
+        participant.nameText.setVisible(false);
+      }
 
       // Calculate angle from center to participant
       const dx = participant.container.x - this.centerX;
@@ -540,7 +545,7 @@ export class AnimationManager {
 
         const explosion = this.scene.add.sprite(x, y, "explosion");
         explosion.setScale(1.5);
-        explosion.setDepth(120);
+        explosion.setDepth(500); // On top of everything
         if (this.scene.anims.exists("explosion")) {
           explosion.play("explosion");
         }
@@ -750,7 +755,7 @@ export class AnimationManager {
     const explosion = this.scene.add.sprite(this.centerX, this.centerY, "explosion");
 
     explosion.setScale(4);
-    explosion.setDepth(150);
+    explosion.setDepth(500); // On top of everything
     if (this.scene.anims.exists("explosion")) {
       explosion.play("explosion");
     }
