@@ -1,7 +1,7 @@
 
 # dependencies
 /node_modules
-
+/target
 # testing
 /coverage
 /dist

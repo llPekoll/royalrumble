@@ -1,41 +1,23 @@
+// Cron job configuration for the Domin8 game progression
 import { cronJobs } from "convex/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Main game loop - check for new games every 3 seconds
+// Main game progression cron job
+// Runs every 15 seconds to check for games that need progression
 crons.interval(
-  "game loop",
-  { seconds: 3 },
-  internal.games.gameLoop
+  "game-progression-check",
+  { seconds: 15 },
+  internal.gameManager.checkAndProgressGames
 );
 
-// Process blockchain calls for winner determination every 5 seconds
-crons.interval(
-  "process blockchain calls",
-  { seconds: 5 },
-  internal.games.processBlockchainCalls
-);
+// Health monitoring cron job
+// Runs every minute to monitor system health
+crons.interval("health-check", { seconds: 60 }, internal.monitoring.systemHealthCheck);
 
-// Process transaction queue every 30 seconds
-crons.interval(
-  "process transaction queue",
-  { seconds: 30 },
-  api.solana.processTransactionQueue
-);
-
-// Clean up old completed transactions every hour
-crons.cron(
-  "cleanup old transactions",
-  "0 * * * *", // Every hour
-  api.transactions.cleanupOldTransactions
-);
-
-// Clean up old completed games every 6 hours
-crons.cron(
-  "cleanup old games",
-  "0 */6 * * *", // Every 6 hours
-  internal.games.cleanupOldGames
-);
+// Cleanup old events cron job
+// Runs every hour to clean up old game events (keep last 7 days)
+crons.interval("cleanup-old-events", { minutes: 60 }, internal.cleanup.cleanupOldEvents);
 
 export default crons;
