@@ -88,22 +88,11 @@ export class AnimationManager {
   }
 
   addWinnerCelebration(winnerPlayer: GameParticipant, winner: any) {
-    console.log("[AnimationManager] 🎊 addWinnerCelebration called!", {
-      winnerPlayer,
-      winner,
-      centerX: this.centerX,
-      centerY: this.centerY,
-    });
-
-    // Add throne behind winner
-    console.log("[AnimationManager] Creating throne...");
     const throne = this.scene.add.image(this.centerX, this.centerY, "throne");
     throne.setDepth(90); // Behind winner (winner is at ~100+)
     throne.setScale(2);
-
     throne.setAlpha(0);
 
-    // Fade in throne
     this.scene.tweens.add({
       targets: throne,
       alpha: 1,
@@ -111,9 +100,6 @@ export class AnimationManager {
       ease: "Power2",
     });
 
-    console.log("[AnimationManager] Throne created at depth:", throne.depth);
-
-    // Victory text above winner
     const victoryText = this.scene.add
       .text(this.centerX, this.centerY - 120, "🏆 WINNER! 🏆", {
         fontFamily: "Arial Black",
@@ -356,13 +342,11 @@ export class AnimationManager {
     participants.forEach((participant) => {
       if (!participant.container || !participant.container.active) return;
 
-      // Only explode eliminated participants, leave the winner alone
-      if (!participant.eliminated) return;
-
-      // Hide the name text immediately for eliminated participants
       if (participant.nameText) {
         participant.nameText.setVisible(false);
       }
+      // Only explode eliminated participants, leave the winner alone
+      if (!participant.eliminated) return;
 
       // Change sprite anchor to center for better rotation physics
       // Store the current Y position before changing origin
