@@ -186,6 +186,17 @@ export class PlayerManager {
       y: targetY,
       duration: 1000,
       ease: "Bounce.easeOut",
+      onComplete: () => {
+        // Wait 1 second then play sand step sound when character hits the ground
+        this.scene.time.delayedCall(1000, () => {
+          try {
+            console.log(`[PlayerManager] Playing sand-step sound for ${participantId}`);
+            this.scene.sound.play("sand-step", { volume: 0.4 });
+          } catch (e) {
+            console.error("[PlayerManager] Failed to play sand-step sound:", e);
+          }
+        });
+      },
     });
     const gameParticipant: GameParticipant = {
       id: participantId,
@@ -380,14 +391,21 @@ export class PlayerManager {
   }
 
   showResults(gameState: any) {
-    // Find winner - check for winnerId in game state
+    // Find winner - get directly from PlayerManager using winnerId
     const winnerId = gameState.winnerId;
-    const winner = gameState.participants?.find((p: any) => p._id === winnerId);
 
-    if (winner) {
+    console.log("[PlayerManager] showResults called", {
+      winnerId,
+      participantIds: Array.from(this.participants.keys()),
+      hasWinner: this.participants.has(winnerId),
+    });
+
+    const winnerParticipant = this.participants.get(winnerId);
+
+    if (winnerParticipant) {
       // Hide all other participants first
       this.participants.forEach((participant, id) => {
-        if (id !== winner._id) {
+        if (id !== winnerId) {
           // Fade out losers
           this.scene.tweens.add({
             targets: participant.container,
@@ -400,41 +418,41 @@ export class PlayerManager {
         }
       });
 
-      const winnerParticipant = this.participants.get(winner._id);
-      if (winnerParticipant) {
-        // Move winner to center of screen
-        this.scene.tweens.add({
-          targets: winnerParticipant.container,
-          x: this.centerX,
-          y: this.centerY,
-          duration: 1000,
-          ease: "Power2.easeInOut",
-        });
+      // Move winner to center of screen
+      this.scene.tweens.add({
+        targets: winnerParticipant.container,
+        x: this.centerX,
+        y: this.centerY,
+        duration: 1000,
+        ease: "Power2.easeInOut",
+      });
 
-        // Scale up the winner sprite
-        this.scene.tweens.add({
-          targets: winnerParticipant.sprite,
-          scaleX: winnerParticipant.sprite.scaleX * 2,
-          scaleY: winnerParticipant.sprite.scaleY * 2,
-          duration: 1000,
-          ease: "Back.easeOut",
-        });
+      // Scale up the winner sprite
+      this.scene.tweens.add({
+        targets: winnerParticipant.sprite,
+        scaleX: winnerParticipant.sprite.scaleX * 2,
+        scaleY: winnerParticipant.sprite.scaleY * 2,
+        duration: 1000,
+        ease: "Back.easeOut",
+      });
 
-        // Make winner golden
-        winnerParticipant.sprite.setTint(0xffd700);
-        winnerParticipant.nameText.setColor("#ffd700");
-        winnerParticipant.nameText.setFontSize(20);
-        winnerParticipant.nameText.setStroke("#000000", 4);
+      // Make winner golden
+      winnerParticipant.sprite.setTint(0xffd700);
+      winnerParticipant.nameText.setColor("#ffd700");
+      winnerParticipant.nameText.setFontSize(20);
+      winnerParticipant.nameText.setStroke("#000000", 4);
 
-        // Victory animation
-        const victoryAnimKey = `${winnerParticipant.characterKey}-idle`;
-        if (this.scene.anims.exists(victoryAnimKey)) {
-          winnerParticipant.sprite.play(victoryAnimKey);
-        }
-
-        return winnerParticipant;
+      // Victory animation
+      const victoryAnimKey = `${winnerParticipant.characterKey}-idle`;
+      if (this.scene.anims.exists(victoryAnimKey)) {
+        winnerParticipant.sprite.play(victoryAnimKey);
       }
+
+      console.log("[PlayerManager] Returning winner participant:", winnerParticipant.id);
+      return winnerParticipant;
     }
+
+    console.error("[PlayerManager] Winner participant not found for ID:", winnerId);
     return null;
   }
 

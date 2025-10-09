@@ -58,9 +58,16 @@ export class Preloader extends Scene {
     }
 
     // Load VFX assets
-    this.load.atlas('explosion', 'vfx/Explosion.png', 'vfx/Explosion.json');
-    this.load.atlas('blood', 'vfx/blood_spritesheet.png', 'vfx/blood_spritesheet.json');
-    this.load.image('logo', 'logo.webp');
+    this.load.atlas("explosion", "vfx/Explosion.png", "vfx/Explosion.json");
+    this.load.atlas("blood", "vfx/blood_spritesheet.png", "vfx/blood_spritesheet.json");
+    this.load.image("logo", "logo.webp");
+
+    // Load winner throne
+    this.load.image("throne", "misc/throne.png");
+
+    // Load sound effects
+    this.load.audio("sand-step", "sounds/sand-step-1.mp3");
+    this.load.audio("battle-theme", "sounds/battleThemeA.mp3");
   }
 
   create() {

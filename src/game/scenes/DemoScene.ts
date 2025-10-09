@@ -29,6 +29,9 @@ export class DemoScene extends Scene {
   private demoMap: any = null;
   private participants: any[] = [];
 
+  private battleMusic: Phaser.Sound.BaseSound | null = null;
+  private audioUnlocked: boolean = false;
+
   constructor() {
     super("DemoScene");
   }
@@ -53,6 +56,46 @@ export class DemoScene extends Scene {
 
     this.scale.on("resize", () => this.handleResize(), this);
     EventBus.emit("current-scene-ready", this);
+
+    // Set up audio unlock on first user interaction
+    this.setupAudioUnlock();
+  }
+
+  private setupAudioUnlock() {
+    // Try to start music immediately (will work if user already interacted)
+    this.tryStartMusic();
+
+    // Also listen for any input to unlock audio
+    if (!this.audioUnlocked) {
+      this.input.once('pointerdown', () => {
+        console.log('[DemoScene] User interaction detected, unlocking audio');
+        this.audioUnlocked = true;
+
+        // Resume audio context
+        if (this.sound.context) {
+          this.sound.context.resume().then(() => {
+            console.log('[DemoScene] Audio context resumed');
+            this.tryStartMusic();
+          });
+        }
+      });
+    }
+  }
+
+  private tryStartMusic() {
+    console.log('[DemoScene] Attempting to start battle music');
+    if (!this.battleMusic) {
+      try {
+        this.battleMusic = this.sound.add('battle-theme', {
+          volume: 0.2,
+          loop: true
+        });
+        this.battleMusic.play();
+        console.log('[DemoScene] ✅ Battle music started successfully');
+      } catch (e) {
+        console.error('[DemoScene] ❌ Failed to start battle music:', e);
+      }
+    }
   }
 
   handleResize() {
@@ -119,6 +162,8 @@ export class DemoScene extends Scene {
 
     // After 3 seconds: Show winner celebration
     this.time.delayedCall(3000, () => {
+      console.log('[DemoScene] 🎉 Starting winner celebration for:', winner);
+
       const demoGameState = {
         status: "results",
         winnerId: winner._id || winner.id,
@@ -129,9 +174,14 @@ export class DemoScene extends Scene {
       // Show winner with PlayerManager (scales up, golden tint, etc.)
       const winnerParticipant = this.playerManager.showResults(demoGameState);
 
+      console.log('[DemoScene] Winner participant from showResults:', winnerParticipant);
+
       // Add celebration animations (confetti, text, bounce)
       if (winnerParticipant) {
+        console.log('[DemoScene] 🏆 Calling addWinnerCelebration');
         this.animationManager.addWinnerCelebration(winnerParticipant, winner);
+      } else {
+        console.error('[DemoScene] ❌ No winner participant returned!');
       }
     });
   }
@@ -141,12 +191,26 @@ export class DemoScene extends Scene {
       count: this.participants.length
     });
     this.playerManager.clearParticipants();
+    this.animationManager.clearCelebration();
     this.participants = [];
   }
 
   public transitionToRealGame() {
     this.clearDemoParticipants();
+    // Stop battle music when transitioning to real game
+    if (this.battleMusic) {
+      this.battleMusic.stop();
+      this.battleMusic = null;
+    }
     this.scene.start("RoyalRumble");
+  }
+
+  shutdown() {
+    // Clean up music when scene is shut down
+    if (this.battleMusic) {
+      this.battleMusic.stop();
+      this.battleMusic = null;
+    }
   }
 
   update() { }
