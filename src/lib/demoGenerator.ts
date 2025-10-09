@@ -173,11 +173,7 @@ export function generateRandomSpawnIntervals(
   }
 
   // Calculate cumulative times for logging
-  let cumulative = 0;
-  const cumulativeTimes = spawnTimes.map((interval) => {
-    cumulative += interval;
-    return cumulative;
-  });
+  const cumulative = 0;
 
   console.log("[DemoGenerator] ✅ Spawn schedule:", {
     totalDuration: Math.round(cumulative),

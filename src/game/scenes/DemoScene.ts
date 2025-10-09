@@ -30,7 +30,6 @@ export class DemoScene extends Scene {
   private participants: any[] = [];
 
   private battleMusic: Phaser.Sound.BaseSound | null = null;
-  private audioUnlocked: boolean = false;
 
   constructor() {
     super("DemoScene");
