@@ -10,7 +10,7 @@ import {
 } from "../lib/demoGenerator";
 import { IRefPhaserGame } from "../PhaserGame";
 import { DEMO_TIMINGS, getRandomArenaDuration } from "../config/demoTimings";
-import { generateShuffledEllipsePositions, SPAWN_CONFIG } from "../config/spawnConfig";
+import { generateRandomEllipsePositions } from "../config/spawnConfig";
 
 export type DemoPhase = "spawning" | "arena" | "results";
 
@@ -70,19 +70,17 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
       setSpawnedParticipants([]);
       setPhase("spawning");
 
-      // Generate shuffled positions around ellipse with jitter
-      console.log("[DemoGameManager] 🔄 GENERATING NEW SHUFFLED POSITIONS - Game Start");
-      const newShuffledPositions = generateShuffledEllipsePositions(
+      // Generate truly random positions around ellipse with collision avoidance
+      console.log("[DemoGameManager] 🎲 GENERATING RANDOM POSITIONS - New Game");
+      const newRandomPositions = generateRandomEllipsePositions(
         DEMO_PARTICIPANT_COUNT,
-        SPAWN_CONFIG.DEFAULT_SPAWN_RADIUS,
         512, // centerX
         384 // centerY
       );
-      setShuffledPositions(newShuffledPositions);
-      console.log("[DemoGameManager] First position in new game:", {
-        x: Math.round(newShuffledPositions[0].x),
-        y: Math.round(newShuffledPositions[0].y),
-      });
+      setShuffledPositions(newRandomPositions);
+      console.log("[DemoGameManager] First 3 positions in new game:",
+        newRandomPositions.slice(0, 3).map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))
+      );
 
       isSpawningRef.current = false;
       spawnCountRef.current = 0;
@@ -100,14 +98,14 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     }
   }, [isActive]);
 
-  // Demo countdown timer (30s spawning phase)
+  // Demo countdown timer (20s spawning phase)
   useEffect(() => {
     if (!isActive || phase !== "spawning") return;
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          // Transition to arena phase after 30 seconds
+          // Transition to arena phase after 20 seconds
           setPhase("arena");
           return 0;
         }
@@ -118,7 +116,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     return () => clearInterval(timer);
   }, [isActive, phase]);
 
-  // Gradually spawn demo bots with random intervals during the 30-second spawning phase
+  // Gradually spawn demo bots with random intervals during the 20-second spawning phase
   useEffect(() => {
     if (!isActive || phase !== "spawning" || !demoMap || !characters || characters.length === 0 || shuffledPositions.length === 0) {
       console.log("[DemoGameManager] Spawn effect early return - conditions not met", {
@@ -279,14 +277,13 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         setCountdown(DEMO_TIMINGS.SPAWNING_PHASE_DURATION / 1000); // Convert to seconds
         setSpawnedParticipants([]);
 
-        // Regenerate shuffled positions for next game
-        const newShuffledPositions = generateShuffledEllipsePositions(
+        // Regenerate random positions for next game
+        const newRandomPositions = generateRandomEllipsePositions(
           DEMO_PARTICIPANT_COUNT,
-          SPAWN_CONFIG.DEFAULT_SPAWN_RADIUS,
           512,
           384
         );
-        setShuffledPositions(newShuffledPositions);
+        setShuffledPositions(newRandomPositions);
 
         isSpawningRef.current = false;
         spawnCountRef.current = 0;

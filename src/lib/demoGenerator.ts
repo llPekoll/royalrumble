@@ -99,18 +99,21 @@ export function generateDemoWinner(participants: DemoParticipant[]): DemoPartici
 }
 
 /**
- * Generate random spawn intervals for bots
- * Creates varied timing instead of fixed 1.5s intervals
- * Total time will be approximately 30 seconds
+ * Generate random spawn intervals with dramatic variance
+ * Creates unpredictable timing: fast bursts, long pauses, everything in between
+ * Characters spawn over ~20 seconds with totally random timing
+ *
+ * @param count - Number of spawns to generate
+ * @param totalTime - Total time available (default 20 seconds)
+ * @returns Array of cumulative spawn times in milliseconds
  */
 export function generateRandomSpawnIntervals(
   count: number,
   totalTime: number = DEMO_TIMINGS.SPAWNING_PHASE_DURATION
 ): number[] {
-  const intervals: number[] = [];
-
   // For testing with small counts, spawn immediately
   if (count <= 3) {
+    const intervals: number[] = [];
     for (let i = 0; i < count; i++) {
       intervals.push(DEMO_TIMINGS.TEST_MODE_SPAWN_INTERVAL * (i + 1));
     }
@@ -120,28 +123,63 @@ export function generateRandomSpawnIntervals(
   const minInterval = DEMO_TIMINGS.BOT_SPAWN_MIN_INTERVAL;
   const maxInterval = DEMO_TIMINGS.BOT_SPAWN_MAX_INTERVAL;
 
+  // Generate spawn timings with clustering behavior
+  // Some spawns will be close together (bursts), others far apart (dramatic pauses)
+  const spawnTimes: number[] = [];
   let remainingTime = totalTime;
   let remainingBots = count;
 
+  console.log(`[DemoGenerator] 🎲 Generating spawn intervals for ${count} bots over ${totalTime}ms`);
+
   for (let i = 0; i < count; i++) {
     if (i === count - 1) {
-      // Last bot uses remaining time
-      intervals.push(remainingTime);
+      // Last bot: use all remaining time to fill the 20 seconds
+      spawnTimes.push(remainingTime);
+      console.log(`[DemoGenerator] Bot ${i}: ${Math.round(remainingTime)}ms (final bot)`);
     } else {
       // Calculate average time per remaining bot
       const avgTime = remainingTime / remainingBots;
 
-      // Generate random interval around the average
-      const randomInterval = Math.min(
-        maxInterval,
-        Math.max(minInterval, avgTime + (Math.random() - 0.5) * 1000)
-      );
+      // Create dramatic variance: 30% chance of burst spawn, 20% chance of long pause
+      let randomInterval: number;
+      const roll = Math.random();
 
-      intervals.push(randomInterval);
+      if (roll < 0.3) {
+        // BURST: 30% chance - spawn very quickly (0.2-0.8s)
+        randomInterval = minInterval + Math.random() * 600;
+        console.log(`[DemoGenerator] Bot ${i}: ${Math.round(randomInterval)}ms ⚡ BURST`);
+      } else if (roll < 0.5) {
+        // LONG PAUSE: 20% chance - dramatic gap (2-3s)
+        randomInterval = Math.max(minInterval, Math.min(maxInterval, avgTime * 1.5 + Math.random() * 1000));
+        console.log(`[DemoGenerator] Bot ${i}: ${Math.round(randomInterval)}ms 🕐 PAUSE`);
+      } else {
+        // NORMAL: 50% chance - varied timing around average (0.5-2s)
+        randomInterval = Math.max(
+          minInterval,
+          Math.min(maxInterval, avgTime + (Math.random() - 0.5) * avgTime * 1.2)
+        );
+        console.log(`[DemoGenerator] Bot ${i}: ${Math.round(randomInterval)}ms 🎯 NORMAL`);
+      }
+
+      spawnTimes.push(randomInterval);
       remainingTime -= randomInterval;
       remainingBots--;
     }
   }
 
-  return intervals;
+  // Calculate cumulative times for logging
+  let cumulative = 0;
+  const cumulativeTimes = spawnTimes.map((interval) => {
+    cumulative += interval;
+    return cumulative;
+  });
+
+  console.log("[DemoGenerator] ✅ Spawn schedule:", {
+    totalDuration: Math.round(cumulative),
+    firstSpawn: Math.round(spawnTimes[0]),
+    lastSpawn: Math.round(spawnTimes[spawnTimes.length - 1]),
+    averageInterval: Math.round(cumulative / count),
+  });
+
+  return spawnTimes;
 }

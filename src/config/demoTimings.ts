@@ -1,21 +1,22 @@
 /**
  * Demo Mode Timing Configuration
  * All timings are in milliseconds unless otherwise specified
+ * NEW: More dramatic variance for unpredictable feel
  */
 
 export const DEMO_TIMINGS = {
-  // Spawning Phase
-  SPAWNING_PHASE_DURATION: 30000, // 30 seconds
-  BOT_SPAWN_MIN_INTERVAL: 800, // Minimum 0.8 seconds between spawns
-  BOT_SPAWN_MAX_INTERVAL: 2500, // Maximum 2.5 seconds between spawns
+  // Spawning Phase - characters spawn over 20 seconds
+  SPAWNING_PHASE_DURATION: 20000, // 20 seconds total (was 30s)
+  BOT_SPAWN_MIN_INTERVAL: 200, // Minimum 0.2 seconds between spawns (faster bursts)
+  BOT_SPAWN_MAX_INTERVAL: 3000, // Maximum 3 seconds between spawns (longer gaps)
 
   // Arena Phase
-  ARENA_PHASE_MIN_DURATION: 2000, // Minimum 5 seconds
-  ARENA_PHASE_MAX_DURATION: 3000, // Maximum 8 seconds
-  ARENA_PHASE_RANDOM_RANGE: 1000, // Random additional time (0-3 seconds)
+  ARENA_PHASE_MIN_DURATION: 2000, // Minimum 2 seconds
+  ARENA_PHASE_MAX_DURATION: 3000, // Maximum 3 seconds
+  ARENA_PHASE_RANDOM_RANGE: 1000, // Random additional time (0-1 seconds)
 
   // Results Phase
-  RESULTS_PHASE_DURATION: 15000, // 15 seconds (10 more seconds to enjoy celebration)
+  RESULTS_PHASE_DURATION: 15000, // 15 seconds (enjoy the celebration)
 
   // Testing (for small bot counts)
   TEST_MODE_SPAWN_INTERVAL: 1000, // 1 second per bot when testing with ≤3 bots
@@ -23,7 +24,7 @@ export const DEMO_TIMINGS = {
 
 /**
  * Calculate random arena phase duration
- * @returns Duration in milliseconds (5000-8000ms)
+ * @returns Duration in milliseconds (2000-3000ms)
  */
 export function getRandomArenaDuration(): number {
   return (
