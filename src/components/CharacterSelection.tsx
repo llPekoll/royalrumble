@@ -4,9 +4,9 @@ import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
-import { Id } from "../../convex/_generated/dataModel";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
+import { sendDepositBetTransaction, validateBetAmount } from "../lib/solana-deposit-bet";
 
 interface Character {
   _id: string;
@@ -44,8 +44,8 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     (p: any) => p.walletAddress === walletAddress
   ).length || 0;
 
-  // Mutation to join game (creates game if needed)
-  const joinGame = useMutation(api.games.joinGame);
+  // Mutation to join game (creates game if needed) - keeping as fallback
+  const joinGameFallback = useMutation(api.games.joinGame);
 
   const gameCoins = playerData?.gameCoins || 0;
 
@@ -103,17 +103,32 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     setIsSubmitting(true);
 
     try {
-      // Use joinGame which will create a game if none exists
-      await joinGame({
-        walletAddress: publicKey.toString(),
-        betAmount: amount * 100, // Convert to game coins (0.1 SOL = 10 coins)
-        characterId: currentCharacter._id as Id<"characters">,
+      // Validate bet amount using Solana program constraints
+      const validation = validateBetAmount(amount);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
+      // Create transaction instruction for deposit_bet
+      const { instruction } = await sendDepositBetTransaction({
+        walletPublicKey: publicKey.toString(),
+        betAmountSol: amount
       });
+
+      // Use Privy wallet to sign and send transaction
+      if (!playerData.wallet) {
+        throw new Error('Wallet not found');
+      }
+
+      const signature = await playerData.wallet.signAndSendTransaction(instruction);
+      console.log('Transaction successful:', signature);
+      toast.success(`Bet placed! Signature: ${signature.slice(0, 8)}...`);
+      
       setBetAmount("0.1");
 
       // Auto-reroll to a new character for the next participant
       if (allCharacters && allCharacters.length > 0) {
-        const availableCharacters = allCharacters.filter(c => c._id !== currentCharacter._id);
+        const availableCharacters = allCharacters.filter((c: any) => c._id !== currentCharacter._id);
         if (availableCharacters.length > 0) {
           const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
           setCurrentCharacter(randomChar);
@@ -123,12 +138,45 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       onParticipantAdded?.();
 
     } catch (error) {
-      console.error("Failed to add participant:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to join game");
+      console.error("Failed to place bet:", error);
+      
+      // If Solana transaction fails, show detailed error but also try fallback for testing
+      if (error instanceof Error && error.message.includes('Transaction')) {
+        toast.error(`Solana transaction failed: ${error.message}`);
+        
+        // Optional: Fallback to Convex for testing during development
+        try {
+          console.log("Falling back to Convex mutation for testing...");
+          await joinGameFallback({
+            walletAddress: publicKey.toString(),
+            betAmount: amount * 100, // Convert to game coins (0.1 SOL = 10 coins)
+            characterId: currentCharacter._id,
+          });
+          
+          toast.success("Bet placed successfully via fallback!");
+          setBetAmount("0.1");
+
+          // Auto-reroll character
+          if (allCharacters && allCharacters.length > 0) {
+            const availableCharacters = allCharacters.filter((c: any) => c._id !== currentCharacter._id);
+            if (availableCharacters.length > 0) {
+              const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+              setCurrentCharacter(randomChar);
+            }
+          }
+
+          onParticipantAdded?.();
+        } catch (fallbackError) {
+          toast.error("Both Solana and fallback failed");
+          console.error("Fallback also failed:", fallbackError);
+        }
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to place bet");
+      }
     } finally {
       setIsSubmitting(false);
     }
-  }, [connected, publicKey, currentGame, playerData, currentCharacter, betAmount, gameCoins, joinGame, onParticipantAdded, allCharacters]);
+  }, [connected, publicKey, currentGame, playerData, currentCharacter, betAmount, gameCoins, joinGameFallback, onParticipantAdded, allCharacters]);
 
   // Don't render if not connected or no character
   // Allow rendering when no game exists OR game is in waiting phase
