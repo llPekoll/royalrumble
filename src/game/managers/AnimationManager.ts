@@ -126,9 +126,15 @@ export class AnimationManager {
       .setOrigin(0.5)
       .setDepth(600);
 
-    // Winner name below
+    // Apply pixelated rendering - render at lower resolution for crisp pixel art look
+    victoryText.postFX.addPixelate();
+
+    // Get screen height for positioning at bottom
+    const screenHeight = this.scene.game.config.height as number;
+
+    // Winner name at bottom of screen
     const nameText = this.scene.add
-      .text(this.centerX, this.centerY + 100, winner.displayName, {
+      .text(this.centerX, screenHeight - 80, winner.displayName, {
         fontFamily: "Arial Black",
         fontSize: 32,
         color: "#ffffff",
@@ -139,9 +145,9 @@ export class AnimationManager {
       .setOrigin(0.5)
       .setDepth(200);
 
-    // Bet amount text
+    // Bet amount text at bottom
     const betText = this.scene.add
-      .text(this.centerX, this.centerY + 140, `Bet: ${winner.betAmount} coins`, {
+      .text(this.centerX, screenHeight - 40, `Bet: ${winner.betAmount} coins`, {
         fontFamily: "Arial",
         fontSize: 20,
         color: "#00ff00",
