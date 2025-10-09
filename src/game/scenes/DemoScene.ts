@@ -69,27 +69,7 @@ export class DemoScene extends Scene {
       console.log("[DemoScene] Sound is muted from user preference");
     }
 
-    // Try to start music immediately (will work if user already interacted)
     this.tryStartMusic();
-
-    // Also listen for any input to unlock audio
-    if (!this.audioUnlocked) {
-      this.input.once("pointerdown", () => {
-        console.log("[DemoScene] User interaction detected, unlocking audio");
-        this.audioUnlocked = true;
-
-        // Resume audio context
-        if (this.sound.context) {
-          this.sound.context.resume().then(() => {
-            console.log("[DemoScene] Audio context resumed");
-            // Reapply mute state after resuming
-            const shouldMute = localStorage.getItem("sound-muted") === "true";
-            this.sound.mute = shouldMute;
-            this.tryStartMusic();
-          });
-        }
-      });
-    }
   }
 
   private tryStartMusic() {

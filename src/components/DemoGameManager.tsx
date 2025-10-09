@@ -9,7 +9,7 @@ import {
   DEMO_PARTICIPANT_COUNT,
 } from "../lib/demoGenerator";
 import { IRefPhaserGame } from "../PhaserGame";
-import { DEMO_TIMINGS, getRandomArenaDuration } from "../config/demoTimings";
+import { DEMO_TIMINGS } from "../config/demoTimings";
 import { generateRandomEllipsePositions } from "../config/spawnConfig";
 
 export type DemoPhase = "spawning" | "arena" | "results";
@@ -78,8 +78,9 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         384 // centerY
       );
       setShuffledPositions(newRandomPositions);
-      console.log("[DemoGameManager] First 3 positions in new game:",
-        newRandomPositions.slice(0, 3).map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))
+      console.log(
+        "[DemoGameManager] First 3 positions in new game:",
+        newRandomPositions.slice(0, 3).map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))
       );
 
       isSpawningRef.current = false;
@@ -118,13 +119,20 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
   // Gradually spawn demo bots with random intervals during the 20-second spawning phase
   useEffect(() => {
-    if (!isActive || phase !== "spawning" || !demoMap || !characters || characters.length === 0 || shuffledPositions.length === 0) {
+    if (
+      !isActive ||
+      phase !== "spawning" ||
+      !demoMap ||
+      !characters ||
+      characters.length === 0 ||
+      shuffledPositions.length === 0
+    ) {
       console.log("[DemoGameManager] Spawn effect early return - conditions not met", {
         isActive,
         phase,
         hasDemoMap: !!demoMap,
-        hasCharacters: characters?.length > 0,
-        hasPositions: shuffledPositions.length > 0
+        hasCharacters: characters!.length > 0,
+        hasPositions: shuffledPositions.length > 0,
       });
       return;
     }
@@ -175,7 +183,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
         // Get next position from shuffled state
         if (!shuffledPositions || shuffledPositions.length === 0) {
-          console.error('[DemoGameManager] No shuffled positions available!');
+          console.error("[DemoGameManager] No shuffled positions available!");
           return;
         }
 
@@ -205,8 +213,8 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
           spawnIndex: currentSpawnIndex,
           participantPosition: newParticipant.position,
           matchesShuffledArray:
-            Math.round(newParticipant.position.x) === Math.round(nextPosition.x) &&
-            Math.round(newParticipant.position.y) === Math.round(nextPosition.y),
+            Math.round(newParticipant.position!.x) === Math.round(nextPosition.x) &&
+            Math.round(newParticipant.position!.y) === Math.round(nextPosition.y),
           totalSpawned: spawnCountRef.current,
         });
 
@@ -278,11 +286,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         setSpawnedParticipants([]);
 
         // Regenerate random positions for next game
-        const newRandomPositions = generateRandomEllipsePositions(
-          DEMO_PARTICIPANT_COUNT,
-          512,
-          384
-        );
+        const newRandomPositions = generateRandomEllipsePositions(DEMO_PARTICIPANT_COUNT, 512, 384);
         setShuffledPositions(newRandomPositions);
 
         isSpawningRef.current = false;

@@ -40,7 +40,7 @@ export interface DemoParticipant {
   betAmount: number;
   size: number;
   power: number;
-  position: { x: number; y: number };
+  position?: { x: number; y: number };
   spawnIndex: number;
   eliminated: false;
   isBot: true;
@@ -51,7 +51,7 @@ export function generateDemoParticipant(
   totalCount: number,
   dbCharacters: any[], // Accept database characters as parameter
   mapConfig?: { spawnRadius: number; centerX: number; centerY: number },
-  position: { x: number; y: number } // Position is now required (pre-calculated)
+  position?: { x: number; y: number } // Position is now required (pre-calculated)
 ): DemoParticipant {
   // Random bot name (ensure unique)
   const name =
@@ -129,7 +129,9 @@ export function generateRandomSpawnIntervals(
   let remainingTime = totalTime;
   let remainingBots = count;
 
-  console.log(`[DemoGenerator] 🎲 Generating spawn intervals for ${count} bots over ${totalTime}ms`);
+  console.log(
+    `[DemoGenerator] 🎲 Generating spawn intervals for ${count} bots over ${totalTime}ms`
+  );
 
   for (let i = 0; i < count; i++) {
     if (i === count - 1) {
@@ -150,7 +152,10 @@ export function generateRandomSpawnIntervals(
         console.log(`[DemoGenerator] Bot ${i}: ${Math.round(randomInterval)}ms ⚡ BURST`);
       } else if (roll < 0.5) {
         // LONG PAUSE: 20% chance - dramatic gap (2-3s)
-        randomInterval = Math.max(minInterval, Math.min(maxInterval, avgTime * 1.5 + Math.random() * 1000));
+        randomInterval = Math.max(
+          minInterval,
+          Math.min(maxInterval, avgTime * 1.5 + Math.random() * 1000)
+        );
         console.log(`[DemoGenerator] Bot ${i}: ${Math.round(randomInterval)}ms 🕐 PAUSE`);
       } else {
         // NORMAL: 50% chance - varied timing around average (0.5-2s)

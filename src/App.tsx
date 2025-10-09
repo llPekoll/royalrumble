@@ -23,9 +23,9 @@ export default function App() {
 
   // State to track demo info for UI (passed from DemoGameManager via ref or context if needed)
   const [demoState, setDemoState] = useState({
-    phase: 'spawning' as 'spawning' | 'arena' | 'results',
+    phase: "spawning" as "spawning" | "arena" | "results",
     countdown: 30,
-    participantCount: 0
+    participantCount: 0,
   });
 
   // Mutation to trigger blockchain call
@@ -34,21 +34,21 @@ export default function App() {
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
     // Handle scene based on whether we're in demo or real game
-    if (scene.scene.key === 'RoyalRumble' && currentGame) {
+    if (scene.scene.key === "RoyalRumble" && currentGame) {
       // Real game scene - update with game state
       (scene as any).updateGameState?.(currentGame);
 
       // Set up blockchain call event listener
-      scene.events.off('triggerBlockchainCall');
-      scene.events.on('triggerBlockchainCall', () => {
+      scene.events.off("triggerBlockchainCall");
+      scene.events.on("triggerBlockchainCall", async () => {
         if (currentGame && currentGame._id) {
-          console.log('Triggering blockchain call from frontend');
-          triggerBlockchainCall({ gameId: currentGame._id });
+          console.log("Triggering blockchain call from frontend");
+          await triggerBlockchainCall({ gameId: currentGame._id });
         }
       });
-    } else if (scene.scene.key === 'DemoScene') {
+    } else if (scene.scene.key === "DemoScene") {
       // Demo scene is ready - DemoGameManager will handle it
-      console.log('DemoScene is ready');
+      console.log("DemoScene is ready");
     }
   };
 
@@ -59,30 +59,30 @@ export default function App() {
     const scene = phaserRef.current.scene;
 
     // If real game starts and we're in demo scene, switch to game scene
-    if (currentGame && scene.scene.key === 'DemoScene') {
-      console.log('Switching from DemoScene to RoyalRumble');
-      scene.scene.start('RoyalRumble');
+    if (currentGame && scene.scene.key === "DemoScene") {
+      console.log("Switching from DemoScene to RoyalRumble");
+      scene.scene.start("RoyalRumble");
     }
 
     // If no game and we're in game scene, switch back to demo
-    if (!currentGame && scene.scene.key === 'RoyalRumble') {
-      console.log('Switching from RoyalRumble to DemoScene');
-      scene.scene.start('DemoScene');
+    if (!currentGame && scene.scene.key === "RoyalRumble") {
+      console.log("Switching from RoyalRumble to DemoScene");
+      scene.scene.start("DemoScene");
     }
 
     // Update game scene with real game state
-    if (currentGame && scene.scene.key === 'RoyalRumble') {
+    if (currentGame && scene.scene.key === "RoyalRumble") {
       (scene as any).updateGameState?.(currentGame);
 
       // Detect new players joining in real-time
-      if (currentGame.status === 'waiting' && currentGame.participants) {
-        const newPlayers = currentGame.participants.filter((p: any) =>
-          !previousParticipants.some(prev => prev._id === p._id)
+      if (currentGame.status === "waiting" && currentGame.participants) {
+        const newPlayers = currentGame.participants.filter(
+          (p: any) => !previousParticipants.some((prev) => prev._id === p._id)
         );
 
         // Spawn each new player with special effects
         newPlayers.forEach((player: any) => {
-          console.log('New player joined:', player.displayName);
+          console.log("New player joined:", player.displayName);
           (scene as any).spawnPlayerImmediately?.(player);
         });
 
@@ -95,9 +95,9 @@ export default function App() {
   // Show blockchain dialog when blockchain call is pending
   useEffect(() => {
     if (currentGame) {
-      const isSmallGame = currentGame.isSmallGame || (currentGame.participants?.length < 8);
-      const isArenaPhase = currentGame.status === 'arena';
-      const isBlockchainCallPending = currentGame.blockchainCallStatus === 'pending';
+      const isSmallGame = currentGame.isSmallGame || currentGame.participants?.length < 8;
+      const isArenaPhase = currentGame.status === "arena";
+      const isBlockchainCallPending = currentGame.blockchainCallStatus === "pending";
 
       // Show dialog for small games in arena phase while blockchain call is pending
       setShowBlockchainDialog(isSmallGame && isArenaPhase && isBlockchainCallPending);
@@ -109,11 +109,7 @@ export default function App() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Demo Game Manager - handles all demo logic */}
-      <DemoGameManager
-        isActive={isDemoMode}
-        phaserRef={phaserRef}
-        onStateChange={setDemoState}
-      />
+      <DemoGameManager isActive={isDemoMode} phaserRef={phaserRef} onStateChange={setDemoState} />
 
       {/* Full Background Phaser Game */}
       <div className="fixed inset-0 w-full h-full">

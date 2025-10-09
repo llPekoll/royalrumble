@@ -256,16 +256,10 @@ export class PlayerManager {
     const totalParticipants = Math.max(8, spawnIndex + 1);
     const angle = (spawnIndex / totalParticipants) * Math.PI * 2;
 
-    // Use centralized config for variations
-    const radiusVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.RADIUS_VARIATION / 2.5); // Scale down for real games
-    const angleVariation = (Math.random() - 0.5) * (SPAWN_CONFIG.ANGLE_VARIATION / 2); // Scale down for real games
-    const finalRadius = spawnRadius + radiusVariation;
-    const finalAngle = angle + angleVariation;
-
-    // calculateEllipsePosition now includes jitter by default
+    // calculateEllipsePosition handles all randomness via jitter
     const position = calculateEllipsePosition(
-      finalAngle,
-      finalRadius,
+      angle,
+      spawnRadius,
       this.centerX,
       this.centerY,
       true

@@ -139,9 +139,9 @@ export function PrivyWalletButton({
     toast.info("Profile page coming soon");
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     setDropdownOpen(false);
-    logout();
+    await logout();
   };
 
   if (!isMounted || !ready) {
@@ -221,7 +221,7 @@ export function PrivyWalletButton({
               </button>
               <div className="border-t border-gray-700 my-1" />
               <button
-                onClick={handleDisconnect}
+                onClick={() => void handleDisconnect()}
                 className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700 flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
@@ -276,7 +276,7 @@ export function PrivyWalletButton({
             </button>
             <div className="border-t border-gray-700 my-1" />
             <button
-              onClick={handleDisconnect}
+              onClick={() => void handleDisconnect()}
               className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-gray-700 flex items-center gap-3 transition-colors"
             >
               <LogOut className="w-4 h-4" />
