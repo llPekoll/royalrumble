@@ -13,13 +13,27 @@ Royal Rumble is a multiplayer battle game where:
 
 ## 🚀 Quick Start
 
+### Local Development with Convex
+
 ```bash
 # Install dependencies using Bun (required)
 bun install
 
-# Run development server
+# Start Convex backend locally with Docker Compose
+docker-compose up
+
+# In a separate terminal, run the development server
 bun dev
 ```
+
+**Important Notes:**
+- **Docker Compose**: Required to run Convex backend locally with database support
+- **Database Target**: The `docker-compose.yml` includes a PostgreSQL database connection (see `POSTGRES_URL` in environment variables)
+- **Ports Used**:
+  - `3210` - Convex backend
+  - `3211` - Site proxy
+  - `6791` - Convex dashboard
+- **Dashboard Access**: Visit `http://localhost:6791` to access the Convex dashboard after starting Docker Compose
 
 ## 🎲 Game Mechanics
 
@@ -95,12 +109,24 @@ The game adapts based on the number of participants:
 
 ## 🔧 Development
 
+### Prerequisites
+- [Bun](https://bun.sh/) - JavaScript runtime
+- [Docker](https://www.docker.com/) & Docker Compose - For local Convex backend
+
+### Development Commands
+
 ```bash
 # Install dependencies
 bun install
 
-# Run development server
+# Start Convex backend (required for development)
+docker-compose up
+
+# Run development server (in a separate terminal)
 bun run dev
+
+# Stop Convex backend
+docker-compose down
 
 # Build for production
 bun run build
@@ -111,6 +137,13 @@ bun run lint
 # Type checking
 bun run typecheck
 ```
+
+### Local Convex Backend
+The project uses Docker Compose to run a local Convex backend with PostgreSQL database support. This provides:
+- Full offline development capabilities
+- Local database for testing
+- Convex dashboard at `http://localhost:6791`
+- Backend API at `http://localhost:3210`
 
 ## 🎯 Game Rules
 

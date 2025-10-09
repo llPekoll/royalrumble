@@ -47,11 +47,11 @@ export class DemoScene extends Scene {
 
     // Initialize background immediately with preloaded demo map
     if (demoMapData?.background) {
-      console.log('[DemoScene] Initializing background with:', demoMapData.background);
+      console.log("[DemoScene] Initializing background with:", demoMapData.background);
       this.backgroundManager.setTexture(demoMapData.background);
       this.demoMap = demoMapData;
     } else {
-      console.warn('[DemoScene] No demo map data available!');
+      console.warn("[DemoScene] No demo map data available!");
     }
 
     this.scale.on("resize", () => this.handleResize(), this);
@@ -62,19 +62,29 @@ export class DemoScene extends Scene {
   }
 
   private setupAudioUnlock() {
+    // Check if sound should be muted from localStorage
+    const shouldMute = localStorage.getItem("sound-muted") === "true";
+    if (shouldMute) {
+      this.sound.mute = true;
+      console.log("[DemoScene] Sound is muted from user preference");
+    }
+
     // Try to start music immediately (will work if user already interacted)
     this.tryStartMusic();
 
     // Also listen for any input to unlock audio
     if (!this.audioUnlocked) {
-      this.input.once('pointerdown', () => {
-        console.log('[DemoScene] User interaction detected, unlocking audio');
+      this.input.once("pointerdown", () => {
+        console.log("[DemoScene] User interaction detected, unlocking audio");
         this.audioUnlocked = true;
 
         // Resume audio context
         if (this.sound.context) {
           this.sound.context.resume().then(() => {
-            console.log('[DemoScene] Audio context resumed');
+            console.log("[DemoScene] Audio context resumed");
+            // Reapply mute state after resuming
+            const shouldMute = localStorage.getItem("sound-muted") === "true";
+            this.sound.mute = shouldMute;
             this.tryStartMusic();
           });
         }
@@ -83,17 +93,17 @@ export class DemoScene extends Scene {
   }
 
   private tryStartMusic() {
-    console.log('[DemoScene] Attempting to start battle music');
+    console.log("[DemoScene] Attempting to start battle music, muted:", this.sound.mute);
     if (!this.battleMusic) {
       try {
-        this.battleMusic = this.sound.add('battle-theme', {
+        this.battleMusic = this.sound.add("battle-theme", {
           volume: 0.2,
-          loop: true
+          loop: true,
         });
         this.battleMusic.play();
-        console.log('[DemoScene] ✅ Battle music started successfully');
+        console.log("[DemoScene] ✅ Battle music started successfully");
       } catch (e) {
-        console.error('[DemoScene] ❌ Failed to start battle music:', e);
+        console.error("[DemoScene] ❌ Failed to start battle music:", e);
       }
     }
   }
@@ -107,7 +117,7 @@ export class DemoScene extends Scene {
   }
 
   public setDemoMap(mapData: any) {
-    console.log('[DemoScene] setDemoMap called:', mapData?.name);
+    console.log("[DemoScene] setDemoMap called:", mapData?.name);
     this.demoMap = mapData;
 
     if (mapData?.background) {
@@ -118,21 +128,25 @@ export class DemoScene extends Scene {
   public spawnDemoParticipant(participant: any) {
     const participantId = participant._id || participant.id;
 
-    console.log('[DemoScene] spawnDemoParticipant called', {
+    console.log("[DemoScene] spawnDemoParticipant called", {
       id: participantId,
       currentParticipantsCount: this.participants.length,
-      playerManagerCount: this.playerManager.getParticipants().size
+      playerManagerCount: this.playerManager.getParticipants().size,
     });
 
     // Check if participant already exists to prevent double spawning
     if (this.playerManager.getParticipant(participantId)) {
-      console.warn(`[DemoScene] Participant ${participantId} already exists in PlayerManager, skipping duplicate spawn`);
+      console.warn(
+        `[DemoScene] Participant ${participantId} already exists in PlayerManager, skipping duplicate spawn`
+      );
       return;
     }
 
     // Also check in our local participants array
-    if (this.participants.find(p => (p._id || p.id) === participantId)) {
-      console.warn(`[DemoScene] Participant ${participantId} found in local array, skipping duplicate spawn`);
+    if (this.participants.find((p) => (p._id || p.id) === participantId)) {
+      console.warn(
+        `[DemoScene] Participant ${participantId} found in local array, skipping duplicate spawn`
+      );
       return;
     }
 
@@ -144,6 +158,12 @@ export class DemoScene extends Scene {
 
   public moveParticipantsToCenter() {
     this.playerManager.moveParticipantsToCenter();
+
+    // After 2 seconds of running, start continuous explosions
+    this.time.delayedCall(1000, () => {
+      console.log("[DemoScene] 💥 Starting continuous explosions after 2 seconds of running");
+      this.animationManager.createContinuousExplosions();
+    });
   }
 
   public showDemoWinner(winner: any) {
@@ -162,7 +182,7 @@ export class DemoScene extends Scene {
 
     // After 3 seconds: Show winner celebration
     this.time.delayedCall(3000, () => {
-      console.log('[DemoScene] 🎉 Starting winner celebration for:', winner);
+      console.log("[DemoScene] 🎉 Starting winner celebration for:", winner);
 
       const demoGameState = {
         status: "results",
@@ -174,21 +194,21 @@ export class DemoScene extends Scene {
       // Show winner with PlayerManager (scales up, golden tint, etc.)
       const winnerParticipant = this.playerManager.showResults(demoGameState);
 
-      console.log('[DemoScene] Winner participant from showResults:', winnerParticipant);
+      console.log("[DemoScene] Winner participant from showResults:", winnerParticipant);
 
       // Add celebration animations (confetti, text, bounce)
       if (winnerParticipant) {
-        console.log('[DemoScene] 🏆 Calling addWinnerCelebration');
+        console.log("[DemoScene] 🏆 Calling addWinnerCelebration");
         this.animationManager.addWinnerCelebration(winnerParticipant, winner);
       } else {
-        console.error('[DemoScene] ❌ No winner participant returned!');
+        console.error("[DemoScene] ❌ No winner participant returned!");
       }
     });
   }
 
   public clearDemoParticipants() {
-    console.log('[DemoScene] Clearing demo participants', {
-      count: this.participants.length
+    console.log("[DemoScene] Clearing demo participants", {
+      count: this.participants.length,
     });
     this.playerManager.clearParticipants();
     this.animationManager.clearCelebration();
@@ -213,5 +233,5 @@ export class DemoScene extends Scene {
     }
   }
 
-  update() { }
+  update() {}
 }

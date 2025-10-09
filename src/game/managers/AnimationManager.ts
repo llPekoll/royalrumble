@@ -358,6 +358,14 @@ export class AnimationManager {
         participant.nameText.setVisible(false);
       }
 
+      // Change sprite anchor to center for better rotation physics
+      // Store the current Y position before changing origin
+      const currentY = participant.sprite.y;
+      participant.sprite.setOrigin(0.5, 0.5); // Center origin for rotation
+      // Adjust Y position to compensate for origin change (half sprite height)
+      const spriteHeight = 32 * participant.sprite.scaleY;
+      participant.sprite.setY(currentY - spriteHeight / 2);
+
       // Calculate angle from center to participant
       const dx = participant.container.x - this.centerX;
       const dy = participant.container.y - this.centerY;
@@ -766,5 +774,44 @@ export class AnimationManager {
 
     // Biggest screen shake
     this.scene.cameras.main.shake(500, 0.03);
+  }
+
+  createContinuousExplosions() {
+    // Create multiple explosions continuously on top of everything
+    const explosionCount = 5; // Total number of explosions
+    const delayBetweenExplosions = 200; // Time between each explosion in ms
+
+    for (let i = 0; i < explosionCount; i++) {
+      this.scene.time.delayedCall(i * delayBetweenExplosions, () => {
+        // Random position across the entire screen
+        const gameWidth = this.scene.game.config.width as number;
+        const gameHeight = this.scene.game.config.height as number;
+
+        const explosion = this.scene.add.sprite(gameWidth / 2, gameHeight / 2 - 100, "explosion");
+
+        // Random scale for variety (1.5x to 4x)
+        explosion.setScale(7 + Math.random() * 2.5);
+        explosion.setDepth(1600); // On top of everything else
+
+        if (this.scene.anims.exists("explosion")) {
+          explosion.play("explosion");
+        }
+
+        explosion.once("animationcomplete", () => {
+          explosion.destroy();
+        });
+
+        // Occasional screen shake for some explosions
+        if (i % 3 === 0) {
+          this.scene.cameras.main.shake(150, 0.008);
+        }
+      });
+    }
+
+    console.log(
+      "[AnimationManager] 💥 Started continuous explosion sequence with",
+      explosionCount,
+      "explosions"
+    );
   }
 }
