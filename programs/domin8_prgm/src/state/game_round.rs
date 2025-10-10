@@ -7,11 +7,8 @@ use crate::state::PlayerEntry;
 pub enum GameStatus {
     Idle,                        // Waiting for first player
     Waiting,                     // Accepting bets
-    // Removed for small games MVP:
-    // AwaitingFinalistRandomness,  // Waiting for Switchboard VRF for finalist selection
-    // SpectatorBetting,           // Eliminated players betting on finalists
     AwaitingWinnerRandomness,   // Waiting for Switchboard VRF for winner selection
-    Finished,                   // Game complete, ready for payout/reset
+    Finished,                    // Game concluded, winner selected
 }
 
 impl GameStatus {
@@ -29,10 +26,6 @@ pub struct GameRound {
     // Players (max 64)
     pub players: Vec<PlayerEntry>,
     
-    // Removed for small games MVP:
-    // Large game specific data
-    // pub finalists: Vec<Pubkey>,                    // Max 4 finalists
-    // pub spectator_bets: Vec<SpectatorBet>,
     
     // Pot tracking
     pub initial_pot: u64,
@@ -66,12 +59,6 @@ impl GameRound {
         self.players.len() >= 2
     }
 
-    // Removed for small games MVP:
-    // /// Check if the game is a large game (8-64 players)
-    // pub fn is_large_game(&self) -> bool {
-    //     self.players.len() >= 8
-    // }
-
     /// Get player by wallet address
     pub fn find_player(&self, wallet: &Pubkey) -> Option<&PlayerEntry> {
         self.players.iter().find(|p| p.wallet == *wallet)
@@ -81,12 +68,6 @@ impl GameRound {
     pub fn find_player_mut(&mut self, wallet: &Pubkey) -> Option<&mut PlayerEntry> {
         self.players.iter_mut().find(|p| p.wallet == *wallet)
     }
-
-    // Removed for small games MVP:
-    // /// Check if a wallet is a finalist
-    // pub fn is_finalist(&self, wallet: &Pubkey) -> bool {
-    //     self.finalists.contains(wallet)
-    // }
 
     /// Calculate total pot value (just initial pot in small games MVP)
     pub fn total_pot(&self) -> u64 {

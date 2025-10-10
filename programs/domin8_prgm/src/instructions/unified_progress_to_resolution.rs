@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use orao_solana_vrf::cpi::accounts::RequestV2;
 use orao_solana_vrf::program::OraoVrf;
 use orao_solana_vrf::cpi::request_v2;
-use crate::state::{GameRound, GameConfig, GameStatus, PlayerEntry};
+use crate::state::{GameRound, GameConfig, GameStatus};
 use crate::errors::Domin8Error;
 use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED};
 

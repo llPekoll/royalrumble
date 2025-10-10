@@ -51,18 +51,8 @@ pub fn initialize(
     // Set default durations for small games
     config.small_game_duration_config = GameDurationConfig {
         waiting_phase_duration: DEFAULT_SMALL_GAME_WAITING_DURATION,
-        elimination_phase_duration: 0, // Not used in small games
-        spectator_betting_duration: 0, // Not used in small games
-        resolving_phase_duration: DEFAULT_SMALL_GAME_RESOLVING_DURATION,
     };
     
-    // Set default durations for large games
-    config.large_game_duration_config = GameDurationConfig {
-        waiting_phase_duration: DEFAULT_LARGE_GAME_WAITING_DURATION,
-        elimination_phase_duration: DEFAULT_LARGE_GAME_ELIMINATION_DURATION,
-        spectator_betting_duration: DEFAULT_LARGE_GAME_SPECTATOR_BETTING_DURATION,
-        resolving_phase_duration: DEFAULT_LARGE_GAME_RESOLVING_DURATION,
-    };
     
     // Initialize game round in idle state
     game_round.round_id = 0;
@@ -75,8 +65,11 @@ pub fn initialize(
     // game_round.spectator_pot = 0; // Removed for small games MVP
     game_round.winner = Pubkey::default();
     // game_round.finalist_randomness_account = Pubkey::default(); // Removed for small games MVP
-    game_round.winner_randomness_account = Pubkey::default();
-    game_round.randomness_commit_slot = 0;
+    
+    // ORAO VRF fields
+    game_round.vrf_request_pubkey = Pubkey::default();
+    game_round.vrf_seed = [0u8; 32];
+    game_round.randomness_fulfilled = false;
     
     msg!("Domin8 game initialized with authority: {}", ctx.accounts.authority.key());
     

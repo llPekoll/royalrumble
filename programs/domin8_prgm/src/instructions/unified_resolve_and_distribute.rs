@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::state::{GameRound, GameConfig, GameStatus, PlayerEntry};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED};
+use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, VAULT_SEED};
 
 #[derive(Accounts)]
 pub struct UnifiedResolveAndDistribute<'info> {
@@ -18,9 +18,16 @@ pub struct UnifiedResolveAndDistribute<'info> {
     )]
     pub config: Account<'info, GameConfig>,
     
-    /// The crank authority
+    /// The vault PDA that holds game funds
     #[account(
         mut,
+        seeds = [VAULT_SEED],
+        bump
+    )]
+    pub vault: SystemAccount<'info>,
+    
+    /// The crank authority
+    #[account(
         constraint = crank.key() == config.authority @ Domin8Error::Unauthorized
     )]
     pub crank: Signer<'info>,
@@ -35,11 +42,6 @@ pub struct UnifiedResolveAndDistribute<'info> {
         constraint = treasury.key() == config.treasury @ Domin8Error::InvalidTreasury
     )]
     pub treasury: SystemAccount<'info>,
-    
-    /// Winner's account (to be determined from VRF)
-    /// CHECK: Winner will be validated against game participants
-    #[account(mut)]
-    pub winner_account: AccountInfo<'info>,
     
     pub system_program: Program<'info, System>,
 }
@@ -72,43 +74,75 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     let player_refs: Vec<&PlayerEntry> = game_round.players.iter().collect();
     let winner_wallet = select_weighted_winner(&player_refs, randomness)?;
     
-    // Validate winner account matches the selected winner
-    require!(
-        ctx.accounts.winner_account.key() == winner_wallet,
-        Domin8Error::InvalidWinnerAccount
-    );
+    // Dynamically fetch the winner's account from remaining_accounts
+    let winner_account_info = ctx.remaining_accounts
+        .iter()
+        .find(|account| account.key == &winner_wallet)
+        .ok_or(Domin8Error::InvalidWinnerAccount)?;
     
     game_round.winner = winner_wallet;
     msg!("Winner selected: {}", winner_wallet);
     
     // 3. CALCULATE AND DISTRIBUTE WINNINGS IMMEDIATELY
     let total_pot = game_round.initial_pot;
-    let house_fee = (total_pot as u128 * ctx.accounts.config.house_fee_basis_points as u128 / 10000) as u64;
+    let house_fee = (total_pot as u128)
+        .checked_mul(ctx.accounts.config.house_fee_basis_points as u128)
+        .ok_or(Domin8Error::ArithmeticOverflow)?
+        .checked_div(10000)
+        .ok_or(Domin8Error::ArithmeticOverflow)? as u64;
     let winner_payout = total_pot.saturating_sub(house_fee);
     
     msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
     
     // Transfer to winner
     if winner_payout > 0 {
-        **ctx.accounts.crank.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
-        **ctx.accounts.winner_account.try_borrow_mut_lamports()? += winner_payout;
+        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
+        require!(
+            vault_lamports >= winner_payout,
+            Domin8Error::InsufficientFunds
+        );
+        
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = vault_lamports
+            .checked_sub(winner_payout)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        
+        let winner_lamports = winner_account_info.lamports();
+        **winner_account_info.try_borrow_mut_lamports()? = winner_lamports
+            .checked_add(winner_payout)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
     }
     
     // Transfer house fee to treasury
     if house_fee > 0 {
-        **ctx.accounts.crank.to_account_info().try_borrow_mut_lamports()? -= house_fee;
-        **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? += house_fee;
+        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
+        require!(
+            vault_lamports >= house_fee,
+            Domin8Error::InsufficientFunds
+        );
+        
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = vault_lamports
+            .checked_sub(house_fee)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        
+        let treasury_lamports = ctx.accounts.treasury.to_account_info().lamports();
+        **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? = treasury_lamports
+            .checked_add(house_fee)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
     }
     
     // 4. RESET GAME STATE FOR NEXT ROUND
     game_round.status = GameStatus::Idle;
     game_round.randomness_fulfilled = true;
-    game_round.round_id += 1; // Increment for next game
+    game_round.round_id = game_round.round_id
+        .checked_add(1)
+        .ok_or(Domin8Error::ArithmeticOverflow)?; // Increment for next game
     game_round.players.clear();
     game_round.initial_pot = 0;
     game_round.start_timestamp = 0;
     
-    msg!("Game {} completed and reset - ready for round {}", game_round.round_id - 1, game_round.round_id);
+    msg!("Game {} completed and reset - ready for round {}", 
+         game_round.round_id.saturating_sub(1), 
+         game_round.round_id);
     
     Ok(())
 }
@@ -138,7 +172,7 @@ fn select_weighted_winner(players: &[&PlayerEntry], randomness: u64) -> Result<P
     }
     
     // Calculate total weight
-    let total_weight: u64 = players.iter().map(|p| p.bet_amount).sum();
+    let total_weight: u64 = players.iter().map(|p| p.total_bet).sum();
     
     if total_weight == 0 {
         return Err(Domin8Error::InvalidBetAmount.into());
@@ -150,7 +184,7 @@ fn select_weighted_winner(players: &[&PlayerEntry], randomness: u64) -> Result<P
     // Find winner based on cumulative weights
     let mut cumulative = 0u64;
     for player in players {
-        cumulative = cumulative.saturating_add(player.bet_amount);
+        cumulative = cumulative.saturating_add(player.total_bet);
         if selection < cumulative {
             return Ok(player.wallet);
         }

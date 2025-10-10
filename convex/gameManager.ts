@@ -48,7 +48,7 @@ export const checkAndProgressGames = internalMutation({
       const gameId = `round_${gameRound.roundId}`;
       let gameState = await ctx.db
         .query("gameStates")
-        .withIndex("by_game_id", (q: { eq: (field: string, value: string) => any }) => q.eq("gameId", gameId))
+        .withIndex("by_game_id", (q) => q.eq("gameId", gameId))
         .first();
 
       if (!gameState) {
@@ -115,10 +115,6 @@ async function processGameStatus(
 
     case GameStatus.AwaitingWinnerRandomness:
       await handleWinnerRandomness(ctx, solanaClient, gameRound, gameState, now);
-      break;
-
-    case GameStatus.Finished:
-      await handleFinishedGame(ctx, solanaClient, gameRound, gameState, now);
       break;
 
     default:
@@ -242,66 +238,6 @@ async function handleWinnerRandomness(
   } else {
     // VRF not yet fulfilled, wait longer
     console.log(`ORAO VRF not yet fulfilled for game ${gameState.gameId}, waiting...`);
-  }
-}
-
-/**
- * Handle finished game - distribute winnings and reset
- */
-async function handleFinishedGame(
-  ctx: { db: any },
-  solanaClient: SolanaClient,
-  gameRound: any,
-  gameState: Doc<"gameStates">,
-  now: number
-) {
-  // Only try to distribute once
-  if (!gameState.resolvingPhaseEnd) {
-    return;
-  }
-
-  // Ensure we have a winner before distributing
-  if (!gameRound.winner || gameRound.winner.toString() === "11111111111111111111111111111111") {
-    console.error(`Cannot distribute winnings: no valid winner found for game ${gameState.gameId}`);
-    return;
-  }
-
-  console.log(
-    `Distributing winnings for completed game ${gameState.gameId} to winner ${gameRound.winner}`
-  );
-
-  try {
-    const txHash = await solanaClient.distributeWinningsAndReset(gameRound.winner);
-
-    await logGameEvent(ctx, gameState.gameId, "transaction_sent", {
-      success: true,
-      transactionHash: txHash,
-      transactionType: TRANSACTION_TYPES.DISTRIBUTE_WINNINGS,
-      fromStatus: GameStatus.Finished,
-      toStatus: GameStatus.Idle,
-      winner: gameRound.winner.toString(),
-    });
-
-    const confirmed = await solanaClient.confirmTransaction(txHash);
-    if (confirmed) {
-      await logGameEvent(ctx, gameState.gameId, "game_completed", {
-        success: true,
-        transactionHash: txHash,
-        winner: gameRound.winner.toString(),
-      });
-
-      // Mark this game as fully processed
-      await ctx.db.patch(gameState._id, {
-        status: "idle", // Ready for next game
-      });
-    }
-  } catch (error) {
-    console.error("Failed to distribute winnings:", error);
-    await logGameEvent(ctx, gameState.gameId, "transaction_failed", {
-      success: false,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      transactionType: TRANSACTION_TYPES.DISTRIBUTE_WINNINGS,
-    });
   }
 }
 
