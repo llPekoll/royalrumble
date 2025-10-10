@@ -29,7 +29,6 @@ import type * as monitoring from "../monitoring.js";
 import type * as players from "../players.js";
 import type * as privy from "../privy.js";
 import type * as solana from "../solana.js";
-import type * as transactionHandlers from "../transactionHandlers.js";
 import type * as transactions from "../transactions.js";
 
 /**
@@ -57,7 +56,6 @@ declare const fullApi: ApiFromModules<{
   players: typeof players;
   privy: typeof privy;
   solana: typeof solana;
-  transactionHandlers: typeof transactionHandlers;
   transactions: typeof transactions;
 }>;
 export declare const api: FilterApi<
