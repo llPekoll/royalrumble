@@ -1,6 +1,8 @@
 // Specific transaction handlers for Solana program interactions
 import { internalMutation } from "convex/server";
 import { v } from "convex/values";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { SolanaClient } from "./lib/solana";
 import { TRANSACTION_TYPES } from "./lib/types";
 
@@ -13,7 +15,7 @@ export const handleProgressToResolution = internalMutation({
     gameStateId: v.id("gameStates"),
     playersCount: v.number()
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: { gameId: string; gameStateId: Id<"gameStates">; playersCount: number }) => {
     const startTime = Date.now();
     
     try {
@@ -100,7 +102,7 @@ export const handleResolveWinner = internalMutation({
     randomnessAccount: v.string(),
     commitSlot: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: { gameId: string; gameStateId: Id<"gameStates">; randomnessAccount: string; commitSlot: number }) => {
     const startTime = Date.now();
     
     try {
@@ -193,7 +195,7 @@ export const handleDistributeWinnings = internalMutation({
     gameId: v.string(),
     gameStateId: v.id("gameStates"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: { gameId: string; gameStateId: Id<"gameStates"> }) => {
     const startTime = Date.now();
     
     try {

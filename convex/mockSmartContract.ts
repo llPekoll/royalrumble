@@ -123,12 +123,12 @@ export const mockInitializeGameFirstTime = mutation({
   args: {
     houseWallet: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (mockGameState !== null) {
       throw new Error("Game already initialized");
     }
 
-    mockGameState = initializeEmptyGameState(args.houseWallet);
+    mockGameState = initializeEmptyGameState(_args.houseWallet);
 
     return {
       success: true,
@@ -144,7 +144,7 @@ export const mockInitializeGameFirstTime = mutation({
 
 export const mockInitializeGame = mutation({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized. Call mockInitializeGameFirstTime first");
     }
@@ -182,7 +182,7 @@ export const mockPlaceEntryBet = mutation({
     playerWallet: v.string(),
     amount: v.number(), // SOL amount
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -191,7 +191,7 @@ export const mockPlaceEntryBet = mutation({
       throw new Error("Not in entry phase");
     }
 
-    if (args.amount < MIN_BET) {
+    if (_args.amount < MIN_BET) {
       throw new Error(`Bet too small. Minimum ${MIN_BET} SOL`);
     }
 
@@ -200,15 +200,15 @@ export const mockPlaceEntryBet = mutation({
     }
 
     // Record the bet
-    mockGameState.entryBets.push(args.amount);
-    mockGameState.entryPlayers.push(args.playerWallet);
+    mockGameState.entryBets.push(_args.amount);
+    mockGameState.entryPlayers.push(_args.playerWallet);
     mockGameState.entryRefunded.push(false);
-    mockGameState.entryPool += args.amount;
+    mockGameState.entryPool += _args.amount;
     mockGameState.entryBetCount++;
 
     return {
       success: true,
-      message: `Entry bet placed: ${args.amount} SOL`,
+      message: `Entry bet placed: ${_args.amount} SOL`,
       betIndex: mockGameState.entryBetCount - 1,
       totalPool: mockGameState.entryPool,
     };
@@ -225,7 +225,7 @@ export const mockPlaceSpectatorBet = mutation({
     amount: v.number(),
     targetIndex: v.number(), // Which top_four they're betting on (0-3)
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -234,7 +234,7 @@ export const mockPlaceSpectatorBet = mutation({
       throw new Error("Not in spectator phase");
     }
 
-    if (args.targetIndex < 0 || args.targetIndex > 3) {
+    if (_args.targetIndex < 0 || _args.targetIndex > 3) {
       throw new Error("Invalid target index (must be 0-3)");
     }
 
@@ -243,22 +243,22 @@ export const mockPlaceSpectatorBet = mutation({
     }
 
     // Check player is not in top 4
-    const playerEntryIndex = mockGameState.entryPlayers.indexOf(args.playerWallet);
+    const playerEntryIndex = mockGameState.entryPlayers.indexOf(_args.playerWallet);
     if (playerEntryIndex !== -1 && mockGameState.topFour.includes(playerEntryIndex)) {
       throw new Error("Cannot bet on yourself (you're in top 4)");
     }
 
     // Record the bet
-    mockGameState.spectatorBets.push(args.amount);
-    mockGameState.spectatorPlayers.push(args.playerWallet);
-    mockGameState.spectatorTargets.push(args.targetIndex);
+    mockGameState.spectatorBets.push(_args.amount);
+    mockGameState.spectatorPlayers.push(_args.playerWallet);
+    mockGameState.spectatorTargets.push(_args.targetIndex);
     mockGameState.spectatorRefunded.push(false);
-    mockGameState.spectatorPool += args.amount;
+    mockGameState.spectatorPool += _args.amount;
     mockGameState.spectatorBetCount++;
 
     return {
       success: true,
-      message: `Spectator bet placed: ${args.amount} SOL on position ${args.targetIndex}`,
+      message: `Spectator bet placed: ${_args.amount} SOL on position ${_args.targetIndex}`,
       betIndex: mockGameState.spectatorBetCount - 1,
       totalPool: mockGameState.spectatorPool,
     };
@@ -273,7 +273,7 @@ export const mockSetTopFour = mutation({
   args: {
     topFourPositions: v.array(v.number()), // [index1, index2, index3, index4]
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -282,19 +282,19 @@ export const mockSetTopFour = mutation({
       throw new Error("Cannot set top four in current phase");
     }
 
-    if (args.topFourPositions.length !== 4) {
+    if (_args.topFourPositions.length !== 4) {
       throw new Error("Must provide exactly 4 positions");
     }
 
     // Validate all positions
-    for (const pos of args.topFourPositions) {
+    for (const pos of _args.topFourPositions) {
       if (pos < 0 || pos >= mockGameState.entryBetCount) {
         throw new Error(`Invalid position ${pos}`);
       }
     }
 
     // Set top four
-    mockGameState.topFour = args.topFourPositions;
+    mockGameState.topFour = _args.topFourPositions;
     mockGameState.status = "SpectatorPhase";
     mockGameState.spectatorPhaseStart = Date.now();
     mockGameState.gameMode = "Long";
@@ -302,7 +302,7 @@ export const mockSetTopFour = mutation({
     return {
       success: true,
       message: "Top four set",
-      topFour: args.topFourPositions,
+      topFour: _args.topFourPositions,
     };
   },
 });
@@ -315,7 +315,7 @@ export const mockSetWinner = mutation({
   args: {
     winnerPosition: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -324,29 +324,29 @@ export const mockSetWinner = mutation({
       throw new Error("Not in selecting winner phase");
     }
 
-    if (args.winnerPosition < 0 || args.winnerPosition >= mockGameState.entryBetCount) {
+    if (_args.winnerPosition < 0 || _args.winnerPosition >= mockGameState.entryBetCount) {
       throw new Error("Invalid winner position");
     }
 
     // For long games, winner must be in top four
     if (mockGameState.gameMode === "Long") {
-      if (!mockGameState.topFour.includes(args.winnerPosition)) {
+      if (!mockGameState.topFour.includes(_args.winnerPosition)) {
         throw new Error("Winner must be in top four for long games");
       }
     }
 
     // Set winner
-    mockGameState.winner = args.winnerPosition;
+    mockGameState.winner = _args.winnerPosition;
     mockGameState.status = "Settled";
     mockGameState.lastGameEnd = Date.now();
 
-    const winnerWallet = mockGameState.entryPlayers[args.winnerPosition];
+    const winnerWallet = mockGameState.entryPlayers[_args.winnerPosition];
 
     return {
       success: true,
-      message: `Winner set: position ${args.winnerPosition}`,
+      message: `Winner set: position ${_args.winnerPosition}`,
       winnerWallet,
-      winnerBet: mockGameState.entryBets[args.winnerPosition],
+      winnerBet: mockGameState.entryBets[_args.winnerPosition],
     };
   },
 });
@@ -359,7 +359,7 @@ export const mockClaimEntryWinnings = mutation({
   args: {
     playerWallet: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -373,7 +373,7 @@ export const mockClaimEntryWinnings = mutation({
     }
 
     const winnerWallet = mockGameState.entryPlayers[mockGameState.winner];
-    if (args.playerWallet !== winnerWallet) {
+    if (_args.playerWallet !== winnerWallet) {
       throw new Error("Only the winner can claim entry winnings");
     }
 
@@ -398,7 +398,7 @@ export const mockClaimSpectatorWinnings = mutation({
   args: {
     playerWallet: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -426,7 +426,7 @@ export const mockClaimSpectatorWinnings = mutation({
       if (mockGameState.spectatorTargets[i] === winnerTopFourIndex) {
         totalWinningBets += mockGameState.spectatorBets[i];
 
-        if (mockGameState.spectatorPlayers[i] === args.playerWallet && !mockGameState.spectatorRefunded[i]) {
+        if (mockGameState.spectatorPlayers[i] === _args.playerWallet && !mockGameState.spectatorRefunded[i]) {
           playerBets += mockGameState.spectatorBets[i];
           playerBetIndices.push(i);
         }
@@ -462,7 +462,7 @@ export const mockClaimSpectatorWinnings = mutation({
 
 export const mockCollectHouseFees = mutation({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -498,7 +498,7 @@ export const mockCancelAndRefund = mutation({
   args: {
     playerWallet: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -511,7 +511,7 @@ export const mockCancelAndRefund = mutation({
 
     // Refund entry bets
     for (let i = 0; i < mockGameState.entryBetCount; i++) {
-      if (mockGameState.entryPlayers[i] === args.playerWallet && !mockGameState.entryRefunded[i]) {
+      if (mockGameState.entryPlayers[i] === _args.playerWallet && !mockGameState.entryRefunded[i]) {
         totalRefund += mockGameState.entryBets[i];
         mockGameState.entryRefunded[i] = true;
       }
@@ -543,7 +543,7 @@ export const mockCancelAndRefund = mutation({
 
 export const mockEmergencyWithdraw = mutation({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
@@ -595,12 +595,12 @@ export const mockSetGameStatus = mutation({
       v.literal("Cancelled")
     ),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     if (!mockGameState) {
       throw new Error("Game not initialized");
     }
-    mockGameState.status = args.status;
-    return { success: true, newStatus: args.status };
+    mockGameState.status = _args.status;
+    return { success: true, newStatus: _args.status };
   },
 });
 

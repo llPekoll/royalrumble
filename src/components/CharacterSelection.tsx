@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
@@ -9,7 +10,7 @@ import styles from "./ButtonShine.module.css";
 import { sendDepositBetTransaction, validateBetAmount } from "../lib/solana-deposit-bet";
 
 interface Character {
-  _id: string;
+  _id: Id<"characters">;
   name: string;
   description?: string;
 }
@@ -19,7 +20,7 @@ interface CharacterSelectionProps {
 }
 
 const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded }: CharacterSelectionProps) {
-  const { connected, publicKey } = usePrivyWallet();
+  const { connected, publicKey, wallet } = usePrivyWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,7 +79,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !playerData || !currentCharacter) {
+    if (!connected || !publicKey || !wallet || !playerData || !currentCharacter) {
       toast.error("Please wait for data to load");
       return;
     }
@@ -116,11 +117,11 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       });
 
       // Use Privy wallet to sign and send transaction
-      if (!playerData.wallet) {
+      if (!wallet) {
         throw new Error('Wallet not found');
       }
 
-      const signature = await playerData.wallet.signAndSendTransaction(instruction);
+      const signature = await wallet.signAndSendTransaction(instruction);
       console.log('Transaction successful:', signature);
       toast.success(`Bet placed! Signature: ${signature.slice(0, 8)}...`);
       
@@ -150,7 +151,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           await joinGameFallback({
             walletAddress: publicKey.toString(),
             betAmount: amount * 100, // Convert to game coins (0.1 SOL = 10 coins)
-            characterId: currentCharacter._id,
+            characterId: currentCharacter._id as string,
           });
           
           toast.success("Bet placed successfully via fallback!");
@@ -176,7 +177,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     } finally {
       setIsSubmitting(false);
     }
-  }, [connected, publicKey, currentGame, playerData, currentCharacter, betAmount, gameCoins, joinGameFallback, onParticipantAdded, allCharacters]);
+  }, [connected, publicKey, wallet, currentGame, playerData, currentCharacter, betAmount, gameCoins, joinGameFallback, onParticipantAdded, allCharacters]);
 
   // Don't render if not connected or no character
   // Allow rendering when no game exists OR game is in waiting phase

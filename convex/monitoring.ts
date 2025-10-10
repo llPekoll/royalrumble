@@ -1,6 +1,8 @@
 // System monitoring and maintenance functions
 import { internalMutation, query } from "convex/server";
 import { v } from "convex/values";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { SolanaClient } from "./lib/solana";
 
 /**
@@ -8,7 +10,7 @@ import { SolanaClient } from "./lib/solana";
  */
 export const systemHealthCheck = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: MutationCtx) => {
     const now = Date.now();
     
     // Check Solana RPC health
@@ -28,7 +30,7 @@ export const systemHealthCheck = internalMutation({
 /**
  * Check Solana RPC connectivity and performance
  */
-async function checkSolanaRPCHealth(ctx: any, now: number) {
+async function checkSolanaRPCHealth(ctx: MutationCtx, now: number) {
   const component = "solana_rpc";
   let status = "healthy";
   let errorMessage = "";
@@ -76,7 +78,7 @@ async function checkSolanaRPCHealth(ctx: any, now: number) {
 /**
  * Check database health and performance
  */
-async function checkDatabaseHealth(ctx: any, now: number) {
+async function checkDatabaseHealth(ctx: MutationCtx, now: number) {
   const component = "database";
   let status = "healthy";
   let errorMessage = "";
@@ -117,7 +119,7 @@ async function checkDatabaseHealth(ctx: any, now: number) {
 /**
  * Check for games that might be stuck in a state
  */
-async function checkForStuckGames(ctx: any, now: number) {
+async function checkForStuckGames(ctx: MutationCtx, now: number) {
   const component = "game_progression";
   let status = "healthy";
   let errorMessage = "";
@@ -176,7 +178,7 @@ async function checkForStuckGames(ctx: any, now: number) {
 /**
  * Update overall system health based on component health
  */
-async function updateOverallSystemHealth(ctx: any, now: number) {
+async function updateOverallSystemHealth(ctx: MutationCtx, now: number) {
   const components = await ctx.db.query("systemHealth").collect();
   
   let overallStatus = "healthy";
@@ -217,7 +219,7 @@ async function updateComponentHealth(
 ) {
   let health = await ctx.db
     .query("systemHealth")
-    .withIndex("by_component", (q: any) => q.eq("component", component))
+    .withIndex("by_component", (q) => q.eq("component", component))
     .first();
   
   if (health) {
@@ -247,7 +249,7 @@ async function updateComponentHealth(
  */
 export const cleanupOldEvents = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: MutationCtx) => {
     const now = Date.now();
     const cutoffTime = now - (7 * 24 * 60 * 60 * 1000); // 7 days ago
     
@@ -315,14 +317,14 @@ export const cleanupOldEvents = internalMutation({
  */
 export const getSystemHealthDashboard = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: QueryCtx) => {
     const healthRecords = await ctx.db.query("systemHealth").collect();
     
     // Get recent error events
     const recentErrors = await ctx.db
       .query("gameEvents")
       .withIndex("by_success")
-      .filter((q: any) => q.eq("success", false))
+      .filter((q) => q.eq("success", false))
       .order("desc")
       .take(20);
     
@@ -333,20 +335,20 @@ export const getSystemHealthDashboard = query({
     const recentEvents = await ctx.db
       .query("gameEvents")
       .withIndex("by_timestamp")
-      .filter((q: any) => q.gte(q.field("timestamp"), oneHourAgo))
+      .filter((q) => q.gte(q.field("timestamp"), oneHourAgo))
       .collect();
     
     const successRate = recentEvents.length > 0 
-      ? (recentEvents.filter(e => e.success).length / recentEvents.length) * 100
+      ? (recentEvents.filter((e: Doc<"gameEvents">) => e.success).length / recentEvents.length) * 100
       : 100;
     
     const avgResponseTime = recentEvents
-      .filter(e => e.processingTimeMs)
-      .reduce((sum, e) => sum + (e.processingTimeMs || 0), 0) / 
-      Math.max(1, recentEvents.filter(e => e.processingTimeMs).length);
+      .filter((e: Doc<"gameEvents">) => e.processingTimeMs)
+      .reduce((sum: number, e: Doc<"gameEvents">) => sum + (e.processingTimeMs || 0), 0) / 
+      Math.max(1, recentEvents.filter((e: Doc<"gameEvents">) => e.processingTimeMs).length);
     
     return {
-      healthRecords: healthRecords.map(record => ({
+      healthRecords: healthRecords.map((record: Doc<"systemHealth">) => ({
         component: record.component,
         status: record.status,
         lastCheck: record.lastCheck,
@@ -354,7 +356,7 @@ export const getSystemHealthDashboard = query({
         lastError: record.lastError,
         metadata: record.metadata,
       })),
-      recentErrors: recentErrors.map(error => ({
+      recentErrors: recentErrors.map((error: Doc<"gameEvents">) => ({
         gameId: error.gameId,
         event: error.event,
         timestamp: error.timestamp,
@@ -365,7 +367,7 @@ export const getSystemHealthDashboard = query({
         successRate: Math.round(successRate * 100) / 100,
         avgResponseTime: Math.round(avgResponseTime),
         totalEventsLastHour: recentEvents.length,
-        errorEventsLastHour: recentEvents.filter(e => !e.success).length,
+        errorEventsLastHour: recentEvents.filter((e: Doc<"gameEvents">) => !e.success).length,
       }
     };
   },
@@ -379,14 +381,14 @@ export const resetStuckGame = internalMutation({
     gameId: v.string(),
     reason: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: { gameId: string; reason: string }) => {
     const now = Date.now();
     
     try {
       // Find the stuck game
       const gameState = await ctx.db
         .query("gameStates")
-        .withIndex("by_game_id", (q: any) => q.eq("gameId", args.gameId))
+        .withIndex("by_game_id", (q) => q.eq("gameId", args.gameId))
         .first();
       
       if (!gameState) {
