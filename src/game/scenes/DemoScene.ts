@@ -31,6 +31,7 @@ export class DemoScene extends Scene {
 
   private battleMusic: Phaser.Sound.BaseSound | null = null;
   private audioUnlocked: boolean = false;
+  private introPlayed: boolean = false;
 
   constructor() {
     super("DemoScene");
@@ -92,6 +93,12 @@ export class DemoScene extends Scene {
   private tryStartMusic() {
     if (!this.battleMusic) {
       try {
+        // Play intro sound first (only once per scene instance)
+        if (!this.introPlayed && this.cache.audio.exists("domin8-intro")) {
+          SoundManager.playSound(this, "domin8-intro", 0.5);
+          this.introPlayed = true;
+        }
+
         // Check if audio file is loaded
         if (!this.cache.audio.exists("battle-theme")) {
           console.error("[DemoScene] battle-theme audio not loaded!");
@@ -234,6 +241,8 @@ export class DemoScene extends Scene {
       this.battleMusic = null;
       SoundManager.setBattleMusic(null); // Unregister from SoundManager
     }
+    // Reset intro flag for next time scene is created
+    this.introPlayed = false;
   }
 
   update() {}

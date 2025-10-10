@@ -19,20 +19,22 @@ interface CharacterSelectionProps {
   onParticipantAdded?: () => void;
 }
 
-const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded }: CharacterSelectionProps) {
+const CharacterSelection = memo(function CharacterSelection({
+  onParticipantAdded,
+}: CharacterSelectionProps) {
   const { connected, publicKey, wallet } = usePrivyWallet();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Memoize wallet address to prevent unnecessary re-queries
-  const walletAddress = useMemo(() => connected && publicKey ? publicKey.toString() : null, [connected, publicKey]);
+  const walletAddress = useMemo(
+    () => (connected && publicKey ? publicKey.toString() : null),
+    [connected, publicKey]
+  );
 
   // Get player data - only fetch once
-  const playerData = useQuery(
-    api.players.getPlayer,
-    walletAddress ? { walletAddress } : "skip"
-  );
+  const playerData = useQuery(api.players.getPlayer, walletAddress ? { walletAddress } : "skip");
 
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
@@ -66,7 +68,7 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       return;
     }
 
-    const availableCharacters = allCharacters.filter(c => c._id !== currentCharacter?._id);
+    const availableCharacters = allCharacters.filter((c) => c._id !== currentCharacter?._id);
     if (availableCharacters.length === 0) {
       toast.error("No other characters available");
       return;
@@ -115,38 +117,40 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
       // Create transaction instruction for deposit_bet
       const { instruction } = await sendDepositBetTransaction({
         walletPublicKey: publicKey.toString(),
-        betAmountSol: amount
+        betAmountSol: amount,
       });
 
       // Use Privy wallet to sign and send transaction
       if (!wallet) {
-        throw new Error('Wallet not found');
+        throw new Error("Wallet not found");
       }
 
       const signature = await wallet.signAndSendTransaction(instruction);
-      console.log('Transaction successful:', signature);
+      console.log("Transaction successful:", signature);
       toast.success(`Bet placed! Signature: ${signature.slice(0, 8)}...`);
-      
+
       setBetAmount("0.1");
 
       // Auto-reroll to a new character for the next participant
       if (allCharacters && allCharacters.length > 0) {
-        const availableCharacters = allCharacters.filter((c: any) => c._id !== currentCharacter._id);
+        const availableCharacters = allCharacters.filter(
+          (c: any) => c._id !== currentCharacter._id
+        );
         if (availableCharacters.length > 0) {
-          const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+          const randomChar =
+            availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
           setCurrentCharacter(randomChar);
         }
       }
 
       onParticipantAdded?.();
-
     } catch (error) {
       console.error("Failed to place bet:", error);
-      
+
       // If Solana transaction fails, show detailed error but also try fallback for testing
-      if (error instanceof Error && error.message.includes('Transaction')) {
+      if (error instanceof Error && error.message.includes("Transaction")) {
         toast.error(`Solana transaction failed: ${error.message}`);
-        
+
         // Optional: Fallback to Convex for testing during development
         try {
           console.log("Falling back to Convex mutation for testing...");
@@ -155,15 +159,18 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
             betAmount: amount * 100, // Convert to game coins (0.1 SOL = 10 coins)
             characterId: currentCharacter._id as string,
           });
-          
+
           toast.success("Bet placed successfully via fallback!");
           setBetAmount("0.1");
 
           // Auto-reroll character
           if (allCharacters && allCharacters.length > 0) {
-            const availableCharacters = allCharacters.filter((c: any) => c._id !== currentCharacter._id);
+            const availableCharacters = allCharacters.filter(
+              (c: any) => c._id !== currentCharacter._id
+            );
             if (availableCharacters.length > 0) {
-              const randomChar = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+              const randomChar =
+                availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
               setCurrentCharacter(randomChar);
             }
           }
@@ -179,11 +186,23 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
     } finally {
       setIsSubmitting(false);
     }
-  }, [connected, publicKey, wallet, currentGame, playerData, currentCharacter, betAmount, gameCoins, joinGameFallback, onParticipantAdded, allCharacters]);
+  }, [
+    connected,
+    publicKey,
+    wallet,
+    currentGame,
+    playerData,
+    currentCharacter,
+    betAmount,
+    gameCoins,
+    joinGameFallback,
+    onParticipantAdded,
+    allCharacters,
+  ]);
 
   // Don't render if not connected or no character
   // Allow rendering when no game exists OR game is in waiting phase
-  if (!connected || !currentCharacter || (currentGame && currentGame.status !== 'waiting')) {
+  if (!connected || !currentCharacter || (currentGame && currentGame.status !== "waiting")) {
     return null;
   }
 
@@ -196,7 +215,8 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           {playerParticipantCount > 0 && (
             <div className="mb-2 text-center">
               <span className="text-sm text-amber-400 uppercase tracking-wide">
-                You have {playerParticipantCount} participant{playerParticipantCount > 1 ? 's' : ''} in this game
+                You have {playerParticipantCount} participant{playerParticipantCount > 1 ? "s" : ""}{" "}
+                in this game
               </span>
             </div>
           )}
@@ -245,7 +265,9 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
               max={10}
               className="w-full px-3 py-2 bg-black/30 border border-amber-700/50 rounded-lg text-amber-900 placeholder-amber-600 text-center text-lg font-bold focus:outline-none focus:border-amber-900"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm font-bold">Sol</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm font-bold">
+              Sol
+            </span>
           </div>
 
           {/* Quick bet buttons */}
@@ -274,8 +296,9 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
           <button
             onClick={() => void handlePlaceBet()}
             disabled={isSubmitting || !currentGame || currentGame.status !== "waiting"}
-            className={`w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
+            className={`flex justify-center items-center w-full  bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
+            <img src="/assets/insert-coin.png" alt="Coin" />
             {isSubmitting ? "Inserting..." : "Insert coin"}
           </button>
         </div>

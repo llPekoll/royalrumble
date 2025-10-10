@@ -5,6 +5,7 @@ import { AnimationManager } from '../managers/AnimationManager';
 import { GamePhaseManager } from '../managers/GamePhaseManager';
 import { UIManager } from '../managers/UIManager';
 import { BackgroundManager } from '../managers/BackgroundManager';
+import { SoundManager } from '../managers/SoundManager';
 
 export class Game extends Scene {
   camera!: Phaser.Cameras.Scene2D.Camera;
@@ -18,6 +19,8 @@ export class Game extends Scene {
   private gamePhaseManager!: GamePhaseManager;
   private uiManager!: UIManager;
   private backgroundManager!: BackgroundManager;
+
+  private introPlayed: boolean = false;
 
   constructor() {
     super('RoyalRumble');
@@ -50,6 +53,29 @@ export class Game extends Scene {
     this.scale.on('resize', () => this.handleResize(), this);
 
     EventBus.emit('current-scene-ready', this);
+
+    // Play intro sound when real game starts
+    this.playIntroSound();
+  }
+
+  private playIntroSound() {
+    if (!this.introPlayed) {
+      try {
+        // Initialize SoundManager
+        SoundManager.initialize();
+
+        // Unlock audio on first interaction
+        SoundManager.unlockAudio(this).then(() => {
+          // Play intro sound if it's loaded
+          if (this.cache.audio.exists('domin8-intro')) {
+            SoundManager.playSound(this, 'domin8-intro', 0.5);
+            this.introPlayed = true;
+          }
+        });
+      } catch (e) {
+        console.error('[Game] Failed to play intro sound:', e);
+      }
+    }
   }
 
   handleResize() {

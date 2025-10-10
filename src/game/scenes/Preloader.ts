@@ -67,8 +67,17 @@ export class Preloader extends Scene {
     this.load.image("throne", "misc/throne.png");
 
     // Load sound effects
-    this.load.audio("sand-step", "sounds/sand-step-1.mp3");
     this.load.audio("battle-theme", "sounds/battleThemeA.mp3");
+    this.load.audio("domin8-intro", "sounds/domin8-intro.mp3");
+
+    // Load impact sounds for character landing
+    this.load.audio("impact-1", "sounds/impacts/sfx_sounds_impact1.wav");
+    this.load.audio("impact-3", "sounds/impacts/sfx_sounds_impact3.wav");
+    this.load.audio("impact-4", "sounds/impacts/sfx_sounds_impact4.wav");
+    this.load.audio("impact-5", "sounds/impacts/sfx_sounds_impact5.wav");
+    this.load.audio("impact-6", "sounds/impacts/sfx_sounds_impact6.wav");
+    this.load.audio("impact-7", "sounds/impacts/sfx_sounds_impact7.wav");
+    this.load.audio("impact-8", "sounds/impacts/sfx_sounds_impact8.wav");
 
     // Log load errors for debugging
     this.load.on("loaderror", (file: any) => {

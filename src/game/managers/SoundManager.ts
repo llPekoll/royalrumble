@@ -104,6 +104,21 @@ export class SoundManager {
   }
 
   /**
+   * Play a random impact sound (for character landing)
+   */
+  static playRandomImpact(scene: Scene, baseVolume: number = 0.4) {
+    // Available impact sounds (missing impact-2)
+    const impactSounds = ["impact-1", "impact-3", "impact-4", "impact-5", "impact-6", "impact-7", "impact-8"];
+
+    // Pick a random impact sound
+    const randomIndex = Math.floor(Math.random() * impactSounds.length);
+    const randomImpact = impactSounds[randomIndex];
+
+    // Play the random impact sound
+    this.playSound(scene, randomImpact, baseVolume);
+  }
+
+  /**
    * Set global volume (0.0 to 1.0)
    */
   static setGlobalVolume(volume: number) {

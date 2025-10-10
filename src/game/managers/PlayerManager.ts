@@ -236,12 +236,12 @@ export class PlayerManager {
           dustSprite.destroy();
         });
 
-        // Play sand step sound immediately when hitting ground using SoundManager
+        // Play random impact sound when hitting ground
         try {
-          console.log(`[PlayerManager] Playing sand-step sound for ${participantId}`);
-          SoundManager.playSound(this.scene, "sand-step", 0.4);
+          console.log(`[PlayerManager] Playing random impact sound for ${participantId}`);
+          SoundManager.playRandomImpact(this.scene, 0.4);
         } catch (e) {
-          console.error("[PlayerManager] Failed to play sand-step sound:", e);
+          console.error("[PlayerManager] Failed to play impact sound:", e);
         }
       },
     });
