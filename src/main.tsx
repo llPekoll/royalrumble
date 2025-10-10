@@ -7,47 +7,6 @@ import App from "./App.tsx";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
 import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
-// Solana network configuration utility
-const getSolanaConfig = () => {
-  const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-  const isMainnet = network === "mainnet" || network === "mainnet-beta";
-  const customRpcUrl = import.meta.env.VITE_SOLANA_RPC_URL;
-  const defaultRpcUrl = isMainnet
-    ? "https://api.mainnet-beta.solana.com"
-    : "https://api.devnet.solana.com";
-
-  const rpcUrl = customRpcUrl || defaultRpcUrl;
-
-  // Create WebSocket URL from HTTP URL
-  const wsUrl = rpcUrl.replace(/^https?:\/\//, "wss://");
-
-  return {
-    network,
-    isMainnet,
-    rpcUrl,
-    wsUrl,
-  };
-};
-
-const solanaConfig = getSolanaConfig();
-
-// Log configuration for debugging
-console.log(
-  `🔗 Privy configured for Solana-ONLY ${solanaConfig.isMainnet ? "Mainnet" : "Devnet"}`,
-  {
-    network: solanaConfig.network,
-    rpcUrl: solanaConfig.rpcUrl,
-    wsUrl: solanaConfig.wsUrl,
-    isMainnet: solanaConfig.isMainnet,
-    walletChainType: "solana-only", // NO EVM support
-    embeddedWallets: "all-users-solana-only", // Creating Solana embedded wallets for all users
-    externalWallets: "solana-authentication-only", // Solana external wallets used only for auth
-    rpcs: {
-      mainnet: solanaConfig.isMainnet ? solanaConfig.rpcUrl : "https://api.mainnet-beta.solana.com",
-      devnet: !solanaConfig.isMainnet ? solanaConfig.rpcUrl : "https://api.devnet.solana.com",
-    },
-  }
-);
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 

@@ -3,6 +3,7 @@ import { Scene } from "phaser";
 import { PlayerManager } from "../managers/PlayerManager";
 import { AnimationManager } from "../managers/AnimationManager";
 import { BackgroundManager } from "../managers/BackgroundManager";
+import { SoundManager } from "../managers/SoundManager";
 import { demoMapData } from "../main";
 
 /**
@@ -30,6 +31,7 @@ export class DemoScene extends Scene {
   private participants: any[] = [];
 
   private battleMusic: Phaser.Sound.BaseSound | null = null;
+  private audioUnlocked: boolean = false;
 
   constructor() {
     super("DemoScene");
@@ -56,34 +58,88 @@ export class DemoScene extends Scene {
     this.scale.on("resize", () => this.handleResize(), this);
     EventBus.emit("current-scene-ready", this);
 
+    // Initialize SoundManager
+    SoundManager.initialize();
+
     // Set up audio unlock on first user interaction
     this.setupAudioUnlock();
   }
 
   private setupAudioUnlock() {
-    // Check if sound should be muted from localStorage
-    const shouldMute = localStorage.getItem("sound-muted") === "true";
-    if (shouldMute) {
-      this.sound.mute = true;
-      console.log("[DemoScene] Sound is muted from user preference");
-    }
+    console.log("[DemoScene] Setting up audio unlock handler");
 
+    // Apply mute state from SoundManager
+    SoundManager.applyMuteToScene(this);
+
+    // Set up click handler to unlock audio on first interaction
+    const unlockHandler = () => {
+      if (!this.audioUnlocked) {
+        console.log("[DemoScene] User interaction detected, unlocking audio...");
+        this.audioUnlocked = true;
+
+        SoundManager.unlockAudio(this).then(() => {
+          // Try to start music after unlocking
+          this.tryStartMusic();
+        });
+
+        // Remove the handler after first interaction
+        this.input.off("pointerdown", unlockHandler);
+      }
+    };
+
+    // Listen for any pointer/touch interaction
+    this.input.on("pointerdown", unlockHandler);
+
+    // Also try to start music immediately (will work if already unlocked)
     this.tryStartMusic();
   }
 
   private tryStartMusic() {
-    console.log("[DemoScene] Attempting to start battle music, muted:", this.sound.mute);
+    console.log("[DemoScene] Attempting to start battle music");
+    console.log("[DemoScene] Current state:", {
+      battleMusicExists: !!this.battleMusic,
+      audioUnlocked: this.audioUnlocked,
+      soundMuted: SoundManager.isSoundMuted(),
+      audioContextState: this.sound.context?.state,
+      battleThemeExists: this.cache.audio.exists("battle-theme"),
+    });
+
     if (!this.battleMusic) {
       try {
-        this.battleMusic = this.sound.add("battle-theme", {
-          volume: 0.2,
+        // Check if audio file is loaded
+        if (!this.cache.audio.exists("battle-theme")) {
+          console.error("[DemoScene] ❌ battle-theme audio not loaded!");
+          return;
+        }
+
+        console.log("[DemoScene] Creating battle music with SoundManager...");
+
+        // Use SoundManager to play battle music (respects mute and volume)
+        this.battleMusic = SoundManager.play(this, "battle-theme", 0.2, {
           loop: true,
         });
-        this.battleMusic.play();
-        console.log("[DemoScene] ✅ Battle music started successfully");
+
+        // Register with SoundManager for centralized control
+        SoundManager.setBattleMusic(this.battleMusic);
+
+        if (this.battleMusic) {
+          console.log("[DemoScene] ✅ Battle music object created:", {
+            isPlaying: this.battleMusic.isPlaying,
+            isPaused: this.battleMusic.isPaused,
+            volume: this.battleMusic.volume,
+            loop: this.battleMusic.loop,
+          });
+        } else {
+          console.log("[DemoScene] ⏸️ Battle music object is null");
+        }
       } catch (e) {
         console.error("[DemoScene] ❌ Failed to start battle music:", e);
       }
+    } else {
+      console.log("[DemoScene] Battle music already exists, state:", {
+        isPlaying: this.battleMusic.isPlaying,
+        isPaused: this.battleMusic.isPaused,
+      });
     }
   }
 
@@ -94,6 +150,7 @@ export class DemoScene extends Scene {
     this.playerManager.updateCenter(this.centerX, this.centerY);
     this.animationManager.updateCenter(this.centerX, this.centerY);
   }
+
 
   public setDemoMap(mapData: any) {
     console.log("[DemoScene] setDemoMap called:", mapData?.name);
@@ -209,6 +266,7 @@ export class DemoScene extends Scene {
     if (this.battleMusic) {
       this.battleMusic.stop();
       this.battleMusic = null;
+      SoundManager.setBattleMusic(null); // Unregister from SoundManager
     }
   }
 

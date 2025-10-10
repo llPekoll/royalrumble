@@ -33,6 +33,10 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
+  audio: {
+    disableWebAudio: false,  // Use Web Audio API (best quality)
+    noAudio: false,           // Enable audio
+  },
   scene: [
     Boot,
     Preloader,

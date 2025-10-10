@@ -1,5 +1,6 @@
 import { Scene } from "phaser";
 import { calculateEllipsePosition, SPAWN_CONFIG } from "../../config/spawnConfig";
+import { SoundManager } from "./SoundManager";
 
 export interface GameParticipant {
   id: string;
@@ -188,17 +189,42 @@ export class PlayerManager {
       });
     }
 
+    // Randomly choose between two easing styles for variety
+    const useElastic = Math.random() < 0.5;
+
     this.scene.tweens.add({
       targets: container,
       y: targetY,
-      duration: 1000,
-      ease: "Cubic.easeOut", // Smooth landing with minimal bounce
+      duration: 400, // Much faster fall (was 1000ms)
+      ease: useElastic
+        ? "Elastic.easeIn"
+        : function (t) {
+            // Custom ease: Fast fall with single subtle bounce
+            // t goes from 0 to 1 during the tween
+            if (t < 0.7) {
+              // Accelerate down for 70% of the animation
+              return t * t * 1.2; // Quadratic acceleration
+            } else {
+              // Single small bounce for last 30%
+              const bounceT = (t - 0.7) / 0.3; // Normalize to 0-1
+              return 1 - Math.abs(Math.sin(bounceT * Math.PI)) * 0.05; // Tiny bounce amplitude
+            }
+          },
       onComplete: () => {
+        // Get the actual landed position (accounts for any jitter in targetY)
+        const actualLandedX = container.x;
+        const actualLandedY = container.y;
+
         // Create dust impact effect when character lands
-        const dustSprite = this.scene.add.sprite(targetX, targetY, "dust");
+        const dustOffsetY = 15; // Offset down from character's feet
+        const dustSprite = this.scene.add.sprite(
+          actualLandedX,
+          actualLandedY + dustOffsetY,
+          "dust"
+        );
         dustSprite.setOrigin(0.5, 1.0); // Bottom-center anchor (same as character)
-        dustSprite.setScale(scale * 0.4); // Scale dust relative to character size
-        dustSprite.setDepth(baseDepth + depthFromY - 1); // Just behind the character
+        dustSprite.setScale(scale * 0.2); // Scale dust relative to character size
+        dustSprite.setDepth(baseDepth + depthFromY + 1); // In front of the character
         dustSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST); // Keep pixel art crisp
 
         if (this.scene.anims.exists("dust-impact")) {
@@ -210,15 +236,13 @@ export class PlayerManager {
           dustSprite.destroy();
         });
 
-        // Wait 1 second then play sand step sound when character hits the ground
-        this.scene.time.delayedCall(1000, () => {
-          try {
-            console.log(`[PlayerManager] Playing sand-step sound for ${participantId}`);
-            this.scene.sound.play("sand-step", { volume: 0.4 });
-          } catch (e) {
-            console.error("[PlayerManager] Failed to play sand-step sound:", e);
-          }
-        });
+        // Play sand step sound immediately when hitting ground using SoundManager
+        try {
+          console.log(`[PlayerManager] Playing sand-step sound for ${participantId}`);
+          SoundManager.playSound(this.scene, "sand-step", 0.4);
+        } catch (e) {
+          console.error("[PlayerManager] Failed to play sand-step sound:", e);
+        }
       },
     });
     const gameParticipant: GameParticipant = {

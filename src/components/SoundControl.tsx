@@ -2,33 +2,31 @@ import { Volume2, VolumeX } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
 import { EventBus } from "../game/EventBus";
+import { SoundManager } from "../game/managers/SoundManager";
 
 export function SoundControl() {
   const [isMuted, setIsMuted] = useState(() => {
-    // Load mute preference from localStorage
-    const saved = localStorage.getItem("sound-muted");
-    return saved === "true";
+    // Load mute preference from SoundManager
+    SoundManager.initialize();
+    return SoundManager.isSoundMuted();
   });
   const [gameInstance, setGameInstance] = useState<Phaser.Game | null>(null);
 
   // Listen for scene changes to get the game instance
   useEffect(() => {
     const handleSceneReady = (scene: Phaser.Scene) => {
-      console.log("[SoundControl] Scene ready, applying mute state:", isMuted);
+      console.log("[SoundControl] Scene ready, applying sound settings");
       // Get the game instance from the scene
       if (scene?.game) {
         setGameInstance(scene.game);
 
-        // Apply mute state to the game's sound manager
-        scene.game.sound.mute = isMuted;
+        // Apply mute state via SoundManager
+        SoundManager.applyMuteToScene(scene);
+        SoundManager.updateAllSoundsVolume(scene);
 
-        // Also try to resume the audio context if it's suspended
+        // Try to resume the audio context if it's suspended
         if (scene.game.sound.context && scene.game.sound.context.state === 'suspended') {
-          scene.game.sound.context.resume().then(() => {
-            console.log("[SoundControl] Audio context resumed");
-            // Reapply mute state after resuming
-            scene.game.sound.mute = isMuted;
-          });
+          console.log("[SoundControl] Audio context suspended, will unlock on user interaction");
         }
       }
     };
@@ -38,14 +36,14 @@ export function SoundControl() {
     return () => {
       EventBus.off("current-scene-ready", handleSceneReady);
     };
-  }, [isMuted]);
+  }, []);
 
   const toggleSound = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
 
-    // Save preference to localStorage
-    localStorage.setItem("sound-muted", String(newMutedState));
+    // Update SoundManager (handles localStorage automatically)
+    SoundManager.setMuted(newMutedState);
 
     // Apply mute to the game's global sound manager
     if (gameInstance?.sound) {
