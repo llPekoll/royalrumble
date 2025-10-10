@@ -48,9 +48,7 @@ export interface DemoParticipant {
 
 export function generateDemoParticipant(
   index: number,
-  totalCount: number,
   dbCharacters: any[], // Accept database characters as parameter
-  mapConfig?: { spawnRadius: number; centerX: number; centerY: number },
   position?: { x: number; y: number } // Position is now required (pre-calculated)
 ): DemoParticipant {
   // Random bot name (ensure unique)

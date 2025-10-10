@@ -150,15 +150,6 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
     isSpawningRef.current = true;
     spawnCountRef.current = 0; // Reset spawn count
 
-    // Generate map config from the demo map
-    const mapConfig = demoMap?.spawnConfiguration
-      ? {
-          spawnRadius: demoMap.spawnConfiguration.spawnRadius,
-          centerX: 512, // Standard canvas center
-          centerY: 384,
-        }
-      : undefined;
-
     // Generate random spawn intervals for all bots
     const spawnIntervals = generateRandomSpawnIntervals(DEMO_PARTICIPANT_COUNT);
 
@@ -202,9 +193,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
         const newParticipant = generateDemoParticipant(
           currentSpawnIndex,
-          DEMO_PARTICIPANT_COUNT,
           characters,
-          mapConfig,
           nextPosition // Use shuffled position from pre-generated list
         );
 
