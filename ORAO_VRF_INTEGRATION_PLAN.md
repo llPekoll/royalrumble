@@ -36,7 +36,7 @@ case GameStatus.AwaitingWinnerRandomness:
 ```toml
 [dependencies]
 anchor-lang = "0.31.1"
-orao-solana-vrf = { version = "0.4.0", features = ["anchor"] }
+orao-solana-vrf = { version = "0.4.0", default-features = false, features = ["cpi"] }
 ```
 
 **1.2 Update Anchor.toml**

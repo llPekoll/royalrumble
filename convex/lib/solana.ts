@@ -285,38 +285,6 @@ export class SolanaClient {
     return gameRound.players[0]?.wallet || this.authority.publicKey;
   }
 
-  // Distribute winnings and reset game
-  async distributeWinningsAndReset(winner: PublicKey): Promise<string> {
-    const { gameConfig, gameRound, vault } = this.getPDAs();
-    
-    // Get the winnings claim PDA for this round
-    const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
-    const roundId = gameRoundAccount.roundId;
-    
-    const [winningsClaim] = PublicKey.findProgramAddressSync(
-      [Buffer.from("winnings"), roundId.toArrayLike(Buffer, "le", 8)],
-      DOMIN8_PROGRAM_ID
-    );
-    
-    // Get treasury from game config
-    const gameConfigAccount = await this.program.account.gameConfig.fetch(gameConfig);
-    
-    const tx = await this.program.methods
-      .distributeWinningsAndReset()
-      .accounts({
-        gameConfig,
-        gameRound,
-        winningsClaim,
-        vault,
-        treasury: gameConfigAccount.treasury,
-        winner: winner,
-        crank: this.authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .rpc();
-      
-    return tx;
-  }
 
   // Confirm transaction with retry logic
   async confirmTransaction(
