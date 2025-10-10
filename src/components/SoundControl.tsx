@@ -15,7 +15,6 @@ export function SoundControl() {
   // Listen for scene changes to get the game instance
   useEffect(() => {
     const handleSceneReady = (scene: Phaser.Scene) => {
-      console.log("[SoundControl] Scene ready, applying sound settings");
       // Get the game instance from the scene
       if (scene?.game) {
         setGameInstance(scene.game);
@@ -23,11 +22,6 @@ export function SoundControl() {
         // Apply mute state via SoundManager
         SoundManager.applyMuteToScene(scene);
         SoundManager.updateAllSoundsVolume(scene);
-
-        // Try to resume the audio context if it's suspended
-        if (scene.game.sound.context && scene.game.sound.context.state === 'suspended') {
-          console.log("[SoundControl] Audio context suspended, will unlock on user interaction");
-        }
       }
     };
 
@@ -48,7 +42,6 @@ export function SoundControl() {
     // Apply mute to the game's global sound manager
     if (gameInstance?.sound) {
       gameInstance.sound.mute = newMutedState;
-      console.log(`[SoundControl] Sound ${newMutedState ? "muted" : "unmuted"}`);
 
       // Emit event so scenes can react to mute changes
       EventBus.emit("sound-mute-changed", newMutedState);

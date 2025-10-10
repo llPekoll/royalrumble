@@ -70,17 +70,9 @@ export class Preloader extends Scene {
     this.load.audio("sand-step", "sounds/sand-step-1.mp3");
     this.load.audio("battle-theme", "sounds/battleThemeA.mp3");
 
-    // Debug: Log when audio files finish loading
-    this.load.on("filecomplete-audio-sand-step", () => {
-      console.log("[Preloader] ✅ sand-step audio loaded successfully");
-    });
-
-    this.load.on("filecomplete-audio-battle-theme", () => {
-      console.log("[Preloader] ✅ battle-theme audio loaded successfully");
-    });
-
+    // Log load errors for debugging
     this.load.on("loaderror", (file: any) => {
-      console.error("[Preloader] ❌ Failed to load file:", file.key, file.src);
+      console.error("[Preloader] Failed to load file:", file.key, file.src);
     });
   }
 

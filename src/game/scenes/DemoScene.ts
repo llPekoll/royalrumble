@@ -66,15 +66,12 @@ export class DemoScene extends Scene {
   }
 
   private setupAudioUnlock() {
-    console.log("[DemoScene] Setting up audio unlock handler");
-
     // Apply mute state from SoundManager
     SoundManager.applyMuteToScene(this);
 
     // Set up click handler to unlock audio on first interaction
     const unlockHandler = () => {
       if (!this.audioUnlocked) {
-        console.log("[DemoScene] User interaction detected, unlocking audio...");
         this.audioUnlocked = true;
 
         SoundManager.unlockAudio(this).then(() => {
@@ -95,24 +92,13 @@ export class DemoScene extends Scene {
   }
 
   private tryStartMusic() {
-    console.log("[DemoScene] Attempting to start battle music");
-    console.log("[DemoScene] Current state:", {
-      battleMusicExists: !!this.battleMusic,
-      audioUnlocked: this.audioUnlocked,
-      soundMuted: SoundManager.isSoundMuted(),
-      audioContextState: this.sound.context?.state,
-      battleThemeExists: this.cache.audio.exists("battle-theme"),
-    });
-
     if (!this.battleMusic) {
       try {
         // Check if audio file is loaded
         if (!this.cache.audio.exists("battle-theme")) {
-          console.error("[DemoScene] ❌ battle-theme audio not loaded!");
+          console.error("[DemoScene] battle-theme audio not loaded!");
           return;
         }
-
-        console.log("[DemoScene] Creating battle music with SoundManager...");
 
         // Use SoundManager to play battle music (respects mute and volume)
         this.battleMusic = SoundManager.play(this, "battle-theme", 0.2, {
@@ -121,25 +107,9 @@ export class DemoScene extends Scene {
 
         // Register with SoundManager for centralized control
         SoundManager.setBattleMusic(this.battleMusic);
-
-        if (this.battleMusic) {
-          console.log("[DemoScene] ✅ Battle music object created:", {
-            isPlaying: this.battleMusic.isPlaying,
-            isPaused: this.battleMusic.isPaused,
-            volume: this.battleMusic.volume,
-            loop: this.battleMusic.loop,
-          });
-        } else {
-          console.log("[DemoScene] ⏸️ Battle music object is null");
-        }
       } catch (e) {
-        console.error("[DemoScene] ❌ Failed to start battle music:", e);
+        console.error("[DemoScene] Failed to start battle music:", e);
       }
-    } else {
-      console.log("[DemoScene] Battle music already exists, state:", {
-        isPlaying: this.battleMusic.isPlaying,
-        isPaused: this.battleMusic.isPaused,
-      });
     }
   }
 

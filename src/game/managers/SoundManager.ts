@@ -37,10 +37,6 @@ export class SoundManager {
     }
 
     this.initialized = true;
-    console.log("[SoundManager] Initialized", {
-      volume: this.globalVolume,
-      muted: this.isMuted,
-    });
   }
 
   /**
@@ -64,34 +60,16 @@ export class SoundManager {
     const finalVolume = baseVolume * this.globalVolume;
 
     try {
-      console.log(`[SoundManager] Creating sound "${key}"`, {
-        baseVolume,
-        globalVolume: this.globalVolume,
-        finalVolume,
-        isMuted: this.isMuted,
-        config,
-      });
-
       // Create the sound object (even if muted, so we can control it later)
       const sound = scene.sound.add(key, {
         ...config,
         volume: finalVolume,
       });
 
-      console.log(`[SoundManager] Sound object created for "${key}"`, {
-        soundExists: !!sound,
-        soundType: sound?.constructor.name,
-      });
-
       // Only play if not muted
       if (!this.isMuted) {
-        console.log(`[SoundManager] Calling play() on "${key}"...`);
-        const playResult = sound.play();
-        console.log(`[SoundManager] play() result:`, {
-          playResult,
-          isPlaying: sound.isPlaying,
-          isPaused: sound.isPaused,
-        });
+        sound.play();
+        console.log(`[SoundManager] Playing "${key}" at volume ${finalVolume.toFixed(2)}`);
       } else {
         console.log(`[SoundManager] Sound "${key}" created but not played (muted)`);
       }
@@ -131,7 +109,6 @@ export class SoundManager {
   static setGlobalVolume(volume: number) {
     this.globalVolume = Math.max(0, Math.min(1, volume)); // Clamp to 0-1
     localStorage.setItem("sound-volume", this.globalVolume.toString());
-    console.log(`[SoundManager] Global volume set to ${this.globalVolume}`);
   }
 
   /**
@@ -150,17 +127,15 @@ export class SoundManager {
   static setMuted(muted: boolean) {
     this.isMuted = muted;
     localStorage.setItem("sound-muted", muted.toString());
-    console.log(`[SoundManager] Muted: ${muted}`);
 
     // Control battle music directly
     if (this.battleMusic) {
       if (muted) {
         this.battleMusic.pause();
-        console.log("[SoundManager] Battle music paused via SoundManager");
       } else {
         this.battleMusic.resume();
-        console.log("[SoundManager] Battle music resumed via SoundManager");
       }
+      console.log(`[SoundManager] Sound ${muted ? "muted" : "unmuted"}`);
     }
   }
 
@@ -192,8 +167,6 @@ export class SoundManager {
         return;
       }
 
-      console.log("[SoundManager] Attempting to unlock audio context...");
-
       // Try to resume audio context
       if (scene.game.sound.context) {
         const context = scene.game.sound.context;
@@ -203,16 +176,14 @@ export class SoundManager {
             .resume()
             .then(() => {
               this.isAudioUnlocked = true;
-              console.log("[SoundManager] ✅ Audio context unlocked successfully");
               resolve();
             })
             .catch((error) => {
-              console.error("[SoundManager] ❌ Failed to unlock audio context:", error);
+              console.error("[SoundManager] Failed to unlock audio context:", error);
               resolve(); // Resolve anyway to not block execution
             });
         } else {
           this.isAudioUnlocked = true;
-          console.log("[SoundManager] ✅ Audio context already running");
           resolve();
         }
       } else {
@@ -237,7 +208,6 @@ export class SoundManager {
       this.initialize();
     }
     scene.sound.mute = this.isMuted;
-    console.log(`[SoundManager] Applied mute state to scene: ${this.isMuted}`);
   }
 
   /**
@@ -250,7 +220,6 @@ export class SoundManager {
 
     // Phaser's global volume control
     scene.sound.volume = this.globalVolume;
-    console.log(`[SoundManager] Updated scene volume to ${this.globalVolume}`);
   }
 
   /**
@@ -258,12 +227,10 @@ export class SoundManager {
    */
   static setBattleMusic(music: Phaser.Sound.BaseSound | null) {
     this.battleMusic = music;
-    console.log("[SoundManager] Battle music registered:", !!music);
 
     // Apply current mute state immediately
     if (music && this.isMuted) {
       music.pause();
-      console.log("[SoundManager] Applied mute to newly registered music");
     }
   }
 
