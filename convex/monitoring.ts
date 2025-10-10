@@ -1,5 +1,5 @@
 // System monitoring and maintenance functions
-import { internalMutation, query } from "convex/server";
+import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { SolanaClient } from "./lib/solana";
 

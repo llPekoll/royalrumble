@@ -1,0 +1,756 @@
+{
+  "address": "CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9eKv2dptMpiXfK",
+  "metadata": {
+    "name": "domin8_prgm",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "deposit_bet",
+      "docs": [
+        "Deposit a bet to join the current game round"
+      ],
+      "discriminator": [
+        82,
+        23,
+        26,
+        58,
+        40,
+        4,
+        106,
+        159
+      ],
+      "accounts": [
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Initialize the game with configuration"
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "unified_progress_to_resolution",
+      "docs": [
+        "UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF"
+      ],
+      "discriminator": [
+        216,
+        239,
+        230,
+        78,
+        28,
+        36,
+        242,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "crank",
+          "docs": [
+            "The crank authority"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vrf_program",
+          "docs": [
+            "ORAO VRF Program"
+          ],
+          "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
+        },
+        {
+          "name": "network_state",
+          "docs": [
+            "ORAO Network State"
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "docs": [
+            "ORAO Treasury"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vrf_request",
+          "docs": [
+            "VRF Request Account (PDA derived from game_round + seed)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "unified_resolve_and_distribute",
+      "docs": [
+        "UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings"
+      ],
+      "discriminator": [
+        43,
+        193,
+        22,
+        243,
+        205,
+        126,
+        13,
+        144
+      ],
+      "accounts": [
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "The vault PDA that holds game funds"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "crank",
+          "docs": [
+            "The crank authority"
+          ],
+          "signer": true
+        },
+        {
+          "name": "vrf_request",
+          "docs": [
+            "VRF Request Account containing fulfilled randomness"
+          ]
+        },
+        {
+          "name": "treasury",
+          "docs": [
+            "Treasury account for receiving house fees"
+          ],
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GameConfig",
+      "discriminator": [
+        45,
+        146,
+        146,
+        33,
+        170,
+        69,
+        96,
+        133
+      ]
+    },
+    {
+      "name": "GameRound",
+      "discriminator": [
+        69,
+        45,
+        252,
+        31,
+        254,
+        31,
+        101,
+        146
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidGameStatus",
+      "msg": "Invalid game status for this action"
+    },
+    {
+      "code": 6001,
+      "name": "Unauthorized",
+      "msg": "Unauthorized: only authority can perform this action"
+    },
+    {
+      "code": 6002,
+      "name": "BettingPhaseClosed",
+      "msg": "Betting phase is closed"
+    },
+    {
+      "code": 6003,
+      "name": "BetTooSmall",
+      "msg": "Bet amount is below minimum required"
+    },
+    {
+      "code": 6004,
+      "name": "MaxPlayersReached",
+      "msg": "Maximum number of players reached"
+    },
+    {
+      "code": 6005,
+      "name": "PlayerNotFound",
+      "msg": "Player not found in current game"
+    },
+    {
+      "code": 6006,
+      "name": "RandomnessNotResolved",
+      "msg": "Switchboard randomness value is not yet available for the committed slot"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidRandomnessAccount",
+      "msg": "The provided Switchboard randomness account is not valid for the current game round"
+    },
+    {
+      "code": 6008,
+      "name": "CommitSlotNotElapsed",
+      "msg": "The committed slot has not elapsed yet"
+    },
+    {
+      "code": 6009,
+      "name": "NotASpectator",
+      "msg": "A finalist cannot place a spectator bet"
+    },
+    {
+      "code": 6010,
+      "name": "FinalistNotFound",
+      "msg": "Target finalist not found"
+    },
+    {
+      "code": 6011,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds for bet"
+    },
+    {
+      "code": 6012,
+      "name": "MathOverflow",
+      "msg": "Mathematical overflow occurred"
+    },
+    {
+      "code": 6013,
+      "name": "NoWinnerDetermined",
+      "msg": "No winner has been determined yet"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidGameType",
+      "msg": "Invalid game type for this operation"
+    },
+    {
+      "code": 6015,
+      "name": "NoWinnerSet",
+      "msg": "No winner has been set"
+    },
+    {
+      "code": 6016,
+      "name": "NoFinalistsSet",
+      "msg": "No finalists have been set"
+    },
+    {
+      "code": 6017,
+      "name": "PayoutExceedsAvailableFunds",
+      "msg": "Payout amount exceeds available funds"
+    },
+    {
+      "code": 6018,
+      "name": "AlreadyClaimed",
+      "msg": "Winnings have already been claimed"
+    },
+    {
+      "code": 6019,
+      "name": "NoWinningsFound",
+      "msg": "No winnings found for this wallet"
+    },
+    {
+      "code": 6020,
+      "name": "HouseFeeAlreadyCollected",
+      "msg": "House fee has already been collected"
+    },
+    {
+      "code": 6021,
+      "name": "GameAlreadyReset",
+      "msg": "Game has already been reset"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidVrfAccount",
+      "msg": "VRF account is invalid"
+    },
+    {
+      "code": 6023,
+      "name": "RandomnessNotFulfilled",
+      "msg": "Randomness not yet fulfilled"
+    },
+    {
+      "code": 6024,
+      "name": "VrfRequestFailed",
+      "msg": "VRF request failed"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidVrfSeed",
+      "msg": "Invalid VRF seed"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidWinnerAccount",
+      "msg": "Invalid winner account"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidTreasury",
+      "msg": "Invalid treasury account"
+    },
+    {
+      "code": 6028,
+      "name": "NoPlayers",
+      "msg": "No players in game"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidBetAmount",
+      "msg": "Invalid bet amount"
+    },
+    {
+      "code": 6030,
+      "name": "ArithmeticOverflow",
+      "msg": "Arithmetic overflow occurred"
+    }
+  ],
+  "types": [
+    {
+      "name": "GameConfig",
+      "docs": [
+        "Global game configuration stored as singleton PDA",
+        "Seeds: [b\"game_config\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "house_fee_basis_points",
+            "type": "u16"
+          },
+          {
+            "name": "min_bet_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "small_game_duration_config",
+            "type": {
+              "defined": {
+                "name": "GameDurationConfig"
+              }
+            }
+          },
+          {
+            "name": "vrf_fee_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "vrf_network_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "vrf_treasury",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameDurationConfig",
+      "docs": [
+        "Configuration for game durations"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "waiting_phase_duration",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameRound",
+      "docs": [
+        "Current game round state stored as singleton PDA",
+        "Seeds: [b\"game_round\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "GameStatus"
+              }
+            }
+          },
+          {
+            "name": "start_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "players",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "PlayerEntry"
+                }
+              }
+            }
+          },
+          {
+            "name": "initial_pot",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "vrf_request_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "vrf_seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "randomness_fulfilled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameStatus",
+      "docs": [
+        "Game status enumeration"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Idle"
+          },
+          {
+            "name": "Waiting"
+          },
+          {
+            "name": "AwaitingWinnerRandomness"
+          },
+          {
+            "name": "Finished"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerEntry",
+      "docs": [
+        "Individual player entry in a game round"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_bet",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
