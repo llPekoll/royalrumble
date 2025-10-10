@@ -1,5 +1,7 @@
 // Solana and Anchor types for the Domin8 program
+"use node";
 import { PublicKey } from "@solana/web3.js";
+import { Buffer } from "buffer";
 
 // Program ID
 export const DOMIN8_PROGRAM_ID = new PublicKey("CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9eKv2dptMpiXfK");
@@ -7,9 +9,9 @@ export const DOMIN8_PROGRAM_ID = new PublicKey("CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9e
 // Game Status enum from the Solana program (simplified for small games MVP)
 export enum GameStatus {
   Idle = "idle",
-  Waiting = "waiting", 
+  Waiting = "waiting",
   AwaitingWinnerRandomness = "awaitingWinnerRandomness",
-  Finished = "finished"
+  Finished = "finished",
 }
 
 // Game configuration structure (simplified for small games MVP)
@@ -38,7 +40,6 @@ export interface PlayerEntry {
   timestamp: number;
 }
 
-
 // Game round state (simplified for small games MVP)
 export interface GameRound {
   roundId: number;
@@ -66,7 +67,7 @@ export const TRANSACTION_TYPES = {
   RESOLVE_WINNER: "resolve_winner",
   DISTRIBUTE_WINNINGS: "distribute_winnings_and_reset",
   CLAIM_WINNINGS: "claim_winnings",
-  
+
   // ORAO VRF unified transaction types
   UNIFIED_PROGRESS_TO_RESOLUTION: "unified_progress_to_resolution",
   UNIFIED_RESOLVE_AND_DISTRIBUTE: "unified_resolve_and_distribute",
