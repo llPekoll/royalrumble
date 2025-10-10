@@ -22,8 +22,12 @@ export function GameLobby() {
   const [spectatorBetAmount, setSpectatorBetAmount] = useState(100);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
 
-  // Get current game
-  const currentGame = useQuery(api.games.getCurrentGame);
+  // Get game state from Solana-based system
+  const gameState = useQuery(api.gameManager.getGameState);
+
+  // TODO: Fetch participants from Solana blockchain
+  // For now, currentGame is null to maintain demo mode
+  const currentGame = null;
 
   // Get player data
   const playerData = useQuery(

@@ -1,7 +1,6 @@
 // Core game management functions for the Convex crank service
 import { internalMutation, internalAction, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { SolanaClient } from "./lib/solana";
 import { GameStatus, TRANSACTION_TYPES } from "./lib/types";
@@ -163,7 +162,9 @@ async function handleWaitingPhase(
   const waitingEndTime = gameRound.startTimestamp * 1000 + waitingDuration * 1000;
 
   if (now >= waitingEndTime) {
-    console.log(`Waiting phase ended for game ${gameState.gameId}, progressing with unified ORAO VRF`);
+    console.log(
+      `Waiting phase ended for game ${gameState.gameId}, progressing with unified ORAO VRF`
+    );
 
     try {
       // UNIFIED CALL: Progress to resolution + ORAO VRF request in one transaction
@@ -233,7 +234,7 @@ async function handleWinnerRandomness(
 ) {
   // Check if ORAO VRF is fulfilled
   const vrfFulfilled = await solanaClient.checkVrfFulfillment(gameRound.vrfRequestPubkey);
-  
+
   if (vrfFulfilled) {
     console.log(`ORAO VRF fulfilled for game ${gameState.gameId}, completing game`);
 

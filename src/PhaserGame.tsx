@@ -18,7 +18,11 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
   ref
 ) {
   const game = useRef<Phaser.Game | null>(null);
-  const currentGame = useQuery(api.games.getCurrentGame);
+
+  // Get game state from Solana-based system
+  const gameState = useQuery(api.gameManager.getGameState);
+  const currentGame = null; // Disabled until Solana integration
+
   const characters = useQuery(api.characters.getActiveCharacters);
   const demoMap = useQuery(api.maps.getRandomMap); // Fetch single random map for demo mode
 

@@ -46,7 +46,8 @@ export function Header() {
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
   );
 
-  const currentGame = useQuery(api.games.getCurrentGame);
+  // Get game state from Solana-based system
+  const gameState = useQuery(api.gameManager.getGameState);
 
   // Fetch ONLY Privy embedded wallet balance via direct RPC
   useEffect(() => {
@@ -118,21 +119,21 @@ export function Header() {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Game Mode Display */}
-              {currentGame && (
+              {/* Game Status Display */}
+              {gameState && gameState.gameState && (
                 <div className="flex flex-col items-center text-amber-300">
                   <div className="flex items-center gap-2">
                     <Map className="w-4 h-4 text-amber-400" />
                     <div className="font-bold text-amber-300 text-lg uppercase tracking-wide">
-                      {currentGame.map?.name || "Loading"}
+                      Round #{gameState.gameState.gameId.replace("round_", "")}
                     </div>
                   </div>
-                  {currentGame.isSmallGame && (
-                    <div className="text-amber-300 text-sm flex items-center gap-1 mt-1">
-                      <span className="text-yellow-300">⚡</span>
-                      Quick Game Mode: 3 phases (45 seconds total)
-                    </div>
-                  )}
+                  <div className="text-amber-300 text-sm flex items-center gap-1 mt-1">
+                    <span className="text-yellow-300">⚡</span>
+                    {gameState.gameState.status === "waiting" && "Waiting for players"}
+                    {gameState.gameState.status === "awaitingWinnerRandomness" && "Determining winner..."}
+                    {gameState.gameState.status === "idle" && "Ready"}
+                  </div>
                 </div>
               )}
 

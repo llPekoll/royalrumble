@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
 import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
@@ -15,11 +15,12 @@ export default function App() {
   // References to the PhaserGame component (game and scene are exposed)
   const phaserRef = useRef<IRefPhaserGame | null>(null);
 
-  // Get current game state
-  const currentGame = useQuery(api.games.getCurrentGame);
+  // Get current game state from new Solana-based system
+  const gameState = useQuery(api.gameManager.getGameState);
 
   // Demo mode is active when no real game exists
-  const isDemoMode = currentGame === null;
+  // Handle undefined (loading state), null, or missing gameState
+  const isDemoMode = !gameState || !gameState.gameState;
 
   // State to track demo info for UI (passed from DemoGameManager via ref or context if needed)
   const [demoState, setDemoState] = useState({
@@ -28,24 +29,15 @@ export default function App() {
     participantCount: 0,
   });
 
-  // Mutation to trigger blockchain call
-  const triggerBlockchainCall = useMutation(api.games.triggerBlockchainCall);
-
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
     // Handle scene based on whether we're in demo or real game
-    if (scene.scene.key === "RoyalRumble" && currentGame) {
-      // Real game scene - update with game state
-      (scene as any).updateGameState?.(currentGame);
+    if (scene.scene.key === "RoyalRumble" && gameState && gameState.gameState) {
+      // Real game scene - update with blockchain game state
+      (scene as any).updateGameState?.(gameState.gameState);
 
-      // Set up blockchain call event listener
-      scene.events.off("triggerBlockchainCall");
-      scene.events.on("triggerBlockchainCall", async () => {
-        if (currentGame && currentGame._id) {
-          console.log("Triggering blockchain call from frontend");
-          await triggerBlockchainCall({ gameId: currentGame._id });
-        }
-      });
+      // Blockchain calls now handled by Solana crank system (no frontend trigger needed)
+      console.log("Real game active - Solana crank managing blockchain calls");
     } else if (scene.scene.key === "DemoScene") {
       // Demo scene is ready - DemoGameManager will handle it
       console.log("DemoScene is ready");
@@ -57,54 +49,43 @@ export default function App() {
     if (!phaserRef.current?.scene) return;
 
     const scene = phaserRef.current.scene;
+    const hasRealGame = gameState && gameState.gameState;
 
     // If real game starts and we're in demo scene, switch to game scene
-    if (currentGame && scene.scene.key === "DemoScene") {
-      console.log("Switching from DemoScene to RoyalRumble");
+    if (hasRealGame && scene.scene.key === "DemoScene") {
+      console.log("Switching from DemoScene to RoyalRumble - Real game started");
+      console.log("Game state:", gameState.gameState);
       scene.scene.start("RoyalRumble");
     }
 
     // If no game and we're in game scene, switch back to demo
-    if (!currentGame && scene.scene.key === "RoyalRumble") {
-      console.log("Switching from RoyalRumble to DemoScene");
+    if (!hasRealGame && scene.scene.key === "RoyalRumble") {
+      console.log("Switching from RoyalRumble to DemoScene - Game ended");
       scene.scene.start("DemoScene");
     }
 
-    // Update game scene with real game state
-    if (currentGame && scene.scene.key === "RoyalRumble") {
-      (scene as any).updateGameState?.(currentGame);
+    // Update game scene with real blockchain game state
+    if (hasRealGame && scene.scene.key === "RoyalRumble") {
+      (scene as any).updateGameState?.(gameState.gameState);
 
-      // Detect new players joining in real-time
-      if (currentGame.status === "waiting" && currentGame.participants) {
-        const newPlayers = currentGame.participants.filter(
-          (p: any) => !previousParticipants.some((prev) => prev._id === p._id)
-        );
-
-        // Spawn each new player with special effects
-        newPlayers.forEach((player: any) => {
-          console.log("New player joined:", player.displayName);
-          (scene as any).spawnPlayerImmediately?.(player);
-        });
-
-        // Update previous participants list
-        setPreviousParticipants(currentGame.participants);
-      }
+      // TODO: Fetch and display participants from Solana blockchain
+      // For now, game state only has minimal tracking data
+      console.log("Game status:", gameState.gameState.status);
+      console.log("Players count:", gameState.gameState.playersCount);
     }
-  }, [currentGame, previousParticipants]);
+  }, [gameState]);
 
-  // Show blockchain dialog when blockchain call is pending
+  // Show blockchain dialog during VRF randomness
   useEffect(() => {
-    if (currentGame) {
-      const isSmallGame = currentGame.isSmallGame || currentGame.participants?.length < 8;
-      const isArenaPhase = currentGame.status === "arena";
-      const isBlockchainCallPending = currentGame.blockchainCallStatus === "pending";
+    if (gameState?.gameState) {
+      const isAwaitingRandomness = gameState.gameState.status === "awaitingWinnerRandomness";
 
-      // Show dialog for small games in arena phase while blockchain call is pending
-      setShowBlockchainDialog(isSmallGame && isArenaPhase && isBlockchainCallPending);
+      // Show dialog while waiting for Solana VRF
+      setShowBlockchainDialog(isAwaitingRandomness);
     } else {
       setShowBlockchainDialog(false);
     }
-  }, [currentGame]);
+  }, [gameState]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">

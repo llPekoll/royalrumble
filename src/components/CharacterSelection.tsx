@@ -37,13 +37,15 @@ const CharacterSelection = memo(function CharacterSelection({ onParticipantAdded
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // Get current game - only fetch once
-  const currentGame = useQuery(api.games.getCurrentGame);
+  // Get game state from Solana-based system
+  const gameState = useQuery(api.gameManager.getGameState);
+
+  // TODO: Fetch participants from Solana blockchain
+  // For now, currentGame is null (demo mode)
+  const currentGame = null;
 
   // Check how many participants this player already has
-  const playerParticipantCount = currentGame?.participants?.filter(
-    (p: any) => p.walletAddress === walletAddress
-  ).length || 0;
+  const playerParticipantCount = 0; // Disabled until Solana integration
 
   // Mutation to join game (creates game if needed) - keeping as fallback
   const joinGameFallback = useMutation(api.games.joinGame);

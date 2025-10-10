@@ -10,8 +10,11 @@ export function MultiParticipantPanel() {
   // Memoize wallet address to prevent unnecessary re-queries
   const walletAddress = useMemo(() => connected && publicKey ? publicKey.toString() : null, [connected, publicKey]);
 
-  // Get current game
-  const currentGame = useQuery(api.games.getCurrentGame);
+  // Get game state from Solana-based system
+  const gameState = useQuery(api.gameManager.getGameState);
+
+  // TODO: Fetch participants from Solana blockchain
+  const currentGame = null; // Disabled until Solana integration
 
   // Get ALL participants in the game
   const allParticipants = useQuery(
