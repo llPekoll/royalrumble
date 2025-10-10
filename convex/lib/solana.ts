@@ -78,11 +78,11 @@ export class SolanaClient {
       minBetLamports: account.minBetLamports.toNumber(),
       smallGameDurationConfig: {
         waitingPhaseDuration: account.smallGameDurationConfig.waitingPhaseDuration.toNumber(),
-        // eliminationPhaseDuration - not used in small games MVP
-        // spectatorBettingDuration - removed for small games MVP
-        resolvingPhaseDuration: account.smallGameDurationConfig.resolvingPhaseDuration.toNumber(),
       },
-      // largeGameDurationConfig - removed for small games MVP
+      // ORAO VRF configuration
+      vrfFeeLamports: account.vrfFeeLamports.toNumber(),
+      vrfNetworkState: account.vrfNetworkState,
+      vrfTreasury: account.vrfTreasury,
     };
   }
 
@@ -111,15 +111,12 @@ export class SolanaClient {
         totalBet: p.totalBet.toNumber(),
         timestamp: p.timestamp.toNumber(),
       })),
-      // Large game fields removed for small games MVP:
-      // finalists: account.finalists,
-      // spectatorBets: account.spectatorBets.map(...),
-      // spectatorPot: account.spectatorPot.toNumber(),
-      // finalistRandomnessAccount: account.finalistRandomnessAccount,
       initialPot: account.initialPot.toNumber(),
       winner: account.winner,
-      winnerRandomnessAccount: account.winnerRandomnessAccount,
-      randomnessCommitSlot: account.randomnessCommitSlot.toNumber(),
+      // ORAO VRF integration
+      vrfRequestPubkey: account.vrfRequestPubkey,
+      vrfSeed: Array.from(account.vrfSeed),
+      randomnessFulfilled: account.randomnessFulfilled,
     };
   }
 
@@ -274,15 +271,15 @@ export class SolanaClient {
   }
 
   private async getOraoNetworkState(): Promise<PublicKey> {
-    // TODO: Replace with actual ORAO network state account
-    // This would typically be retrieved from ORAO VRF program state
-    return new PublicKey("9W959DqEETiGZocYWisQaEdchqyn1oQdCaFaoDrwfKWz");
+    // Get from game config
+    const gameConfig = await this.getGameConfig();
+    return gameConfig.vrfNetworkState;
   }
 
   private async getOraoTreasury(): Promise<PublicKey> {
-    // TODO: Replace with actual ORAO treasury account
-    // This would typically be retrieved from ORAO VRF program state
-    return new PublicKey("9W959DqEETiGZocYWisQaEdchqyn1oQdCaFaoDrwfKWz");
+    // Get from game config
+    const gameConfig = await this.getGameConfig();
+    return gameConfig.vrfTreasury;
   }
 
 
