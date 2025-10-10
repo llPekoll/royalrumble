@@ -85,32 +85,64 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     
     // 3. CALCULATE AND DISTRIBUTE WINNINGS IMMEDIATELY
     let total_pot = game_round.initial_pot;
-    let house_fee = (total_pot as u128 * ctx.accounts.config.house_fee_basis_points as u128 / 10000) as u64;
+    let house_fee = (total_pot as u128)
+        .checked_mul(ctx.accounts.config.house_fee_basis_points as u128)
+        .ok_or(Domin8Error::ArithmeticOverflow)?
+        .checked_div(10000)
+        .ok_or(Domin8Error::ArithmeticOverflow)? as u64;
     let winner_payout = total_pot.saturating_sub(house_fee);
     
     msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
     
     // Transfer to winner
     if winner_payout > 0 {
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
-        **winner_account_info.try_borrow_mut_lamports()? += winner_payout;
+        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
+        require!(
+            vault_lamports >= winner_payout,
+            Domin8Error::InsufficientFunds
+        );
+        
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = vault_lamports
+            .checked_sub(winner_payout)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        
+        let winner_lamports = winner_account_info.lamports();
+        **winner_account_info.try_borrow_mut_lamports()? = winner_lamports
+            .checked_add(winner_payout)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
     }
     
     // Transfer house fee to treasury
     if house_fee > 0 {
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= house_fee;
-        **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? += house_fee;
+        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
+        require!(
+            vault_lamports >= house_fee,
+            Domin8Error::InsufficientFunds
+        );
+        
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = vault_lamports
+            .checked_sub(house_fee)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        
+        let treasury_lamports = ctx.accounts.treasury.to_account_info().lamports();
+        **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? = treasury_lamports
+            .checked_add(house_fee)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
     }
     
     // 4. RESET GAME STATE FOR NEXT ROUND
     game_round.status = GameStatus::Idle;
     game_round.randomness_fulfilled = true;
-    game_round.round_id += 1; // Increment for next game
+    game_round.round_id = game_round.round_id
+        .checked_add(1)
+        .ok_or(Domin8Error::ArithmeticOverflow)?; // Increment for next game
     game_round.players.clear();
     game_round.initial_pot = 0;
     game_round.start_timestamp = 0;
     
-    msg!("Game {} completed and reset - ready for round {}", game_round.round_id - 1, game_round.round_id);
+    msg!("Game {} completed and reset - ready for round {}", 
+         game_round.round_id.saturating_sub(1), 
+         game_round.round_id);
     
     Ok(())
 }
