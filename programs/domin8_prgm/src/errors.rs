@@ -93,4 +93,7 @@ pub enum Domin8Error {
     
     #[msg("Invalid bet amount")]
     InvalidBetAmount,
+
+    #[msg("Arithmetic overflow occurred")]
+    ArithmeticOverflow,
 }

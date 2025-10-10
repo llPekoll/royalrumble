@@ -48,7 +48,7 @@ export const checkAndProgressGames = internalMutation({
       const gameId = `round_${gameRound.roundId}`;
       let gameState = await ctx.db
         .query("gameStates")
-        .withIndex("by_game_id", (q: { eq: (field: string, value: string) => any }) => q.eq("gameId", gameId))
+        .withIndex("by_game_id", (q) => q.eq("gameId", gameId))
         .first();
 
       if (!gameState) {
