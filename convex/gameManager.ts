@@ -48,7 +48,7 @@ export const checkAndProgressGames = internalMutation({
       const gameId = `round_${gameRound.roundId}`;
       let gameState = await ctx.db
         .query("gameStates")
-        .withIndex("by_game_id", (q) => q.eq("gameId", gameId))
+        .withIndex("by_game_id", (q: { eq: (field: string, value: string) => any }) => q.eq("gameId", gameId))
         .first();
 
       if (!gameState) {
@@ -204,7 +204,7 @@ async function handleWinnerRandomness(
   const currentSlot = await solanaClient.getCurrentSlot();
   const slotsElapsed = currentSlot - gameRound.randomnessCommitSlot;
 
-  if (slotsElapsed >= 10) {
+  if (currentSlot >= gameRound.randomnessCommitSlot) {
     console.log(`Resolving winner for game ${gameState.gameId}, slots elapsed: ${slotsElapsed}`);
 
     try {
