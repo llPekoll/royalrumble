@@ -27,7 +27,6 @@ export class DemoScene extends Scene {
   private backgroundManager!: BackgroundManager;
 
   // Demo state
-  private demoMap: any = null;
   private participants: any[] = [];
 
   private battleMusic: Phaser.Sound.BaseSound | null = null;
@@ -50,7 +49,6 @@ export class DemoScene extends Scene {
     if (demoMapData?.background) {
       console.log("[DemoScene] Initializing background with:", demoMapData.background);
       this.backgroundManager.setTexture(demoMapData.background);
-      this.demoMap = demoMapData;
     } else {
       console.warn("[DemoScene] No demo map data available!");
     }
@@ -124,7 +122,6 @@ export class DemoScene extends Scene {
 
   public setDemoMap(mapData: any) {
     console.log("[DemoScene] setDemoMap called:", mapData?.name);
-    this.demoMap = mapData;
 
     if (mapData?.background) {
       this.backgroundManager.setTexture(mapData.background);
