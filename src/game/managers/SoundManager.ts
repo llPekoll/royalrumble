@@ -168,8 +168,9 @@ export class SoundManager {
       }
 
       // Try to resume audio context
-      if (scene.game.sound.context) {
-        const context = scene.game.sound.context;
+      const soundManager = scene.game.sound as any;
+      if (soundManager.context) {
+        const context = soundManager.context as AudioContext;
 
         if (context.state === "suspended") {
           context
@@ -178,7 +179,7 @@ export class SoundManager {
               this.isAudioUnlocked = true;
               resolve();
             })
-            .catch((error) => {
+            .catch((error: Error) => {
               console.error("[SoundManager] Failed to unlock audio context:", error);
               resolve(); // Resolve anyway to not block execution
             });
