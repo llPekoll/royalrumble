@@ -9,6 +9,10 @@ pub mod resolve_winner;
 pub mod distribute_winnings;
 pub mod claim_winnings;
 
+// ORAO VRF unified instructions
+pub mod unified_progress_to_resolution;
+pub mod unified_resolve_and_distribute;
+
 pub use initialize::*;
 pub use deposit_bet::*;
 // pub use place_spectator_bet::*;  // Removed for small games MVP
@@ -18,3 +22,7 @@ pub use progress_to_resolution::*;
 pub use resolve_winner::*;
 pub use distribute_winnings::*;
 pub use claim_winnings::*;
+
+// ORAO VRF unified exports
+pub use unified_progress_to_resolution::*;
+pub use unified_resolve_and_distribute::*;

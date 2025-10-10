@@ -57,9 +57,10 @@ export interface GameRound {
   initialPot: number;
   // spectatorPot - removed for small games MVP
   winner: PublicKey;
-  // finalistRandomnessAccount - removed for small games MVP
-  winnerRandomnessAccount: PublicKey;
-  randomnessCommitSlot: number;
+  // ORAO VRF integration
+  vrfRequestPubkey: PublicKey;
+  vrfSeed: number[];
+  randomnessFulfilled: boolean;
 }
 
 // PDA seeds
@@ -77,6 +78,10 @@ export const TRANSACTION_TYPES = {
   RESOLVE_WINNER: "resolve_winner",
   DISTRIBUTE_WINNINGS: "distribute_winnings_and_reset",
   CLAIM_WINNINGS: "claim_winnings",
+  
+  // ORAO VRF unified transaction types
+  UNIFIED_PROGRESS_TO_RESOLUTION: "unified_progress_to_resolution",
+  UNIFIED_RESOLVE_AND_DISTRIBUTE: "unified_resolve_and_distribute",
 } as const;
 
 // Instruction names (simplified for small games MVP)

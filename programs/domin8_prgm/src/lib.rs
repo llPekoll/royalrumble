@@ -72,4 +72,14 @@ pub mod domin8_prgm {
     pub fn claim_winnings(ctx: Context<ClaimWinnings>, round_id: u64) -> Result<()> {
         instructions::claim_winnings(ctx, round_id)
     }
+
+    /// UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF
+    pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>) -> Result<()> {
+        instructions::unified_progress_to_resolution(ctx)
+    }
+
+    /// UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
+    pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>) -> Result<()> {
+        instructions::unified_resolve_and_distribute(ctx)
+    }
 }
