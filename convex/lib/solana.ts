@@ -216,25 +216,33 @@ export class SolanaClient {
 
   // UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
   async unifiedResolveAndDistribute(vrfRequestPubkey: PublicKey): Promise<string> {
-    const { gameConfig, gameRound } = this.getPDAs();
+    const { gameConfig, gameRound, vault } = this.getPDAs();
     
-    // Get winner from VRF result first
-    const winner = await this.getWinnerFromVrf(vrfRequestPubkey);
+    // Fetch current game round to get player accounts
+    const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
     
     // Get treasury from game config
     const gameConfigAccount = await this.program.account.gameConfig.fetch(gameConfig);
+    
+    // Prepare remaining accounts - all player accounts that could potentially win
+    const remainingAccounts = gameRoundAccount.players.map((player: any) => ({
+      pubkey: player.wallet,
+      isWritable: true, // Players' accounts will receive funds if they win
+      isSigner: false,  // Players are not signing this transaction
+    }));
     
     const tx = await this.program.methods
       .unifiedResolveAndDistribute()
       .accounts({
         gameRound,
         config: gameConfig,
+        vault,
         crank: this.authority.publicKey,
         vrfRequest: vrfRequestPubkey,
         treasury: gameConfigAccount.treasury,
-        winnerAccount: winner,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
+      .remainingAccounts(remainingAccounts) // Pass all player accounts
       .rpc();
       
     return tx;
@@ -275,14 +283,6 @@ export class SolanaClient {
     // TODO: Replace with actual ORAO treasury account
     // This would typically be retrieved from ORAO VRF program state
     return new PublicKey("9W959DqEETiGZocYWisQaEdchqyn1oQdCaFaoDrwfKWz");
-  }
-
-  private async getWinnerFromVrf(vrfRequestPubkey: PublicKey): Promise<PublicKey> {
-    // TODO: Implement winner calculation from VRF randomness
-    // This would read the VRF account data and calculate winner based on bet weights
-    // For now, return a placeholder
-    const gameRound = await this.getGameRound();
-    return gameRound.players[0]?.wallet || this.authority.publicKey;
   }
 
 

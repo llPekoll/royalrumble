@@ -43,11 +43,6 @@ pub struct UnifiedResolveAndDistribute<'info> {
     )]
     pub treasury: SystemAccount<'info>,
     
-    /// Winner's account (to be determined from VRF)
-    /// CHECK: Winner will be validated against game participants
-    #[account(mut)]
-    pub winner_account: AccountInfo<'info>,
-    
     pub system_program: Program<'info, System>,
 }
 
@@ -79,11 +74,11 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     let player_refs: Vec<&PlayerEntry> = game_round.players.iter().collect();
     let winner_wallet = select_weighted_winner(&player_refs, randomness)?;
     
-    // Validate winner account matches the selected winner
-    require!(
-        ctx.accounts.winner_account.key() == winner_wallet,
-        Domin8Error::InvalidWinnerAccount
-    );
+    // Dynamically fetch the winner's account from remaining_accounts
+    let winner_account_info = ctx.remaining_accounts
+        .iter()
+        .find(|account| account.key == &winner_wallet)
+        .ok_or(Domin8Error::InvalidWinnerAccount)?;
     
     game_round.winner = winner_wallet;
     msg!("Winner selected: {}", winner_wallet);
@@ -98,7 +93,7 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     // Transfer to winner
     if winner_payout > 0 {
         **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
-        **ctx.accounts.winner_account.try_borrow_mut_lamports()? += winner_payout;
+        **winner_account_info.try_borrow_mut_lamports()? += winner_payout;
     }
     
     // Transfer house fee to treasury
