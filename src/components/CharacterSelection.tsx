@@ -298,7 +298,7 @@ const CharacterSelection = memo(function CharacterSelection({
             disabled={isSubmitting || !currentGame || currentGame.status !== "waiting"}
             className={`flex justify-center items-center w-full  bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
-            <img src="/assets/insert-coin.png" alt="Coin" />
+            <img src="/assets/insert-coin.png" alt="Coin" className="h-8" />
             {isSubmitting ? "Inserting..." : "Insert coin"}
           </button>
         </div>

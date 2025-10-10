@@ -169,7 +169,7 @@ export class DemoScene extends Scene {
     this.playerManager.moveParticipantsToCenter();
 
     // After 2 seconds of running, start continuous explosions
-    this.time.delayedCall(1000, () => {
+    this.time.delayedCall(500, () => {
       console.log("[DemoScene] 💥 Starting continuous explosions after 2 seconds of running");
       this.animationManager.createContinuousExplosions();
     });

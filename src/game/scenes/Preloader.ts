@@ -69,6 +69,7 @@ export class Preloader extends Scene {
     // Load sound effects
     this.load.audio("battle-theme", "sounds/battleThemeA.mp3");
     this.load.audio("domin8-intro", "sounds/domin8-intro.mp3");
+    this.load.audio("explosion-dust", "sounds/explosion-dust.wav");
 
     // Load impact sounds for character landing
     this.load.audio("impact-1", "sounds/impacts/sfx_sounds_impact1.wav");
@@ -78,6 +79,22 @@ export class Preloader extends Scene {
     this.load.audio("impact-6", "sounds/impacts/sfx_sounds_impact6.wav");
     this.load.audio("impact-7", "sounds/impacts/sfx_sounds_impact7.wav");
     this.load.audio("impact-8", "sounds/impacts/sfx_sounds_impact8.wav");
+
+    // Load death scream sounds for character elimination
+    this.load.audio("death-scream-1", "sounds/death-screams/human/sfx_deathscream_human1.wav");
+    this.load.audio("death-scream-2", "sounds/death-screams/human/sfx_deathscream_human2.wav");
+    this.load.audio("death-scream-3", "sounds/death-screams/human/sfx_deathscream_human3.wav");
+    this.load.audio("death-scream-4", "sounds/death-screams/human/sfx_deathscream_human4.wav");
+    this.load.audio("death-scream-5", "sounds/death-screams/human/sfx_deathscream_human5.wav");
+    this.load.audio("death-scream-6", "sounds/death-screams/human/sfx_deathscream_human6.wav");
+    this.load.audio("death-scream-7", "sounds/death-screams/human/sfx_deathscream_human7.wav");
+    this.load.audio("death-scream-8", "sounds/death-screams/human/sfx_deathscream_human8.wav");
+    this.load.audio("death-scream-9", "sounds/death-screams/human/sfx_deathscream_human9.wav");
+    this.load.audio("death-scream-10", "sounds/death-screams/human/sfx_deathscream_human10.wav");
+    this.load.audio("death-scream-11", "sounds/death-screams/human/sfx_deathscream_human11.wav");
+    this.load.audio("death-scream-12", "sounds/death-screams/human/sfx_deathscream_human12.wav");
+    this.load.audio("death-scream-13", "sounds/death-screams/human/sfx_deathscream_human13.wav");
+    this.load.audio("death-scream-14", "sounds/death-screams/human/sfx_deathscream_human14.wav");
 
     // Log load errors for debugging
     this.load.on("loaderror", (file: any) => {

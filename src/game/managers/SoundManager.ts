@@ -119,6 +119,33 @@ export class SoundManager {
   }
 
   /**
+   * Play a random death scream (for character elimination)
+   */
+  static playRandomDeathScream(scene: Scene, baseVolume: number = 0.5) {
+    // Available death scream sounds (14 total)
+    const deathScreams = [
+      "death-scream-1", "death-scream-2", "death-scream-3", "death-scream-4",
+      "death-scream-5", "death-scream-6", "death-scream-7", "death-scream-8",
+      "death-scream-9", "death-scream-10", "death-scream-11", "death-scream-12",
+      "death-scream-13", "death-scream-14"
+    ];
+
+    // Pick a random death scream
+    const randomIndex = Math.floor(Math.random() * deathScreams.length);
+    const randomScream = deathScreams[randomIndex];
+
+    // Play the random death scream
+    this.playSound(scene, randomScream, baseVolume);
+  }
+
+  /**
+   * Play explosion sound (for big explosions)
+   */
+  static playExplosion(scene: Scene, baseVolume: number = 0.7) {
+    this.playSound(scene, "explosion-dust", baseVolume);
+  }
+
+  /**
    * Set global volume (0.0 to 1.0)
    */
   static setGlobalVolume(volume: number) {

@@ -358,11 +358,12 @@ export class PlayerManager {
       participant.nameText.setVisible(true);
 
       // Animate container moving towards center (sprite and text move together)
+      // Faster duration: 400-600ms instead of 800-1200ms
       this.scene.tweens.add({
         targets: participant.container,
         x: this.centerX + (Math.random() - 0.5) * 100,
         y: this.centerY + (Math.random() - 0.5) * 100,
-        duration: 800 + Math.random() * 400,
+        duration: 400 + Math.random() * 200,
         ease: "Power2.easeInOut",
       });
 

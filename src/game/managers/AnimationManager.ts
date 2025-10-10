@@ -1,5 +1,6 @@
 import { Scene } from "phaser";
 import { GameParticipant } from "./PlayerManager";
+import { SoundManager } from "./SoundManager";
 
 export class AnimationManager {
   private scene: Scene;
@@ -343,6 +344,17 @@ export class AnimationManager {
     const eliminatedCount = Array.from(participants.values()).filter((p) => p.eliminated).length;
     if (eliminatedCount > 0) {
       this.createBloodSplatter(this.centerX, this.centerY, true);
+
+      // Play death screams for each eliminated character (with slight delays for variety)
+      let screamDelay = 0;
+      Array.from(participants.values()).forEach((p) => {
+        if (p.eliminated) {
+          this.scene.time.delayedCall(screamDelay, () => {
+            SoundManager.playRandomDeathScream(this.scene, 0.5);
+          });
+          screamDelay += 100; // Stagger screams by 100ms
+        }
+      });
     }
 
     // Apply physics only to eliminated participants
@@ -607,6 +619,9 @@ export class AnimationManager {
   }
 
   createFullScreenBloodSplash(impactX: number, impactY: number) {
+    // Play a death scream when character hits screen edge
+    SoundManager.playRandomDeathScream(this.scene, 0.6);
+
     // Create multiple blood animations across the screen
     const bloodTypes = [
       "blood-from-left6-big",
@@ -786,6 +801,11 @@ export class AnimationManager {
 
     for (let i = 0; i < explosionCount; i++) {
       this.scene.time.delayedCall(i * delayBetweenExplosions, () => {
+        // Play explosion sound with the first explosion
+        if (i === 0) {
+          SoundManager.playExplosion(this.scene, 0.7);
+        }
+
         // Random position across the entire screen
         const gameWidth = this.scene.game.config.width as number;
         const gameHeight = this.scene.game.config.height as number;
