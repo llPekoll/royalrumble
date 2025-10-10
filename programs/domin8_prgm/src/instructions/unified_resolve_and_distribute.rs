@@ -74,16 +74,10 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     let player_refs: Vec<&PlayerEntry> = game_round.players.iter().collect();
     let winner_wallet = select_weighted_winner(&player_refs, randomness)?;
     
-    // Dynamically fetch the winner's account from remaining_accounts
-    let winner_account_info = ctx.remaining_accounts
-        .iter()
-        .find(|account| account.key == &winner_wallet)
-        .ok_or(Domin8Error::InvalidWinnerAccount)?;
-    
     game_round.winner = winner_wallet;
     msg!("Winner selected: {}", winner_wallet);
     
-    // 3. CALCULATE AND DISTRIBUTE WINNINGS IMMEDIATELY
+    // 3. CALCULATE WINNINGS
     let total_pot = game_round.initial_pot;
     let house_fee = (total_pot as u128)
         .checked_mul(ctx.accounts.config.house_fee_basis_points as u128)
@@ -94,43 +88,42 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     
     msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
     
-    // Transfer to winner
+    // 4. DISTRIBUTE WINNINGS - Use direct lamport manipulation to avoid lifetime issues
     if winner_payout > 0 {
-        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
-        require!(
-            vault_lamports >= winner_payout,
-            Domin8Error::InsufficientFunds
-        );
-        
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = vault_lamports
-            .checked_sub(winner_payout)
-            .ok_or(Domin8Error::ArithmeticOverflow)?;
-        
-        let winner_lamports = winner_account_info.lamports();
-        **winner_account_info.try_borrow_mut_lamports()? = winner_lamports
-            .checked_add(winner_payout)
-            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        // Find winner account in remaining_accounts
+        let mut winner_found = false;
+        for account in ctx.remaining_accounts {
+            if account.key() == winner_wallet {
+                let vault_lamports = ctx.accounts.vault.lamports();
+                require!(
+                    vault_lamports >= winner_payout,
+                    Domin8Error::InsufficientFunds
+                );
+                
+                // Direct lamport transfer
+                **ctx.accounts.vault.try_borrow_mut_lamports()? -= winner_payout;
+                **account.try_borrow_mut_lamports()? += winner_payout;
+                winner_found = true;
+                break;
+            }
+        }
+        require!(winner_found, Domin8Error::InvalidWinnerAccount);
     }
     
     // Transfer house fee to treasury
     if house_fee > 0 {
-        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
+        let vault_lamports = ctx.accounts.vault.lamports();
         require!(
             vault_lamports >= house_fee,
             Domin8Error::InsufficientFunds
         );
         
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? = vault_lamports
-            .checked_sub(house_fee)
-            .ok_or(Domin8Error::ArithmeticOverflow)?;
-        
-        let treasury_lamports = ctx.accounts.treasury.to_account_info().lamports();
-        **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? = treasury_lamports
-            .checked_add(house_fee)
-            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        // Direct lamport transfer
+        **ctx.accounts.vault.try_borrow_mut_lamports()? -= house_fee;
+        **ctx.accounts.treasury.try_borrow_mut_lamports()? += house_fee;
     }
     
-    // 4. RESET GAME STATE FOR NEXT ROUND
+    // 5. RESET GAME STATE FOR NEXT ROUND
     game_round.status = GameStatus::Idle;
     game_round.randomness_fulfilled = true;
     game_round.round_id = game_round.round_id
