@@ -48,6 +48,8 @@ export class BackgroundManager {
     this.background = this.scene.add.image(this.centerX, this.centerY, textureKey);
     this.background.setOrigin(0.5, 0.5);
     this.background.setDepth(0);
+    // Keep pixel art crisp when scaling
+    this.background.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.scaleToFit();
   }
 

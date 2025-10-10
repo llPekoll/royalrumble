@@ -29,9 +29,14 @@ const config: Phaser.Types.Core.GameConfig = {
   height: window.innerHeight,
   transparent: true,
   parent: 'game-container',
+  pixelArt: true, // Enable pixel-perfect rendering globally
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  render: {
+    antialiasGL: false, // Disable WebGL antialiasing for crisp pixels
+    pixelArt: true, // Redundant but explicit - ensures crisp pixel art
   },
   audio: {
     disableWebAudio: false,  // Use Web Audio API (best quality)

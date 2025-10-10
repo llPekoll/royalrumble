@@ -43,7 +43,7 @@ export class DemoScene extends Scene {
 
     this.playerManager = new PlayerManager(this, this.centerX, this.centerY);
     this.animationManager = new AnimationManager(this, this.centerX, this.centerY);
-    this.backgroundManager = new BackgroundManager(this, this.centerX, this.centerY);
+    this.backgroundManager = new BackgroundManager(this, this.centerX, this.centerY + 200);
 
     // Initialize background immediately with preloaded demo map
     if (demoMapData?.background) {
@@ -118,7 +118,6 @@ export class DemoScene extends Scene {
     this.playerManager.updateCenter(this.centerX, this.centerY);
     this.animationManager.updateCenter(this.centerX, this.centerY);
   }
-
 
   public setDemoMap(mapData: any) {
     console.log("[DemoScene] setDemoMap called:", mapData?.name);

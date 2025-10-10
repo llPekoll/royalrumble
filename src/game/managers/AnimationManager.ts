@@ -61,6 +61,8 @@ export class AnimationManager {
         // Scale up the explosion for dramatic effect
         explosion.setScale(2 + Math.random());
         explosion.setDepth(500); // On top of everything
+        // Keep pixel art crisp when scaling
+        explosion.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
 
         // Play explosion animation
         if (this.scene.anims.exists("explosion")) {
@@ -92,6 +94,8 @@ export class AnimationManager {
     throne.setDepth(90); // Behind winner (winner is at ~100+)
     throne.setScale(2);
     throne.setAlpha(0);
+    // Keep pixel art crisp when scaling
+    throne.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
 
     this.scene.tweens.add({
       targets: throne,
@@ -236,6 +240,9 @@ export class AnimationManager {
 
     explosion.setScale(15); // 5x bigger (was 3, now 15)
     explosion.setDepth(500); // On top of everything
+    // Keep pixel art crisp when scaling
+    explosion.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
     if (this.scene.anims.exists("explosion")) {
       explosion.play("explosion");
     }
@@ -544,6 +551,9 @@ export class AnimationManager {
         const explosion = this.scene.add.sprite(x, y, "explosion");
         explosion.setScale(1.5);
         explosion.setDepth(500); // On top of everything
+        // Keep pixel art crisp when scaling
+        explosion.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
         if (this.scene.anims.exists("explosion")) {
           explosion.play("explosion");
         }
@@ -754,6 +764,9 @@ export class AnimationManager {
 
     explosion.setScale(4);
     explosion.setDepth(500); // On top of everything
+    // Keep pixel art crisp when scaling
+    explosion.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
     if (this.scene.anims.exists("explosion")) {
       explosion.play("explosion");
     }
@@ -782,6 +795,8 @@ export class AnimationManager {
         // Random scale for variety (1.5x to 4x)
         explosion.setScale(7 + Math.random() * 2.5);
         explosion.setDepth(1600); // On top of everything else
+        // Keep pixel art crisp when scaling
+        explosion.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
 
         if (this.scene.anims.exists("explosion")) {
           explosion.play("explosion");
