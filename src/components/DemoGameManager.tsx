@@ -49,8 +49,8 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
   const charactersQuery = useQuery(api.characters.getActiveCharacters);
 
   // Memoize to prevent reference changes from triggering re-spawns
-  const characters = useMemo(() => charactersQuery, [charactersQuery?.length]);
-  const demoMap = useMemo(() => demoMapQuery, [demoMapQuery?._id]);
+  const characters = useMemo(() => charactersQuery ?? undefined, [charactersQuery?.length]);
+  const demoMap = useMemo(() => demoMapQuery ?? undefined, [demoMapQuery?._id]);
 
   // Notify parent of state changes
   useEffect(() => {
@@ -131,7 +131,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         isActive,
         phase,
         hasDemoMap: !!demoMap,
-        hasCharacters: characters!.length > 0,
+        hasCharacters: (characters?.length ?? 0) > 0,
         hasPositions: shuffledPositions.length > 0,
       });
       return;

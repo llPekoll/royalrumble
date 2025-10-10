@@ -194,6 +194,22 @@ export class PlayerManager {
       duration: 1000,
       ease: "Cubic.easeOut", // Smooth landing with minimal bounce
       onComplete: () => {
+        // Create dust impact effect when character lands
+        const dustSprite = this.scene.add.sprite(targetX, targetY, "dust");
+        dustSprite.setOrigin(0.5, 1.0); // Bottom-center anchor (same as character)
+        dustSprite.setScale(scale * 0.4); // Scale dust relative to character size
+        dustSprite.setDepth(baseDepth + depthFromY - 1); // Just behind the character
+        dustSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST); // Keep pixel art crisp
+
+        if (this.scene.anims.exists("dust-impact")) {
+          dustSprite.play("dust-impact");
+        }
+
+        // Destroy dust sprite after animation completes
+        dustSprite.once("animationcomplete", () => {
+          dustSprite.destroy();
+        });
+
         // Wait 1 second then play sand step sound when character hits the ground
         this.scene.time.delayedCall(1000, () => {
           try {
@@ -257,13 +273,7 @@ export class PlayerManager {
     const angle = (spawnIndex / totalParticipants) * Math.PI * 2;
 
     // calculateEllipsePosition handles all randomness via jitter
-    const position = calculateEllipsePosition(
-      angle,
-      spawnRadius,
-      this.centerX,
-      this.centerY,
-      true
-    );
+    const position = calculateEllipsePosition(angle, spawnRadius, this.centerX, this.centerY, true);
     return {
       targetX: position.x,
       targetY: position.y,

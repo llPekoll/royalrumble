@@ -60,6 +60,7 @@ export class Preloader extends Scene {
     // Load VFX assets
     this.load.atlas("explosion", "vfx/Explosion.png", "vfx/Explosion.json");
     this.load.atlas("blood", "vfx/blood_spritesheet.png", "vfx/blood_spritesheet.json");
+    this.load.atlas("dust", "dust_char.png", "dust_char.json");
     this.load.image("logo", "logo.webp");
 
     // Load winner throne
@@ -171,6 +172,19 @@ export class Preloader extends Scene {
         frameRate: anim.frameRate,
         repeat: 0,
       });
+    });
+
+    // Create dust impact animation
+    this.anims.create({
+      key: "dust-impact",
+      frames: this.anims.generateFrameNames("dust", {
+        prefix: "dust_char ",
+        suffix: ".aseprite",
+        start: 0,
+        end: 19,
+      }),
+      frameRate: 24,
+      repeat: 0,
     });
 
     // Start with DemoScene by default
