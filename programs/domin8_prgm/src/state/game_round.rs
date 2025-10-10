@@ -41,20 +41,20 @@ pub struct GameRound {
     // Winner
     pub winner: Pubkey,
     
-    // Switchboard VRF accounts
-    // pub finalist_randomness_account: Pubkey,  // Removed for small games MVP
-    pub winner_randomness_account: Pubkey,
-    pub randomness_commit_slot: u64,
+    // ORAO VRF integration
+    pub vrf_request_pubkey: Pubkey,    // ORAO VRF request account
+    pub vrf_seed: [u8; 32],           // Seed used for VRF request
+    pub randomness_fulfilled: bool,    // Track if randomness is ready
 }
 
 impl GameRound {
-    /// Account space calculation for small games MVP:
+    /// Account space calculation for small games MVP with ORAO VRF:
     /// 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start_timestamp)
     /// + 4 (players vec len) + (64 * 48) (max players)
     /// + 8 (initial_pot) + 32 (winner) 
-    /// + 32 (winner_randomness) + 8 (commit_slot)
-    /// = 8 + 8 + 1 + 8 + 4 + 3072 + 8 + 32 + 32 + 8 = 3181 bytes (~3.1KB)
-    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 4 + (64 * PlayerEntry::LEN) + 8 + 32 + 32 + 8;
+    /// + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
+    /// = 8 + 8 + 1 + 8 + 4 + 3072 + 8 + 32 + 32 + 32 + 1 = 3206 bytes (~3.1KB)
+    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 4 + (64 * PlayerEntry::LEN) + 8 + 32 + 32 + 32 + 1;
 
     /// Check if the game is in a state where players can join
     pub fn can_accept_players(&self) -> bool {

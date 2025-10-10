@@ -127,7 +127,7 @@ async function processGameStatus(
 }
 
 /**
- * Handle waiting phase - check if time has elapsed to progress to resolution (simplified for small games MVP)
+ * Handle waiting phase - UNIFIED: progress directly to resolution with ORAO VRF request
  */
 async function handleWaitingPhase(
   ctx: { db: any },
@@ -137,38 +137,34 @@ async function handleWaitingPhase(
   gameConfig: any,
   now: number
 ) {
-  // Calculate when waiting phase should end (all games are now small games)
+  // Calculate when waiting phase should end
   const waitingDuration = gameConfig.smallGameDurationConfig.waitingPhaseDuration;
   const waitingEndTime = gameRound.startTimestamp * 1000 + waitingDuration * 1000;
 
   if (now >= waitingEndTime) {
-    console.log(`Waiting phase ended for game ${gameState.gameId}, progressing to resolution`);
+    console.log(`Waiting phase ended for game ${gameState.gameId}, progressing with unified ORAO VRF`);
 
     try {
-      // Call progress_to_resolution on Solana
-      const txHash = await solanaClient.progressToResolution();
+      // UNIFIED CALL: Progress to resolution + ORAO VRF request in one transaction
+      const txHash = await solanaClient.unifiedProgressToResolution();
 
-      // Log successful transaction
       await logGameEvent(ctx, gameState.gameId, "transaction_sent", {
         success: true,
         transactionHash: txHash,
-        transactionType: TRANSACTION_TYPES.PROGRESS_TO_RESOLUTION,
+        transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
         fromStatus: GameStatus.Waiting,
-        // All games now go directly to AwaitingWinnerRandomness (small games MVP)
         toStatus: GameStatus.AwaitingWinnerRandomness,
         playersCount: gameRound.players.length,
       });
 
-      // Confirm transaction
       const confirmed = await solanaClient.confirmTransaction(txHash);
       if (confirmed) {
         await logGameEvent(ctx, gameState.gameId, "transaction_confirmed", {
           success: true,
           transactionHash: txHash,
-          transactionType: TRANSACTION_TYPES.PROGRESS_TO_RESOLUTION,
+          transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
         });
 
-        // Update game state tracking (all games are small games now)
         await ctx.db.patch(gameState._id, {
           status: "awaitingWinnerRandomness",
           gameType: "small",
@@ -177,11 +173,11 @@ async function handleWaitingPhase(
         throw new Error("Transaction confirmation failed");
       }
     } catch (error) {
-      console.error("Failed to progress to resolution:", error);
+      console.error("Failed to progress with unified ORAO VRF:", error);
       await logGameEvent(ctx, gameState.gameId, "transaction_failed", {
         success: false,
         errorMessage: error instanceof Error ? error.message : String(error),
-        transactionType: TRANSACTION_TYPES.PROGRESS_TO_RESOLUTION,
+        transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
       });
     }
   }
@@ -192,7 +188,7 @@ async function handleWaitingPhase(
 // async function handleSpectatorBettingPhase(...) { ... }
 
 /**
- * Handle winner randomness resolution
+ * Handle winner randomness and complete game - UNIFIED: resolve winner + distribute + reset
  */
 async function handleWinnerRandomness(
   ctx: { db: any },
@@ -201,38 +197,51 @@ async function handleWinnerRandomness(
   gameState: Doc<"gameStates">,
   now: number
 ) {
-  const currentSlot = await solanaClient.getCurrentSlot();
-  const slotsElapsed = currentSlot - gameRound.randomnessCommitSlot;
-
-  if (currentSlot >= gameRound.randomnessCommitSlot) {
-    console.log(`Resolving winner for game ${gameState.gameId}, slots elapsed: ${slotsElapsed}`);
+  // Check if ORAO VRF is fulfilled
+  const vrfFulfilled = await solanaClient.checkVrfFulfillment(gameRound.vrfRequestPubkey);
+  
+  if (vrfFulfilled) {
+    console.log(`ORAO VRF fulfilled for game ${gameState.gameId}, completing game`);
 
     try {
-      const txHash = await solanaClient.resolveWinner(gameRound.winnerRandomnessAccount);
+      // UNIFIED CALL: Resolve winner + distribute winnings + reset game in one transaction
+      const txHash = await solanaClient.unifiedResolveAndDistribute(gameRound.vrfRequestPubkey);
 
       await logGameEvent(ctx, gameState.gameId, "transaction_sent", {
         success: true,
         transactionHash: txHash,
-        transactionType: TRANSACTION_TYPES.RESOLVE_WINNER,
+        transactionType: TRANSACTION_TYPES.UNIFIED_RESOLVE_AND_DISTRIBUTE,
         fromStatus: GameStatus.AwaitingWinnerRandomness,
-        toStatus: GameStatus.Finished,
+        toStatus: GameStatus.Idle,
       });
 
       const confirmed = await solanaClient.confirmTransaction(txHash);
       if (confirmed) {
+        await logGameEvent(ctx, gameState.gameId, "game_completed", {
+          success: true,
+          transactionHash: txHash,
+          transactionType: TRANSACTION_TYPES.UNIFIED_RESOLVE_AND_DISTRIBUTE,
+        });
+
+        // Mark game as completed and ready for next round
         await ctx.db.patch(gameState._id, {
-          status: "finished",
+          status: "idle",
           resolvingPhaseEnd: now,
         });
+      } else {
+        throw new Error("Transaction confirmation failed");
       }
     } catch (error) {
-      console.error("Failed to resolve winner:", error);
+      console.error("Failed to complete game with unified resolve and distribute:", error);
       await logGameEvent(ctx, gameState.gameId, "transaction_failed", {
         success: false,
         errorMessage: error instanceof Error ? error.message : String(error),
-        transactionType: TRANSACTION_TYPES.RESOLVE_WINNER,
+        transactionType: TRANSACTION_TYPES.UNIFIED_RESOLVE_AND_DISTRIBUTE,
       });
     }
+  } else {
+    // VRF not yet fulfilled, wait longer
+    console.log(`ORAO VRF not yet fulfilled for game ${gameState.gameId}, waiting...`);
   }
 }
 

@@ -68,4 +68,29 @@ pub enum Domin8Error {
     
     #[msg("Game has already been reset")]
     GameAlreadyReset,
+    
+    // ORAO VRF errors
+    #[msg("VRF account is invalid")]
+    InvalidVrfAccount,
+    
+    #[msg("Randomness not yet fulfilled")]
+    RandomnessNotFulfilled,
+    
+    #[msg("VRF request failed")]
+    VrfRequestFailed,
+    
+    #[msg("Invalid VRF seed")]
+    InvalidVrfSeed,
+    
+    #[msg("Invalid winner account")]
+    InvalidWinnerAccount,
+    
+    #[msg("Invalid treasury account")]
+    InvalidTreasury,
+    
+    #[msg("No players in game")]
+    NoPlayers,
+    
+    #[msg("Invalid bet amount")]
+    InvalidBetAmount,
 }
