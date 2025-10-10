@@ -138,7 +138,7 @@ fn select_weighted_winner(players: &[&PlayerEntry], randomness: u64) -> Result<P
     }
     
     // Calculate total weight
-    let total_weight: u64 = players.iter().map(|p| p.bet_amount).sum();
+    let total_weight: u64 = players.iter().map(|p| p.total_bet).sum();
     
     if total_weight == 0 {
         return Err(Domin8Error::InvalidBetAmount.into());
@@ -150,7 +150,7 @@ fn select_weighted_winner(players: &[&PlayerEntry], randomness: u64) -> Result<P
     // Find winner based on cumulative weights
     let mut cumulative = 0u64;
     for player in players {
-        cumulative = cumulative.saturating_add(player.bet_amount);
+        cumulative = cumulative.saturating_add(player.total_bet);
         if selection < cumulative {
             return Ok(player.wallet);
         }

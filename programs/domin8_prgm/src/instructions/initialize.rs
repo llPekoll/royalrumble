@@ -75,8 +75,11 @@ pub fn initialize(
     // game_round.spectator_pot = 0; // Removed for small games MVP
     game_round.winner = Pubkey::default();
     // game_round.finalist_randomness_account = Pubkey::default(); // Removed for small games MVP
-    game_round.winner_randomness_account = Pubkey::default();
-    game_round.randomness_commit_slot = 0;
+    
+    // ORAO VRF fields
+    game_round.vrf_request_pubkey = Pubkey::default();
+    game_round.vrf_seed = [0u8; 32];
+    game_round.randomness_fulfilled = false;
     
     msg!("Domin8 game initialized with authority: {}", ctx.accounts.authority.key());
     

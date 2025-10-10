@@ -42,10 +42,11 @@ pub mod domin8_prgm {
     //     instructions::place_spectator_bet(ctx, amount, target_finalist)
     // }
 
-    /// Progress game from waiting to resolution phase (crank only)
-    pub fn progress_to_resolution(ctx: Context<ProgressToResolution>) -> Result<()> {
-        instructions::progress_to_resolution(ctx)
-    }
+    // Old instructions removed - replaced by unified ORAO VRF flow
+    // /// Progress game from waiting to resolution phase (crank only)
+    // pub fn progress_to_resolution(ctx: Context<ProgressToResolution>) -> Result<()> {
+    //     instructions::progress_to_resolution(ctx)
+    // }
 
     // Removed for small games MVP - large game features only
     // /// Progress large game to final battle phase (crank only)
@@ -58,20 +59,21 @@ pub mod domin8_prgm {
     //     instructions::resolve_finalists(ctx)
     // }
 
-    /// Resolve winner using Switchboard VRF (crank only)
-    pub fn resolve_winner(ctx: Context<ResolveWinner>) -> Result<()> {
-        instructions::resolve_winner(ctx)
-    }
+    // Old instructions removed - replaced by unified ORAO VRF flow
+    // /// Resolve winner using Switchboard VRF (crank only)
+    // pub fn resolve_winner(ctx: Context<ResolveWinner>) -> Result<()> {
+    //     instructions::resolve_winner(ctx)
+    // }
 
-    /// Distribute winnings and reset game (crank only)
-    pub fn distribute_winnings_and_reset(ctx: Context<DistributeWinnings>) -> Result<()> {
-        instructions::distribute_winnings_and_reset(ctx)
-    }
+    // /// Distribute winnings and reset game (crank only)
+    // pub fn distribute_winnings_and_reset(ctx: Context<DistributeWinnings>) -> Result<()> {
+    //     instructions::distribute_winnings_and_reset(ctx)
+    // }
 
-    /// Claim winnings from a completed game round
-    pub fn claim_winnings(ctx: Context<ClaimWinnings>, round_id: u64) -> Result<()> {
-        instructions::claim_winnings(ctx, round_id)
-    }
+    // /// Claim winnings from a completed game round
+    // pub fn claim_winnings(ctx: Context<ClaimWinnings>, round_id: u64) -> Result<()> {
+    //     instructions::claim_winnings(ctx, round_id)
+    // }
 
     /// UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF
     pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>) -> Result<()> {
