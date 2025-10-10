@@ -603,9 +603,9 @@ pub enum Domin8Error {
 }
 ```
 
-### Phase 6: Frontend Integration - Simplified Flow
+### Phase 6: Convex Integration - Simplified Flow
 
-**6.1 New unified game progression calls**
+**6.1 New unified game progression calls for /convex/transactionHandlers.ts**
 ```typescript
 // SIMPLIFIED 2-TRANSACTION FLOW:
 
@@ -669,7 +669,7 @@ await program.methods
 
 ### Step 3: Production Deployment
 - Deploy unified implementation to mainnet
-- Update frontend for simplified flow
+- Update convex calls for simplified flow
 - Monitor performance and cost savings
 
 ## Cost Analysis - Unified Flow
