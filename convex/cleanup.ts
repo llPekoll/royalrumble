@@ -1,5 +1,5 @@
 // Cleanup and maintenance functions
-import { internalMutation } from "convex/server";
+import { internalMutation } from "./_generated/server";
 
 /**
  * Clean up old events - called by cron job
