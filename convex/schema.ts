@@ -276,6 +276,9 @@ export default defineSchema({
     // Performance tracking
     processingTimeMs: v.optional(v.number()),
     retryCount: v.optional(v.number()),
+    
+    // Additional metadata for system events
+    metadata: v.optional(v.any()),
   })
     .index("by_game_id", ["gameId"])
     .index("by_timestamp", ["timestamp"])

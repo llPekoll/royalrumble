@@ -78,11 +78,11 @@ export class SolanaClient {
       minBetLamports: account.minBetLamports.toNumber(),
       smallGameDurationConfig: {
         waitingPhaseDuration: account.smallGameDurationConfig.waitingPhaseDuration.toNumber(),
-        // eliminationPhaseDuration - not used in small games MVP
-        // spectatorBettingDuration - removed for small games MVP
-        resolvingPhaseDuration: account.smallGameDurationConfig.resolvingPhaseDuration.toNumber(),
       },
-      // largeGameDurationConfig - removed for small games MVP
+      // ORAO VRF configuration
+      vrfFeeLamports: account.vrfFeeLamports.toNumber(),
+      vrfNetworkState: account.vrfNetworkState,
+      vrfTreasury: account.vrfTreasury,
     };
   }
 
@@ -111,15 +111,12 @@ export class SolanaClient {
         totalBet: p.totalBet.toNumber(),
         timestamp: p.timestamp.toNumber(),
       })),
-      // Large game fields removed for small games MVP:
-      // finalists: account.finalists,
-      // spectatorBets: account.spectatorBets.map(...),
-      // spectatorPot: account.spectatorPot.toNumber(),
-      // finalistRandomnessAccount: account.finalistRandomnessAccount,
       initialPot: account.initialPot.toNumber(),
       winner: account.winner,
-      winnerRandomnessAccount: account.winnerRandomnessAccount,
-      randomnessCommitSlot: account.randomnessCommitSlot.toNumber(),
+      // ORAO VRF integration
+      vrfRequestPubkey: account.vrfRequestPubkey,
+      vrfSeed: Array.from(account.vrfSeed),
+      randomnessFulfilled: account.randomnessFulfilled,
     };
   }
 
@@ -216,25 +213,33 @@ export class SolanaClient {
 
   // UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
   async unifiedResolveAndDistribute(vrfRequestPubkey: PublicKey): Promise<string> {
-    const { gameConfig, gameRound } = this.getPDAs();
+    const { gameConfig, gameRound, vault } = this.getPDAs();
     
-    // Get winner from VRF result first
-    const winner = await this.getWinnerFromVrf(vrfRequestPubkey);
+    // Fetch current game round to get player accounts
+    const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
     
     // Get treasury from game config
     const gameConfigAccount = await this.program.account.gameConfig.fetch(gameConfig);
+    
+    // Prepare remaining accounts - all player accounts that could potentially win
+    const remainingAccounts = gameRoundAccount.players.map((player: any) => ({
+      pubkey: player.wallet,
+      isWritable: true, // Players' accounts will receive funds if they win
+      isSigner: false,  // Players are not signing this transaction
+    }));
     
     const tx = await this.program.methods
       .unifiedResolveAndDistribute()
       .accounts({
         gameRound,
         config: gameConfig,
+        vault,
         crank: this.authority.publicKey,
         vrfRequest: vrfRequestPubkey,
         treasury: gameConfigAccount.treasury,
-        winnerAccount: winner,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
+      .remainingAccounts(remainingAccounts) // Pass all player accounts
       .rpc();
       
     return tx;
@@ -266,57 +271,17 @@ export class SolanaClient {
   }
 
   private async getOraoNetworkState(): Promise<PublicKey> {
-    // TODO: Replace with actual ORAO network state account
-    // This would typically be retrieved from ORAO VRF program state
-    return new PublicKey("9W959DqEETiGZocYWisQaEdchqyn1oQdCaFaoDrwfKWz");
+    // Get from game config
+    const gameConfig = await this.getGameConfig();
+    return gameConfig.vrfNetworkState;
   }
 
   private async getOraoTreasury(): Promise<PublicKey> {
-    // TODO: Replace with actual ORAO treasury account
-    // This would typically be retrieved from ORAO VRF program state
-    return new PublicKey("9W959DqEETiGZocYWisQaEdchqyn1oQdCaFaoDrwfKWz");
+    // Get from game config
+    const gameConfig = await this.getGameConfig();
+    return gameConfig.vrfTreasury;
   }
 
-  private async getWinnerFromVrf(vrfRequestPubkey: PublicKey): Promise<PublicKey> {
-    // TODO: Implement winner calculation from VRF randomness
-    // This would read the VRF account data and calculate winner based on bet weights
-    // For now, return a placeholder
-    const gameRound = await this.getGameRound();
-    return gameRound.players[0]?.wallet || this.authority.publicKey;
-  }
-
-  // Distribute winnings and reset game
-  async distributeWinningsAndReset(winner: PublicKey): Promise<string> {
-    const { gameConfig, gameRound, vault } = this.getPDAs();
-    
-    // Get the winnings claim PDA for this round
-    const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
-    const roundId = gameRoundAccount.roundId;
-    
-    const [winningsClaim] = PublicKey.findProgramAddressSync(
-      [Buffer.from("winnings"), roundId.toArrayLike(Buffer, "le", 8)],
-      DOMIN8_PROGRAM_ID
-    );
-    
-    // Get treasury from game config
-    const gameConfigAccount = await this.program.account.gameConfig.fetch(gameConfig);
-    
-    const tx = await this.program.methods
-      .distributeWinningsAndReset()
-      .accounts({
-        gameConfig,
-        gameRound,
-        winningsClaim,
-        vault,
-        treasury: gameConfigAccount.treasury,
-        winner: winner,
-        crank: this.authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .rpc();
-      
-    return tx;
-  }
 
   // Confirm transaction with retry logic
   async confirmTransaction(
