@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::state::{GameRound, GameConfig, GameStatus, PlayerEntry};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED};
+use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, VAULT_SEED};
 
 #[derive(Accounts)]
 pub struct UnifiedResolveAndDistribute<'info> {
@@ -18,9 +18,16 @@ pub struct UnifiedResolveAndDistribute<'info> {
     )]
     pub config: Account<'info, GameConfig>,
     
-    /// The crank authority
+    /// The vault PDA that holds game funds
     #[account(
         mut,
+        seeds = [VAULT_SEED],
+        bump
+    )]
+    pub vault: SystemAccount<'info>,
+    
+    /// The crank authority
+    #[account(
         constraint = crank.key() == config.authority @ Domin8Error::Unauthorized
     )]
     pub crank: Signer<'info>,
@@ -90,13 +97,13 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     
     // Transfer to winner
     if winner_payout > 0 {
-        **ctx.accounts.crank.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
         **ctx.accounts.winner_account.try_borrow_mut_lamports()? += winner_payout;
     }
     
     // Transfer house fee to treasury
     if house_fee > 0 {
-        **ctx.accounts.crank.to_account_info().try_borrow_mut_lamports()? -= house_fee;
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= house_fee;
         **ctx.accounts.treasury.to_account_info().try_borrow_mut_lamports()? += house_fee;
     }
     

@@ -2,8 +2,6 @@
 
 /// Game constraints
 pub const MAX_PLAYERS: usize = 64;
-pub const MAX_FINALISTS: usize = 4;
-pub const MAX_SPECTATOR_BETS: usize = 20; // Limited to keep account size under 10KB
 
 /// Financial constants
 pub const MIN_BET_LAMPORTS: u64 = 10_000_000; // 0.01 SOL
@@ -16,17 +14,13 @@ pub const VAULT_SEED: &[u8] = b"vault";
 
 /// Default game durations (in seconds)
 
-// Small games (2-7 players)
+// Small games (2-64 players)
 pub const DEFAULT_SMALL_GAME_WAITING_DURATION: u64 = 30;
 pub const DEFAULT_SMALL_GAME_ELIMINATION_DURATION: u64 = 0; // No elimination phase
 pub const DEFAULT_SMALL_GAME_SPECTATOR_BETTING_DURATION: u64 = 0; // No spectator betting
 pub const DEFAULT_SMALL_GAME_RESOLVING_DURATION: u64 = 15;
 
-// Large games (8-64 players)
-pub const DEFAULT_LARGE_GAME_WAITING_DURATION: u64 = 30;
-pub const DEFAULT_LARGE_GAME_ELIMINATION_DURATION: u64 = 15;
-pub const DEFAULT_LARGE_GAME_SPECTATOR_BETTING_DURATION: u64 = 15;
-pub const DEFAULT_LARGE_GAME_RESOLVING_DURATION: u64 = 15;
+
 
 /// Account space calculations for rent exemption
 /// These constants are used to determine the exact amount of SOL needed for rent exemption

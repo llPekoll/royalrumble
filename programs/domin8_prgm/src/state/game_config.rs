@@ -4,9 +4,6 @@ use anchor_lang::prelude::*;
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct GameDurationConfig {
     pub waiting_phase_duration: u64,
-    pub elimination_phase_duration: u64,
-    pub spectator_betting_duration: u64,
-    pub resolving_phase_duration: u64,
 }
 
 impl GameDurationConfig {
@@ -22,7 +19,6 @@ pub struct GameConfig {
     pub house_fee_basis_points: u16,     // 500 = 5%
     pub min_bet_lamports: u64,           // 10,000,000 = 0.01 SOL
     pub small_game_duration_config: GameDurationConfig,
-    pub large_game_duration_config: GameDurationConfig,
     
     // ORAO VRF configuration
     pub vrf_fee_lamports: u64,        // Fee for VRF requests (0.001 SOL)
