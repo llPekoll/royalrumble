@@ -91,6 +91,9 @@ export class AnimationManager {
   }
 
   addWinnerCelebration(winnerPlayer: GameParticipant, winner: any) {
+    // Play victory sound when winner celebration starts
+    SoundManager.playVictory(this.scene, 0.6);
+
     const throne = this.scene.add.image(this.centerX, this.centerY, "throne");
     throne.setDepth(90); // Behind winner (winner is at ~100+)
     throne.setScale(2);

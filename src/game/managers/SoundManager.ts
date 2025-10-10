@@ -146,6 +146,13 @@ export class SoundManager {
   }
 
   /**
+   * Play victory sound (for winner celebration)
+   */
+  static playVictory(scene: Scene, baseVolume: number = 0.6) {
+    this.playSound(scene, "victory", baseVolume);
+  }
+
+  /**
    * Set global volume (0.0 to 1.0)
    */
   static setGlobalVolume(volume: number) {
