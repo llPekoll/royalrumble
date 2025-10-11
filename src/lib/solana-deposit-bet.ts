@@ -59,6 +59,9 @@ export async function sendDepositBetTransaction(
   const view = new DataView(instructionData.buffer);
   view.setBigUint64(8, BigInt(amountLamports), true);
 
+  // Convert Uint8Array to Buffer for TransactionInstruction
+  const dataBuffer = Buffer.from(instructionData);
+
   // Create deposit_bet instruction
   const depositBetIx = new TransactionInstruction({
     keys: [
@@ -68,7 +71,7 @@ export async function sendDepositBetTransaction(
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }       // system_program
     ],
     programId: PROGRAM_ID,
-    data: instructionData
+    data: dataBuffer
   });
 
   return {

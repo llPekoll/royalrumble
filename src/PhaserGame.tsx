@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useLayoutEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import StartGame, { setCurrentMapData, setCharactersData, setDemoMapData } from "./game/main";
+import StartGame, { setCharactersData, setDemoMapData } from "./game/main";
 import { EventBus } from "./game/EventBus";
 
 export interface IRefPhaserGame {
@@ -19,9 +19,8 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
 ) {
   const game = useRef<Phaser.Game | null>(null);
 
-  // Get game state from Solana-based system
-  const gameState = useQuery(api.gameManager.getGameState);
-  const currentGame = null; // Disabled until Solana integration
+  // TODO: Fetch current game state from Solana blockchain
+  // For now in demo mode, use random map
 
   const characters = useQuery(api.characters.getActiveCharacters);
   const demoMap = useQuery(api.maps.getRandomMap); // Fetch single random map for demo mode
@@ -31,10 +30,8 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
 
   useLayoutEffect(() => {
     if (game.current === null && isDataReady) {
-      // Pass current game's map data to Phaser before starting the game (if exists)
-      if (currentGame?.map) {
-        setCurrentMapData(currentGame.map);
-      }
+      // TODO: Pass current game's map data when Solana integration is complete
+      // For now in demo mode, only use demoMap
 
       // Pass characters data to Phaser
       setCharactersData(characters);
@@ -59,7 +56,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
         }
       }
     };
-  }, [ref, isDataReady, characters, demoMap, currentGame]);
+  }, [ref, isDataReady, characters, demoMap]);
 
   useEffect(() => {
     EventBus.on("current-scene-ready", (scene_instance: Phaser.Scene) => {

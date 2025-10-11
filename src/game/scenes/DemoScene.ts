@@ -69,11 +69,11 @@ export class DemoScene extends Scene {
     SoundManager.applyMuteToScene(this);
 
     // Set up click handler to unlock audio on first interaction
-    const unlockHandler = () => {
+    const unlockHandler = async () => {
       if (!this.audioUnlocked) {
         this.audioUnlocked = true;
 
-        SoundManager.unlockAudio(this).then(() => {
+        await SoundManager.unlockAudio(this).then(() => {
           // Try to start music after unlocking
           this.tryStartMusic();
         });

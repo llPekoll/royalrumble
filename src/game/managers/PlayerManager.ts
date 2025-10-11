@@ -198,7 +198,7 @@ export class PlayerManager {
       duration: 400, // Much faster fall (was 1000ms)
       ease: useElastic
         ? "Elastic.easeIn"
-        : function (t) {
+        : function (t: number) {
             // Custom ease: Fast fall with single subtle bounce
             // t goes from 0 to 1 during the tween
             if (t < 0.7) {

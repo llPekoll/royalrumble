@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -39,15 +39,11 @@ const CharacterSelection = memo(function CharacterSelection({
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // TODO: Fetch participants from Solana blockchain
-  // For now, currentGame is null (demo mode)
-  const currentGame = null;
+  // TODO: Fetch game state from Solana blockchain
+  // For now, always in demo mode (no game status checks)
 
   // Check how many participants this player already has
   const playerParticipantCount = 0; // Disabled until Solana integration
-
-  // Mutation to join game (creates game if needed) - keeping as fallback
-  const joinGameFallback = useMutation(api.games.joinGame);
 
   const gameCoins = playerData?.gameCoins || 0;
 
@@ -96,11 +92,8 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    // Allow joining if no game exists (will create one) or game is in waiting phase
-    if (currentGame && currentGame.status !== "waiting") {
-      toast.error("Can only join during waiting phase");
-      return;
-    }
+    // TODO: Add game status check once Solana game state is integrated
+    // For now in demo mode, always allow betting
 
     setIsSubmitting(true);
 
@@ -122,9 +115,15 @@ const CharacterSelection = memo(function CharacterSelection({
         throw new Error("Wallet not found");
       }
 
-      const signature = await wallet.signAndSendTransaction(instruction);
-      console.log("Transaction successful:", signature);
-      toast.success(`Bet placed! Signature: ${signature.slice(0, 8)}...`);
+      const result = await wallet.signAndSendTransaction(instruction);
+      console.log("Transaction successful:", result);
+
+      // Convert signature Uint8Array to hex string for display
+      const signatureHex = Array.from(result.signature)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      toast.success(`Bet placed! Signature: ${signatureHex.slice(0, 16)}...`);
 
       setBetAmount("0.1");
 
@@ -143,43 +142,7 @@ const CharacterSelection = memo(function CharacterSelection({
       onParticipantAdded?.();
     } catch (error) {
       console.error("Failed to place bet:", error);
-
-      // If Solana transaction fails, show detailed error but also try fallback for testing
-      if (error instanceof Error && error.message.includes("Transaction")) {
-        toast.error(`Solana transaction failed: ${error.message}`);
-
-        // Optional: Fallback to Convex for testing during development
-        try {
-          console.log("Falling back to Convex mutation for testing...");
-          await joinGameFallback({
-            walletAddress: publicKey.toString(),
-            betAmount: amount * 100, // Convert to game coins (0.1 SOL = 10 coins)
-            characterId: currentCharacter._id as string,
-          });
-
-          toast.success("Bet placed successfully via fallback!");
-          setBetAmount("0.1");
-
-          // Auto-reroll character
-          if (allCharacters && allCharacters.length > 0) {
-            const availableCharacters = allCharacters.filter(
-              (c: any) => c._id !== currentCharacter._id
-            );
-            if (availableCharacters.length > 0) {
-              const randomChar =
-                availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-              setCurrentCharacter(randomChar);
-            }
-          }
-
-          onParticipantAdded?.();
-        } catch (fallbackError) {
-          toast.error("Both Solana and fallback failed");
-          console.error("Fallback also failed:", fallbackError);
-        }
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to place bet");
-      }
+      toast.error(error instanceof Error ? error.message : "Failed to place bet");
     } finally {
       setIsSubmitting(false);
     }
@@ -187,19 +150,17 @@ const CharacterSelection = memo(function CharacterSelection({
     connected,
     publicKey,
     wallet,
-    currentGame,
     playerData,
     currentCharacter,
     betAmount,
     gameCoins,
-    joinGameFallback,
     onParticipantAdded,
     allCharacters,
   ]);
 
   // Don't render if not connected or no character
-  // Allow rendering when no game exists OR game is in waiting phase
-  if (!connected || !currentCharacter || (currentGame && currentGame.status !== "waiting")) {
+  // In demo mode (currentGame is null), always show the component
+  if (!connected || !currentCharacter) {
     return null;
   }
 
@@ -292,7 +253,7 @@ const CharacterSelection = memo(function CharacterSelection({
           {/* Place bet button */}
           <button
             onClick={() => void handlePlaceBet()}
-            disabled={isSubmitting || !currentGame || currentGame.status !== "waiting"}
+            disabled={isSubmitting}
             className={`flex justify-center items-center w-full  bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
             <img src="/assets/insert-coin.png" alt="Coin" className="h-8" />
