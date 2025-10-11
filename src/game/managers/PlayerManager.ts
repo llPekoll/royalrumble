@@ -199,17 +199,17 @@ export class PlayerManager {
       ease: useElastic
         ? "Elastic.easeIn"
         : function (t) {
-          // Custom ease: Fast fall with single subtle bounce
-          // t goes from 0 to 1 during the tween
-          if (t < 0.7) {
-            // Accelerate down for 70% of the animation
-            return t * t * 1.2; // Quadratic acceleration
-          } else {
-            // Single small bounce for last 30%
-            const bounceT = (t - 0.7) / 0.3; // Normalize to 0-1
-            return 1 - Math.abs(Math.sin(bounceT * Math.PI)) * 0.05; // Tiny bounce amplitude
-          }
-        },
+            // Custom ease: Fast fall with single subtle bounce
+            // t goes from 0 to 1 during the tween
+            if (t < 0.7) {
+              // Accelerate down for 70% of the animation
+              return t * t * 1.2; // Quadratic acceleration
+            } else {
+              // Single small bounce for last 30%
+              const bounceT = (t - 0.7) / 0.3; // Normalize to 0-1
+              return 1 - Math.abs(Math.sin(bounceT * Math.PI)) * 0.05; // Tiny bounce amplitude
+            }
+          },
       onComplete: () => {
         // Get the actual landed position (accounts for any jitter in targetY)
         const actualLandedX = container.x;
@@ -364,7 +364,7 @@ export class PlayerManager {
         x: this.centerX + (Math.random() - 0.5) * 100,
         y: this.centerY + (Math.random() - 0.5) * 100,
         duration: 400 + Math.random() * 200,
-        ease: "Power2.easeInOut",
+        ease: "Cubic.easeIn",
       });
 
       // Change to walking animation

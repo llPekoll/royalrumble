@@ -1,23 +1,8 @@
 // Solana integration layer for the Convex crank service
 "use node";
 import * as anchor from "@coral-xyz/anchor";
-import {
-  Connection,
-  PublicKey,
-  Keypair,
-  Transaction,
-  VersionedTransaction,
-  sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import {
-  GameConfig,
-  GameRound,
-  GameStatus,
-  DOMIN8_PROGRAM_ID,
-  PDA_SEEDS,
-  TRANSACTION_TYPES,
-  INSTRUCTION_NAMES,
-} from "./types";
+import { Connection, PublicKey, Keypair, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { GameConfig, GameRound, GameStatus, DOMIN8_PROGRAM_ID, PDA_SEEDS } from "./types";
 import { Buffer } from "buffer";
 import bs58 from "bs58";
 
@@ -72,7 +57,7 @@ export class SolanaClient {
     try {
       const trimmed = authorityPrivateKey.trim();
 
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
         // JSON array format: "[1,2,3,...]"
         privateKeyBytes = new Uint8Array(JSON.parse(trimmed));
       } else {
@@ -89,8 +74,8 @@ export class SolanaClient {
     } catch (error) {
       throw new Error(
         `Failed to parse CRANK_AUTHORITY_PRIVATE_KEY: ${error instanceof Error ? error.message : String(error)}\n` +
-        `Supported formats: JSON array [1,2,3,...] or Base58 string (88 chars)\n` +
-        `Received (first 50 chars): ${authorityPrivateKey.substring(0, 50)}...`
+          `Supported formats: JSON array [1,2,3,...] or Base58 string (88 chars)\n` +
+          `Received (first 50 chars): ${authorityPrivateKey.substring(0, 50)}...`
       );
     }
 
@@ -269,11 +254,7 @@ export class SolanaClient {
   }
 
   // Confirm transaction with retry logic
-  async confirmTransaction(
-    signature: string,
-    maxRetries: number = 3,
-    timeoutMs: number = 30000
-  ): Promise<boolean> {
+  async confirmTransaction(signature: string, maxRetries: number = 3): Promise<boolean> {
     let retries = 0;
 
     while (retries < maxRetries) {

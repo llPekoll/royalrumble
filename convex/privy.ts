@@ -9,7 +9,7 @@ export const getWalletBalance = action({
   args: {
     walletId: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_, args) => {
     console.log("🔍 getWalletBalance called with walletId:", args.walletId);
 
     const appId = process.env.PRIVY_APP_ID;

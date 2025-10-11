@@ -122,8 +122,6 @@ async function processGameStatus(
   gameConfig: any,
   now: number
 ) {
-  const gameId = gameState.gameId;
-
   switch (gameRound.status) {
     case GameStatus.Idle:
       // Nothing to do, waiting for players

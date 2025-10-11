@@ -39,9 +39,6 @@ const CharacterSelection = memo(function CharacterSelection({
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // Get game state from Solana-based system
-  const gameState = useQuery(api.gameManager.getGameState);
-
   // TODO: Fetch participants from Solana blockchain
   // For now, currentGame is null (demo mode)
   const currentGame = null;

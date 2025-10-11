@@ -9,7 +9,6 @@ import { DemoGameManager } from "./components/DemoGameManager";
 import { api } from "../convex/_generated/api";
 
 export default function App() {
-  const [previousParticipants, setPreviousParticipants] = useState<any[]>([]);
   const [showBlockchainDialog, setShowBlockchainDialog] = useState(false);
 
   // References to the PhaserGame component (game and scene are exposed)
