@@ -52,8 +52,9 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
   const characters = useMemo(() => charactersQuery ?? undefined, [charactersQuery?.length]);
   const demoMap = useMemo(() => demoMapQuery ?? undefined, [demoMapQuery?._id]);
 
-  // Notify parent of state changes
+  // Notify parent of state changes AND update Phaser UI
   useEffect(() => {
+    // Update React parent component
     if (onStateChange) {
       onStateChange({
         phase,
@@ -61,7 +62,15 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         participantCount: spawnedParticipants.length,
       });
     }
-  }, [phase, countdown, spawnedParticipants.length, onStateChange]);
+
+    // Update Phaser DemoScene UI
+    if (phaserRef.current?.scene?.scene.key === "DemoScene") {
+      const scene = phaserRef.current.scene as any;
+      if (scene.updateDemoUI) {
+        scene.updateDemoUI(phase, countdown, spawnedParticipants.length);
+      }
+    }
+  }, [phase, countdown, spawnedParticipants.length, onStateChange, phaserRef]);
 
   // Initialize demo mode when activated
   useEffect(() => {

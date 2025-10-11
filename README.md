@@ -223,3 +223,4 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 - [Phaser.js Documentation](https://phaser.io/docs)
 - [Solana Cookbook](https://solanacookbook.com/)
 - [Bun Documentation](https://bun.sh/docs)
+- [metalslug font](https://fontstruct.com/fontstructions/download/2547046)

@@ -33,6 +33,13 @@ export class DemoScene extends Scene {
   private audioUnlocked: boolean = false;
   private introPlayed: boolean = false;
 
+  // Demo UI elements
+  private demoUIContainer!: Phaser.GameObjects.Container;
+  private insertCoinText!: Phaser.GameObjects.Text;
+  private countdownText!: Phaser.GameObjects.Text;
+  private phaseText!: Phaser.GameObjects.Text;
+  private subText!: Phaser.GameObjects.Text;
+
   constructor() {
     super("DemoScene");
   }
@@ -62,6 +69,102 @@ export class DemoScene extends Scene {
 
     // Set up audio unlock on first user interaction
     this.setupAudioUnlock();
+
+    // Create demo UI
+    this.createDemoUI();
+  }
+
+  private createDemoUI() {
+    // Create container for all UI elements - bottom 1/3 of screen
+    const bottomThirdY = this.camera.height * 0.75; // 75% down the screen
+    this.demoUIContainer = this.add.container(this.centerX, bottomThirdY);
+    this.demoUIContainer.setDepth(1000);
+    this.demoUIContainer.setScrollFactor(0);
+
+    // "INSERT COIN!" text - much bigger and centered
+    this.insertCoinText = this.add.text(0, 0, "INSERT COIN!", {
+      fontFamily: "metal-slug, Arial, sans-serif",
+      fontSize: "64px",
+      color: "#FFD700",
+      stroke: "#000000",
+      strokeThickness: 6,
+    });
+    this.insertCoinText.setOrigin(0.5);
+
+    // Countdown text - bigger and centered below INSERT COIN
+    this.countdownText = this.add.text(0, 110, "30", {
+      fontFamily: "metal-slug, Arial, sans-serif",
+      fontSize: "96px",
+      color: "#FF4444",
+      stroke: "#000000",
+      strokeThickness: 8,
+    });
+    this.countdownText.setOrigin(0.5);
+
+    // Phase text (Battle Royale / Winner Crowned) - bigger and centered
+    this.phaseText = this.add.text(0, 0, "", {
+      fontFamily: "metal-slug, Arial, sans-serif",
+      fontSize: "48px",
+      color: "#FFD700",
+      stroke: "#000000",
+      strokeThickness: 5,
+    });
+    this.phaseText.setOrigin(0.5);
+
+    // Sub text (participant count / restarting info) - bigger and centered
+    this.subText = this.add.text(0, 70, "", {
+      fontFamily: "metal-slug, Arial, sans-serif",
+      fontSize: "28px",
+      color: "#FFFFFF",
+      stroke: "#000000",
+      strokeThickness: 3,
+    });
+    this.subText.setOrigin(0.5);
+
+    // Add to container
+    this.demoUIContainer.add([this.insertCoinText, this.countdownText, this.phaseText, this.subText]);
+
+    // Add fade ping pong animation to INSERT COIN text
+    this.tweens.add({
+      targets: this.insertCoinText,
+      alpha: 0.3,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Start with spawning phase visible
+    this.updateDemoUI("spawning", 30, 0);
+  }
+
+  public updateDemoUI(phase: "spawning" | "arena" | "results", countdown: number, participantCount: number) {
+    if (!this.demoUIContainer) return;
+
+    if (phase === "spawning") {
+      // Show INSERT COIN + countdown
+      this.insertCoinText.setVisible(true);
+      this.countdownText.setVisible(true);
+      this.countdownText.setText(countdown.toString());
+      this.phaseText.setVisible(false);
+      this.subText.setVisible(false);
+    } else if (phase === "arena") {
+      // Show Battle Royale
+      this.insertCoinText.setVisible(false);
+      this.countdownText.setVisible(false);
+      this.phaseText.setVisible(true);
+      this.phaseText.setText("⚔️ BATTLE ROYALE!");
+      this.subText.setVisible(true);
+      this.subText.setText(`${participantCount} bots fighting for victory`);
+    } else if (phase === "results") {
+      // Show Winner Crowned
+      this.insertCoinText.setVisible(false);
+      this.countdownText.setVisible(false);
+      this.phaseText.setVisible(true);
+      this.phaseText.setText("🏆 WINNER CROWNED!");
+      this.subText.setVisible(true);
+      this.subText.setText("Restarting in 5s...");
+    }
   }
 
   private setupAudioUnlock() {
@@ -124,6 +227,12 @@ export class DemoScene extends Scene {
     this.backgroundManager.updateCenter(this.centerX, this.centerY);
     this.playerManager.updateCenter(this.centerX, this.centerY);
     this.animationManager.updateCenter(this.centerX, this.centerY);
+
+    // Update demo UI container position - bottom 1/3 of screen
+    if (this.demoUIContainer) {
+      const bottomThirdY = this.camera.height * 0.75;
+      this.demoUIContainer.setPosition(this.centerX, bottomThirdY);
+    }
   }
 
   public setDemoMap(mapData: any) {
@@ -226,6 +335,10 @@ export class DemoScene extends Scene {
 
   public transitionToRealGame() {
     this.clearDemoParticipants();
+    // Hide demo UI
+    if (this.demoUIContainer) {
+      this.demoUIContainer.setVisible(false);
+    }
     // Stop battle music when transitioning to real game
     if (this.battleMusic) {
       this.battleMusic.stop();

@@ -61,7 +61,6 @@ export function GameLobby() {
         <Gamepad2 className="w-8 h-8 mx-auto mb-2 text-gray-400" />
         <h2 className="text-lg font-bold mb-1">Royal Rumble</h2>
         <p className="text-sm text-gray-400 mb-2">Connect wallet to join</p>
-        <p className="text-xs text-gray-500">Control characters & win rewards!</p>
       </Card>
     );
   }

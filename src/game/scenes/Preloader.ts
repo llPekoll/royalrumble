@@ -23,6 +23,13 @@ export class Preloader extends Scene {
   preload() {
     this.load.setPath("assets");
 
+    // Load custom fonts
+    this.load.addFile(new Phaser.Loader.FileTypes.FontFile(this.load, {
+      type: 'font',
+      key: 'metal-slug',
+      url: 'fonts/metal-slug-colour.colr.ttf'
+    } as any));
+
     // Check if data is available (should always be true due to PhaserGame.tsx guard)
     if (!charactersData || charactersData.length === 0) {
       console.error("[Preloader] No characters data available! This should not happen.");

@@ -4,7 +4,6 @@ import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
 import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
 import { BlockchainRandomnessDialog } from "./components/BlockchainRandomnessDialog";
-import { DemoModeIndicator } from "./components/DemoModeIndicator";
 import { DemoGameManager } from "./components/DemoGameManager";
 import { api } from "../convex/_generated/api";
 
@@ -99,15 +98,6 @@ export default function App() {
       {/* Overlay UI Elements */}
       <div className="relative z-10">
         <Header />
-
-        {/* Demo Mode Indicator */}
-        {isDemoMode && (
-          <DemoModeIndicator
-            countdown={demoState.countdown}
-            phase={demoState.phase}
-            participantCount={demoState.participantCount}
-          />
-        )}
 
         <div className="min-h-screen pt-16 pb-24">
           <div className="absolute right-4 top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
