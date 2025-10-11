@@ -10,20 +10,20 @@ export function Leaderboard() {
   const [sortBy, setSortBy] = useState<"earnings" | "wins" | "winRate">("earnings");
   const [showMore, setShowMore] = useState(false);
 
-  // Get leaderboard data
-  const leaderboard = useQuery(api.leaderboard.getLeaderboard, {
+  // Get leaderboard data (TEMPORARY STUB - will be replaced in Phase 3)
+  const leaderboard = useQuery(api.leaderboard_stub.getLeaderboard, {
     limit: showMore ? 50 : 10,
     sortBy,
   });
 
-  // Get player's rank
+  // Get player's rank (TEMPORARY STUB - will be replaced in Phase 3)
   const playerRank = useQuery(
-    api.leaderboard.getPlayerRank,
+    api.leaderboard_stub.getPlayerRank,
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
   );
 
-  // Get game statistics
-  const gameStats = useQuery(api.leaderboard.getGameStats);
+  // Get game statistics (TEMPORARY STUB - will be replaced in Phase 3)
+  const gameStats = useQuery(api.leaderboard_stub.getGameStats);
 
   const formatWinRate = (rate: number) => {
     return `${(rate * 100).toFixed(1)}%`;
