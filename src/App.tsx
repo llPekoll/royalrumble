@@ -16,9 +16,9 @@ export default function App() {
   // Get current game state from new Solana-based system
   const gameState = useQuery(api.gameManagerDb.getGameState);
 
-  // Demo mode is active when no real game exists
+  // Demo mode is active when no real game exists or game is idle
   // Handle undefined (loading state), null, or missing gameState
-  const isDemoMode = !gameState || !gameState.gameState;
+  const isDemoMode = !gameState?.gameState || gameState.gameState.status === "idle";
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
@@ -59,10 +59,10 @@ export default function App() {
     if (hasRealGame && scene.scene.key === "RoyalRumble") {
       (scene as any).updateGameState?.(gameState.gameState);
 
-      // TODO: Fetch and display participants from Solana blockchain
-      // For now, game state only has minimal tracking data
+      // Display participants from Solana blockchain via gameState.players
       console.log("Game status:", gameState.gameState.status);
       console.log("Players count:", gameState.gameState.playersCount);
+      console.log("Players:", gameState.gameState.players);
     }
   }, [gameState]);
 

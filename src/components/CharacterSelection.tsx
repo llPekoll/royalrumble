@@ -39,8 +39,26 @@ const CharacterSelection = memo(function CharacterSelection({
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // TODO: Fetch game state from Solana blockchain
-  // For now, always in demo mode (no game status checks)
+  // Get current game state
+  const gameState = useQuery(api.gameManagerDb.getGameState);
+
+  // Check if player can place bets based on game state
+  const canPlaceBet = useMemo(() => {
+    if (!gameState?.gameState) {
+      // No active game - in demo mode, allow betting to start new game
+      return true;
+    }
+    
+    // Only allow betting during idle or waiting phase
+    return gameState.gameState.status === "idle" || gameState.gameState.status === "waiting";
+  }, [gameState]);
+
+  // Check if player is already in the current game
+  const isPlayerInGame = useMemo(() => {
+    if (!gameState?.gameState?.players || !walletAddress) return false;
+    
+    return gameState.gameState.players.some(player => player.wallet === walletAddress);
+  }, [gameState, walletAddress]);
 
   // Check how many participants this player already has
   const playerParticipantCount = 0; // Disabled until Solana integration
@@ -81,6 +99,25 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
+    // Check if player can place bet based on game state
+    if (!canPlaceBet) {
+      const status = gameState?.gameState?.status;
+      if (status === "awaitingWinnerRandomness") {
+        toast.error("Game is determining winner, please wait...");
+      } else if (status === "finished") {
+        toast.error("Game has finished, new game will start soon");
+      } else {
+        toast.error("Cannot place bet at this time");
+      }
+      return;
+    }
+
+    // Check if player is already in the current game
+    if (isPlayerInGame) {
+      toast.error("You are already participating in the current game");
+      return;
+    }
+
     const amount = parseFloat(betAmount);
     if (isNaN(amount) || amount < 0.1 || amount > 10) {
       toast.error("Bet amount must be between 0.1 and 10 SOL");
@@ -91,9 +128,6 @@ const CharacterSelection = memo(function CharacterSelection({
       toast.error(`Insufficient SOL. You have ${gameCoins / 100000} SOL`);
       return;
     }
-
-    // TODO: Add game status check once Solana game state is integrated
-    // For now in demo mode, always allow betting
 
     setIsSubmitting(true);
 
@@ -154,6 +188,9 @@ const CharacterSelection = memo(function CharacterSelection({
     currentCharacter,
     betAmount,
     gameCoins,
+    canPlaceBet,
+    isPlayerInGame,
+    gameState,
     onParticipantAdded,
     allCharacters,
   ]);
@@ -169,6 +206,23 @@ const CharacterSelection = memo(function CharacterSelection({
       <div className="bg-gradient-to-b from-amber-900/95 to-amber-950/95 backdrop-blur-sm rounded-lg border-2 border-amber-600/60 shadow-2xl shadow-amber-900/50">
         {/* Character Section */}
         <div className="p-3 border-b border-amber-700/50">
+          {/* Game Status Indicator */}
+          {gameState?.gameState && (
+            <div className="mb-2 text-center">
+              <span className={`text-sm uppercase tracking-wide ${
+                gameState.gameState.status === "waiting" ? "text-green-400" :
+                gameState.gameState.status === "awaitingWinnerRandomness" ? "text-yellow-400" :
+                gameState.gameState.status === "finished" ? "text-red-400" :
+                "text-amber-400"
+              }`}>
+                Game Status: {gameState.gameState.status}
+              </span>
+              {isPlayerInGame && (
+                <span className="block text-xs text-green-400 mt-1">✓ You're in this game</span>
+              )}
+            </div>
+          )}
+          
           {/* Player participant count indicator */}
           {playerParticipantCount > 0 && (
             <div className="mb-2 text-center">
@@ -253,11 +307,22 @@ const CharacterSelection = memo(function CharacterSelection({
           {/* Place bet button */}
           <button
             onClick={() => void handlePlaceBet()}
-            disabled={isSubmitting}
-            className={`flex justify-center items-center w-full  bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
+            disabled={isSubmitting || !canPlaceBet || isPlayerInGame}
+            className={`flex justify-center items-center w-full bg-gradient-to-r ${
+              canPlaceBet && !isPlayerInGame 
+                ? "from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600" 
+                : "from-gray-600 to-gray-700"
+            } disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
             <img src="/assets/insert-coin.png" alt="Coin" className="h-8" />
-            {isSubmitting ? "Inserting..." : "Insert coin"}
+            {isSubmitting 
+              ? "Inserting..." 
+              : isPlayerInGame 
+                ? "Already Joined" 
+                : !canPlaceBet 
+                  ? "Game In Progress" 
+                  : "Insert coin"
+            }
           </button>
         </div>
       </div>

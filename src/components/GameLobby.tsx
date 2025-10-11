@@ -12,10 +12,13 @@ import { Users, Gamepad2 } from "lucide-react";
 
 export function GameLobby() {
   const { connected, publicKey } = usePrivyWallet();
-  // TODO: need to be redone in a blockchainway
+  
+  // Get current game state
+  const gameState = useQuery(api.gameManagerDb.getGameState);
+  
   // Get player data
   const playerData = useQuery(
-    api.players.getPlayerWithCharacter,
+    api.players.getPlayer,
     connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
   );
 
@@ -106,13 +109,30 @@ export function GameLobby() {
     );
   }
 
-  // In demo mode (currentGame is always null), always show the lobby UI
+  // Check if there's an active game
+  const hasActiveGame = gameState?.gameState && gameState.gameState.status !== "idle";
+
   return (
     <div className="space-y-4">
+      {/* Show game status if there's an active game */}
+      {hasActiveGame && (
+        <Card className="p-4 bg-gradient-to-r from-green-900/20 to-emerald-900/20 border-green-600/40">
+          <div className="text-center">
+            <h3 className="text-lg font-bold text-green-300 mb-2">Active Game</h3>
+            <p className="text-sm text-green-400 mb-1">
+              Status: {gameState.gameState.status}
+            </p>
+            <p className="text-sm text-green-400">
+              Players: {gameState.gameState.playersCount} | Pot: {(gameState.gameState.initialPot / 1000000000).toFixed(2)} SOL
+            </p>
+          </div>
+        </Card>
+      )}
+
       {/* Character Selection - allows player to place bets */}
       <CharacterSelection onParticipantAdded={handleParticipantAdded} />
 
-      {/* Multi-Participant Control */}
+      {/* Multi-Participant Panel - now shows real data when game is active */}
       <MultiParticipantPanel />
     </div>
   );
