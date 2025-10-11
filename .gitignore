@@ -1,4 +1,4 @@
-
+.anchor
 # dependencies
 /node_modules
 Cargo.lock
