@@ -47,7 +47,7 @@ export function Header() {
   );
 
   // Get game state from Solana-based system
-  const gameState = useQuery(api.gameManager.getGameState);
+  const gameState = useQuery(api.gameManagerDb.getGameState);
 
   // Fetch ONLY Privy embedded wallet balance via direct RPC
   useEffect(() => {

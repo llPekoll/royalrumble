@@ -1,6 +1,6 @@
+"use node";
 // Core game management functions for the Convex crank service
-import { internalMutation, internalAction, internalQuery, query } from "./_generated/server";
-import { v } from "convex/values";
+import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { SolanaClient } from "./lib/solana";
 import { GameStatus, TRANSACTION_TYPES } from "./lib/types";
@@ -30,7 +30,7 @@ export const checkAndProgressGames = internalAction({
 
       // Health check first
       const health = await solanaClient.healthCheck();
-      await ctx.runMutation(internal.gameManager.updateSystemHealth, {
+      await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
         component: "cron_job",
         status: health.healthy ? "healthy" : "unhealthy",
         lastCheck: now,
@@ -49,10 +49,10 @@ export const checkAndProgressGames = internalAction({
 
       // Get or create game state tracking in Convex
       const gameId = `round_${gameRound.roundId}`;
-      let gameState = await ctx.runQuery(internal.gameManager.getGameStateByGameId, { gameId });
+      let gameState = await ctx.runQuery(internal.gameManagerDb.getGameStateByGameId, { gameId });
 
       if (!gameState) {
-        gameState = await ctx.runMutation(internal.gameManager.createGameStateRecord, {
+        gameState = await ctx.runMutation(internal.gameManagerDb.createGameStateRecord, {
           gameId,
           gameRound,
           gameConfig,
@@ -65,13 +65,13 @@ export const checkAndProgressGames = internalAction({
       }
 
       // Update last checked time
-      await ctx.runMutation(internal.gameManager.updateGameState, {
+      await ctx.runMutation(internal.gameManagerDb.updateGameState, {
         gameStateId: gameState._id,
         lastChecked: now,
       });
 
       // Log current state
-      await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         gameId,
         event: "cron_check",
         details: {
@@ -87,7 +87,7 @@ export const checkAndProgressGames = internalAction({
       console.error("Cron job error:", error);
 
       // Log error
-      await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         gameId: "unknown",
         event: "cron_error",
         details: {
@@ -97,10 +97,10 @@ export const checkAndProgressGames = internalAction({
       });
 
       // Update system health
-      const errorCount = await ctx.runQuery(internal.gameManager.getSystemHealthErrorCount, {
+      const errorCount = await ctx.runQuery(internal.gameManagerDb.getSystemHealthErrorCount, {
         component: "cron_job",
       });
-      await ctx.runMutation(internal.gameManager.updateSystemHealth, {
+      await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
         component: "cron_job",
         status: "unhealthy",
         lastCheck: now,
@@ -168,7 +168,7 @@ async function handleWaitingPhase(
       // UNIFIED CALL: Progress to resolution + ORAO VRF request in one transaction
       const txHash = await solanaClient.unifiedProgressToResolution();
 
-      await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         gameId: gameState.gameId,
         event: "transaction_sent",
         details: {
@@ -183,7 +183,7 @@ async function handleWaitingPhase(
 
       const confirmed = await solanaClient.confirmTransaction(txHash);
       if (confirmed) {
-        await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+        await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
           gameId: gameState.gameId,
           event: "transaction_confirmed",
           details: {
@@ -193,7 +193,7 @@ async function handleWaitingPhase(
           },
         });
 
-        await ctx.runMutation(internal.gameManager.updateGameState, {
+        await ctx.runMutation(internal.gameManagerDb.updateGameState, {
           gameStateId: gameState._id,
           status: "awaitingWinnerRandomness",
           gameType: "small",
@@ -203,7 +203,7 @@ async function handleWaitingPhase(
       }
     } catch (error) {
       console.error("Failed to progress with unified ORAO VRF:", error);
-      await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         gameId: gameState.gameId,
         event: "transaction_failed",
         details: {
@@ -240,7 +240,7 @@ async function handleWinnerRandomness(
       // UNIFIED CALL: Resolve winner + distribute winnings + reset game in one transaction
       const txHash = await solanaClient.unifiedResolveAndDistribute(gameRound.vrfRequestPubkey);
 
-      await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         gameId: gameState.gameId,
         event: "transaction_sent",
         details: {
@@ -254,7 +254,7 @@ async function handleWinnerRandomness(
 
       const confirmed = await solanaClient.confirmTransaction(txHash);
       if (confirmed) {
-        await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+        await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
           gameId: gameState.gameId,
           event: "game_completed",
           details: {
@@ -265,7 +265,7 @@ async function handleWinnerRandomness(
         });
 
         // Mark game as completed and ready for next round
-        await ctx.runMutation(internal.gameManager.updateGameState, {
+        await ctx.runMutation(internal.gameManagerDb.updateGameState, {
           gameStateId: gameState._id,
           status: "idle",
           resolvingPhaseEnd: now,
@@ -275,7 +275,7 @@ async function handleWinnerRandomness(
       }
     } catch (error) {
       console.error("Failed to complete game with unified resolve and distribute:", error);
-      await ctx.runMutation(internal.gameManager.logGameEventRecord, {
+      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         gameId: gameState.gameId,
         event: "transaction_failed",
         details: {
@@ -290,202 +290,3 @@ async function handleWinnerRandomness(
     console.log(`ORAO VRF not yet fulfilled for game ${gameState.gameId}, waiting...`);
   }
 }
-
-// ============================================================================
-// Internal Mutations - Database write operations called by actions
-// ============================================================================
-
-/**
- * Create new game state tracking record
- */
-export const createGameStateRecord = internalMutation({
-  args: { gameId: v.string(), gameRound: v.any(), gameConfig: v.any() },
-  handler: async (ctx, { gameId, gameRound, gameConfig }) => {
-    const now = Date.now();
-
-    const gameStateId = await ctx.db.insert("gameStates", {
-      gameId,
-      status: gameRound.status,
-      phaseStartTime: gameRound.startTimestamp * 1000,
-      waitingDuration: gameConfig.smallGameDurationConfig.waitingPhaseDuration,
-      playersCount: gameRound.players.length,
-      lastChecked: now,
-    });
-
-    return await ctx.db.get(gameStateId);
-  },
-});
-
-/**
- * Update game state record
- */
-export const updateGameState = internalMutation({
-  args: {
-    gameStateId: v.id("gameStates"),
-    lastChecked: v.optional(v.number()),
-    status: v.optional(v.string()),
-    gameType: v.optional(v.string()),
-    resolvingPhaseEnd: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const { gameStateId, ...updates } = args;
-    await ctx.db.patch(gameStateId, updates);
-  },
-});
-
-/**
- * Log game events for audit trail
- */
-export const logGameEventRecord = internalMutation({
-  args: {
-    gameId: v.string(),
-    event: v.string(),
-    details: v.object({
-      success: v.boolean(),
-      transactionHash: v.optional(v.string()),
-      errorMessage: v.optional(v.string()),
-      fromStatus: v.optional(v.any()),
-      toStatus: v.optional(v.any()),
-      playersCount: v.optional(v.number()),
-      transactionType: v.optional(v.string()),
-      processingTimeMs: v.optional(v.number()),
-      retryCount: v.optional(v.number()),
-    }),
-  },
-  handler: async (ctx, { gameId, event, details }) => {
-    await ctx.db.insert("gameEvents", {
-      gameId,
-      event,
-      timestamp: Date.now(),
-      success: details.success,
-      transactionHash: details.transactionHash,
-      errorMessage: details.errorMessage,
-      fromStatus: details.fromStatus,
-      toStatus: details.toStatus,
-      playersCount: details.playersCount,
-      transactionType: details.transactionType,
-      processingTimeMs: details.processingTimeMs,
-      retryCount: details.retryCount || 0,
-    });
-  },
-});
-
-/**
- * Update system health record
- */
-export const updateSystemHealth = internalMutation({
-  args: {
-    component: v.string(),
-    status: v.string(),
-    lastCheck: v.number(),
-    lastError: v.optional(v.string()),
-    slot: v.optional(v.number()),
-    errorCount: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const health = await ctx.db
-      .query("systemHealth")
-      .withIndex("by_component", (q) => q.eq("component", args.component))
-      .first();
-
-    if (!health) {
-      await ctx.db.insert("systemHealth", {
-        component: args.component,
-        status: args.status,
-        lastCheck: args.lastCheck,
-        lastError: args.lastError,
-        metadata: args.slot ? { slot: args.slot } : undefined,
-        errorCount: args.errorCount || 0,
-      });
-    } else {
-      await ctx.db.patch(health._id, {
-        status: args.status,
-        lastCheck: args.lastCheck,
-        lastError: args.lastError,
-        metadata: args.slot ? { slot: args.slot } : undefined,
-        errorCount: args.errorCount !== undefined ? args.errorCount : health.errorCount,
-      });
-    }
-  },
-});
-
-// ============================================================================
-// Internal Queries - Database read operations called by actions
-// ============================================================================
-
-/**
- * Get game state by game ID
- */
-export const getGameStateByGameId = internalQuery({
-  args: { gameId: v.string() },
-  handler: async (ctx, { gameId }) => {
-    return await ctx.db
-      .query("gameStates")
-      .withIndex("by_game_id", (q) => q.eq("gameId", gameId))
-      .first();
-  },
-});
-
-/**
- * Get system health error count
- */
-export const getSystemHealthErrorCount = internalQuery({
-  args: { component: v.string() },
-  handler: async (ctx, { component }) => {
-    const health = await ctx.db
-      .query("systemHealth")
-      .withIndex("by_component", (q) => q.eq("component", component))
-      .first();
-
-    return health?.errorCount || 0;
-  },
-});
-
-/**
- * Public query: Get current game state for frontend
- */
-export const getGameState = query({
-  args: {},
-  handler: async (ctx) => {
-    // Get latest game state
-    const gameState = await ctx.db
-      .query("gameStates")
-      .withIndex("by_last_checked")
-      .order("desc")
-      .first();
-
-    if (!gameState) {
-      return null;
-    }
-
-    // Get recent events for this game
-    const recentEvents = await ctx.db
-      .query("gameEvents")
-      .withIndex("by_game_id", (q) => q.eq("gameId", gameState.gameId))
-      .order("desc")
-      .take(10);
-
-    return {
-      gameState,
-      recentEvents,
-    };
-  },
-});
-
-/**
- * Public query: Get system health status
- */
-export const getSystemHealth = query({
-  args: {},
-  handler: async (ctx) => {
-    const healthRecords = await ctx.db.query("systemHealth").collect();
-
-    return healthRecords.map((record) => ({
-      component: record.component,
-      status: record.status,
-      lastCheck: record.lastCheck,
-      errorCount: record.errorCount,
-      lastError: record.lastError,
-    }));
-  },
-});

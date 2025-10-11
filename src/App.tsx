@@ -14,7 +14,7 @@ export default function App() {
   const phaserRef = useRef<IRefPhaserGame | null>(null);
 
   // Get current game state from new Solana-based system
-  const gameState = useQuery(api.gameManager.getGameState);
+  const gameState = useQuery(api.gameManagerDb.getGameState);
 
   // Demo mode is active when no real game exists
   // Handle undefined (loading state), null, or missing gameState

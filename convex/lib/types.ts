@@ -15,16 +15,17 @@ export enum GameStatus {
 }
 
 // Game configuration structure (simplified for small games MVP)
+// Note: PublicKeys are serialized as strings for Convex compatibility
 export interface GameConfig {
-  authority: PublicKey;
-  treasury: PublicKey;
+  authority: string; // PublicKey as base58 string
+  treasury: string; // PublicKey as base58 string
   houseFeeBasisPoints: number;
   minBetLamports: number;
   smallGameDurationConfig: GameDurationConfig;
   // ORAO VRF configuration
   vrfFeeLamports: number;
-  vrfNetworkState: PublicKey;
-  vrfTreasury: PublicKey;
+  vrfNetworkState: string; // PublicKey as base58 string
+  vrfTreasury: string; // PublicKey as base58 string
 }
 
 // Game duration configuration (simplified for small games MVP)
@@ -34,22 +35,24 @@ export interface GameDurationConfig {
 }
 
 // Player entry in the game
+// Note: PublicKeys are serialized as strings for Convex compatibility
 export interface PlayerEntry {
-  wallet: PublicKey;
+  wallet: string; // PublicKey as base58 string
   totalBet: number;
   timestamp: number;
 }
 
 // Game round state (simplified for small games MVP)
+// Note: PublicKeys are serialized as strings for Convex compatibility
 export interface GameRound {
   roundId: number;
   status: GameStatus;
   startTimestamp: number;
   players: PlayerEntry[];
   initialPot: number;
-  winner: PublicKey;
+  winner: string | null; // PublicKey as base58 string, or null if no winner yet
   // ORAO VRF integration
-  vrfRequestPubkey: PublicKey;
+  vrfRequestPubkey: string | null; // PublicKey as base58 string, or null if not requested
   vrfSeed: number[];
   randomnessFulfilled: boolean;
 }

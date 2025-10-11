@@ -108,8 +108,8 @@ export class SolanaClient {
     const account = await this.program.account.gameConfig.fetch(gameConfig);
 
     return {
-      authority: account.authority,
-      treasury: account.treasury,
+      authority: account.authority.toBase58(), // Convert PublicKey to string
+      treasury: account.treasury.toBase58(), // Convert PublicKey to string
       houseFeeBasisPoints: account.houseFeeBasisPoints,
       minBetLamports: account.minBetLamports.toNumber(),
       smallGameDurationConfig: {
@@ -117,8 +117,8 @@ export class SolanaClient {
       },
       // ORAO VRF configuration
       vrfFeeLamports: account.vrfFeeLamports.toNumber(),
-      vrfNetworkState: account.vrfNetworkState,
-      vrfTreasury: account.vrfTreasury,
+      vrfNetworkState: account.vrfNetworkState.toBase58(), // Convert PublicKey to string
+      vrfTreasury: account.vrfTreasury.toBase58(), // Convert PublicKey to string
     };
   }
 
@@ -140,14 +140,14 @@ export class SolanaClient {
       status,
       startTimestamp: account.startTimestamp.toNumber(),
       players: account.players.map((p) => ({
-        wallet: p.wallet,
+        wallet: p.wallet.toBase58(), // Convert PublicKey to string
         totalBet: p.totalBet.toNumber(),
         timestamp: p.timestamp.toNumber(),
       })),
       initialPot: account.initialPot.toNumber(),
-      winner: account.winner,
+      winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
       // ORAO VRF integration
-      vrfRequestPubkey: account.vrfRequestPubkey,
+      vrfRequestPubkey: account.vrfRequestPubkey ? account.vrfRequestPubkey.toBase58() : null, // Convert PublicKey to string or null
       vrfSeed: Array.from(account.vrfSeed),
       randomnessFulfilled: account.randomnessFulfilled,
     };
@@ -183,7 +183,8 @@ export class SolanaClient {
   }
 
   // UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
-  async unifiedResolveAndDistribute(vrfRequestPubkey: PublicKey): Promise<string> {
+  async unifiedResolveAndDistribute(vrfRequestPubkeyStr: string): Promise<string> {
+    const vrfRequestPubkey = new PublicKey(vrfRequestPubkeyStr);
     const { gameConfig, gameRound, vault } = this.getPDAs();
 
     // Fetch current game round to get player accounts
@@ -217,8 +218,13 @@ export class SolanaClient {
   }
 
   // Check if ORAO VRF is fulfilled
-  async checkVrfFulfillment(vrfRequestPubkey: PublicKey): Promise<boolean> {
+  async checkVrfFulfillment(vrfRequestPubkeyStr: string | null): Promise<boolean> {
+    if (!vrfRequestPubkeyStr) {
+      return false; // No VRF request yet
+    }
+
     try {
+      const vrfRequestPubkey = new PublicKey(vrfRequestPubkeyStr);
       const vrfAccount = await this.connection.getAccountInfo(vrfRequestPubkey);
       if (!vrfAccount || vrfAccount.data.length < 49) {
         return false;
@@ -244,13 +250,13 @@ export class SolanaClient {
   private async getOraoNetworkState(): Promise<PublicKey> {
     // Get from game config
     const gameConfig = await this.getGameConfig();
-    return gameConfig.vrfNetworkState;
+    return new PublicKey(gameConfig.vrfNetworkState);
   }
 
   private async getOraoTreasury(): Promise<PublicKey> {
     // Get from game config
     const gameConfig = await this.getGameConfig();
-    return gameConfig.vrfTreasury;
+    return new PublicKey(gameConfig.vrfTreasury);
   }
 
   // Confirm transaction with retry logic
