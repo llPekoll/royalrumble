@@ -94,6 +94,25 @@ export class AnimationManager {
     // Play victory sound when winner celebration starts
     SoundManager.playVictory(this.scene, 0.6);
 
+    // Create dark background overlay for focus
+    const backgroundOverlay = this.scene.add.rectangle(
+      this.centerX,
+      this.centerY,
+      this.scene.game.config.width as number,
+      this.scene.game.config.height as number,
+      0x000000
+    );
+    backgroundOverlay.setDepth(85); // Behind throne (throne is at 90)
+    backgroundOverlay.setAlpha(0);
+
+    // Fade in the overlay
+    this.scene.tweens.add({
+      targets: backgroundOverlay,
+      alpha: 0.7,
+      duration: 800,
+      ease: "Power2",
+    });
+
     const throne = this.scene.add.image(this.centerX, this.centerY, "throne");
     throne.setDepth(90); // Behind winner (winner is at ~100+)
     throne.setScale(2);
@@ -153,7 +172,7 @@ export class AnimationManager {
       .setDepth(200);
 
     // Track all celebration objects for cleanup
-    this.celebrationObjects.push(throne, victoryText, nameText, betText);
+    this.celebrationObjects.push(backgroundOverlay, throne, victoryText, nameText, betText);
 
     // Animate victory text
     victoryText.setScale(0);
