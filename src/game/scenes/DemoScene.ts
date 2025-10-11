@@ -89,6 +89,7 @@ export class DemoScene extends Scene {
       stroke: "#000000",
       strokeThickness: 6,
     });
+    // this.insertCoinText.setAlpha(0);
     this.insertCoinText.setOrigin(0.5);
 
     // Countdown text - bigger and centered below INSERT COIN
@@ -122,23 +123,38 @@ export class DemoScene extends Scene {
     this.subText.setOrigin(0.5);
 
     // Add to container
-    this.demoUIContainer.add([this.insertCoinText, this.countdownText, this.phaseText, this.subText]);
+    this.demoUIContainer.add([
+      this.insertCoinText,
+      this.countdownText,
+      this.phaseText,
+      this.subText,
+    ]);
 
-    // Add fade ping pong animation to INSERT COIN text
-    this.tweens.add({
-      targets: this.insertCoinText,
-      alpha: 0.3,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+    // Add instant blink animation to INSERT COIN text (no fade)
+    // Stays visible longer (1000ms), then briefly disappears (300ms)
+    const blinkCycle = () => {
+      // Start visible for 1000ms
+      this.insertCoinText.setAlpha(1);
+      this.time.delayedCall(1000, () => {
+        // Hide for 300ms
+        this.insertCoinText.setAlpha(0);
+        this.time.delayedCall(300, () => {
+          // Repeat the cycle
+          blinkCycle();
+        });
+      });
+    };
+    blinkCycle();
 
     // Start with spawning phase visible
     this.updateDemoUI("spawning", 30, 0);
   }
 
-  public updateDemoUI(phase: "spawning" | "arena" | "results", countdown: number, participantCount: number) {
+  public updateDemoUI(
+    phase: "spawning" | "arena" | "results",
+    countdown: number,
+    participantCount: number
+  ) {
     if (!this.demoUIContainer) return;
 
     if (phase === "spawning") {
