@@ -17,8 +17,6 @@ import type * as characters from "../characters.js";
 import type * as crons from "../crons.js";
 import type * as gameManager from "../gameManager.js";
 import type * as gameManagerDb from "../gameManagerDb.js";
-import type * as gameParticipants_stub from "../gameParticipants_stub.js";
-import type * as leaderboard_stub from "../leaderboard_stub.js";
 import type * as lib_solana from "../lib/solana.js";
 import type * as lib_types from "../lib/types.js";
 import type * as maps from "../maps.js";
@@ -37,8 +35,6 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   gameManager: typeof gameManager;
   gameManagerDb: typeof gameManagerDb;
-  gameParticipants_stub: typeof gameParticipants_stub;
-  leaderboard_stub: typeof leaderboard_stub;
   "lib/solana": typeof lib_solana;
   "lib/types": typeof lib_types;
   maps: typeof maps;

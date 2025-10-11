@@ -17,11 +17,33 @@ export const createGameStateRecord = internalMutation({
 
     const gameStateId = await ctx.db.insert("gameStates", {
       gameId,
+      roundId: gameRound.roundId,
       status: gameRound.status,
+      startTimestamp: gameRound.startTimestamp * 1000,
+      
+      // Players array (mirrors Anchor Vec<PlayerEntry>)
+      players: gameRound.players.map((player: any) => ({
+        wallet: player.wallet.toString(),
+        totalBet: player.totalBet,
+        timestamp: player.timestamp * 1000, // Convert to milliseconds
+      })),
+      
+      // Pot and winner (matches Anchor fields)
+      initialPot: gameRound.initialPot,
+      winner: gameRound.winner?.toString() || undefined,
+      
+      // ORAO VRF fields (matches Anchor VRF integration)
+      vrfRequestPubkey: gameRound.vrfRequestPubkey?.toString() || undefined,
+      vrfSeed: gameRound.vrfSeed ? Buffer.from(gameRound.vrfSeed).toString('hex') : undefined,
+      randomnessFulfilled: gameRound.randomnessFulfilled,
+      
+      // Convex-specific fields for cron management
       phaseStartTime: gameRound.startTimestamp * 1000,
       waitingDuration: gameConfig.smallGameDurationConfig.waitingPhaseDuration,
-      playersCount: gameRound.players.length,
       lastChecked: now,
+      
+      // Derived fields for convenience
+      playersCount: gameRound.players.length,
     });
 
     return await ctx.db.get(gameStateId);
@@ -36,6 +58,23 @@ export const updateGameState = internalMutation({
     gameStateId: v.id("gameStates"),
     lastChecked: v.optional(v.number()),
     status: v.optional(v.string()),
+    
+    // Anchor-mirrored fields that can be updated
+    players: v.optional(v.array(v.object({
+      wallet: v.string(),
+      totalBet: v.number(),
+      timestamp: v.number(),
+    }))),
+    initialPot: v.optional(v.number()),
+    winner: v.optional(v.string()),
+    vrfRequestPubkey: v.optional(v.string()),
+    vrfSeed: v.optional(v.string()),
+    randomnessFulfilled: v.optional(v.boolean()),
+    
+    // Derived fields
+    playersCount: v.optional(v.number()),
+    
+    // Legacy fields - kept for compatibility
     gameType: v.optional(v.string()),
     resolvingPhaseEnd: v.optional(v.number()),
   },
