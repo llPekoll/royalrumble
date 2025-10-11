@@ -1,4 +1,15 @@
 services:
+  db-init:
+    image: postgres:16-alpine
+    environment:
+      - PGPASSWORD=o2L3bHkYXeWzVVvRCUQ6a7wXRz6B4y2jKQnoSCpDZ5XeWM9kNigP19sP8aysI0z8
+    command: >
+      sh -c "
+        psql -h 188.245.191.109 -p 8734 -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'convex_self_hosted'\" | grep -q 1 ||
+        psql -h 188.245.191.109 -p 8734 -U postgres -c 'CREATE DATABASE convex_self_hosted;'
+      "
+    restart: "no"
+
   backend:
     # Change this to :${REV} if you want to pin to a specific version
     image: ghcr.io/get-convex/convex-backend:latest
@@ -19,7 +30,7 @@ services:
       - DISABLE_BEACON
       - REDACT_LOGS_TO_CLIENT
       - DO_NOT_REQUIRE_SSL=true
-      - POSTGRES_URL=postgres://postgres:Fap75TM2nOMEBdrVTVSzT1CK6aNH4UBBIyIjjRNHHHzTtmGHdqas3WzsuXJEH5LX@188.245.191.109:5987
+      - POSTGRES_URL=postgres://postgres:o2L3bHkYXeWzVVvRCUQ6a7wXRz6B4y2jKQnoSCpDZ5XeWM9kNigP19sP8aysI0z8@188.245.191.109:8734
       - RUST_LOG=${RUST_LOG:-info}
       - RUST_BACKTRACE
       - AWS_REGION
@@ -35,6 +46,10 @@ services:
       - S3_STORAGE_FILES_BUCKET
       - S3_STORAGE_SEARCH_BUCKET
       - S3_ENDPOINT_URL
+
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
 
     healthcheck:
       test: curl -f http://localhost:3210/version

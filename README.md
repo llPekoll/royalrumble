@@ -5,6 +5,7 @@ A fast-paced, real-time battle royale betting game built on Solana blockchain wh
 ## 🎮 Game Overview
 
 Royal Rumble is a multiplayer battle game where:
+
 - Players can control multiple characters (GameParticipants) in a single match
 - Each player starts with a randomly assigned character that can be re-rolled
 - Games adapt dynamically based on participant count
@@ -22,11 +23,28 @@ bun install
 # Start Convex backend locally with Docker Compose
 docker-compose up
 
+# Get admin key
+docker compose exec backend ./generate_admin_key.sh
 # In a separate terminal, run the development server
+
+# push env var in convex
+CRANK_AUTHORITY_PRIVATE_KEY=<PRIVATE_KEY_OF_A_WALLET>
+SOLANA_RPC_ENDPOINT=https://api.devnet.solana.com
+```
+
+at that stage you still have to copy seeds to make it work
+Go in convex -> Data on the left panel -> then add
+copy the the json (list are valid too)
+->seed/characters.json
+->seed/maps.json
+then you can start the game
+
+```bash
 bun dev
 ```
 
 **Important Notes:**
+
 - **Docker Compose**: Required to run Convex backend locally with database support
 - **Database Target**: The `docker-compose.yml` includes a PostgreSQL database connection (see `POSTGRES_URL` in environment variables)
 - **Ports Used**:
@@ -38,16 +56,21 @@ bun dev
 ## 🎲 Game Mechanics
 
 ### Dynamic Game Phases
+
 The game adapts based on the number of participants:
 
 #### Small Games (< 8 participants)
+
 **3 phases (45 seconds total)**
+
 - Waiting Phase (30s) - Players join and place bets
 - Arena Phase (10s) - Characters spawn and move to center
 - Results Phase (5s) - Winners announced and payouts distributed
 
 #### Large Games (≥ 8 participants)
+
 **7 phases (75 seconds total)**
+
 - Waiting Phase (30s) - Players join and place bets
 - Selection Phase - Character selection and preparation
 - Arena Phase (10s) - Characters spawn and move to center
@@ -57,6 +80,7 @@ The game adapts based on the number of participants:
 - Results Phase (5s) - Winners announced and payouts distributed
 
 ### Key Features
+
 - **Multiple Characters per Player**: Control multiple GameParticipants in a single match
 - **Character System**: Start with a random character, option to re-roll
 - **Multiple Maps**: Various arenas with unique spawn configurations
@@ -98,11 +122,13 @@ The game adapts based on the number of participants:
 ## 🎨 Adding Content
 
 ### New Character
+
 1. Add sprite to `/public/assets/characters/`
 2. Insert record in `characters` table
 3. Configure animations (idle, walk, attack)
 
 ### New Map
+
 1. Add background to `/public/assets/maps/`
 2. Insert record in `maps` table
 3. Configure spawn positions and limits
@@ -110,6 +136,7 @@ The game adapts based on the number of participants:
 ## 🔧 Development
 
 ### Prerequisites
+
 - [Bun](https://bun.sh/) - JavaScript runtime
 - [Docker](https://www.docker.com/) & Docker Compose - For local Convex backend
 
@@ -139,7 +166,9 @@ bun run typecheck
 ```
 
 ### Local Convex Backend
+
 The project uses Docker Compose to run a local Convex backend with PostgreSQL database support. This provides:
+
 - Full offline development capabilities
 - Local database for testing
 - Convex dashboard at `http://localhost:6791`
@@ -148,12 +177,14 @@ The project uses Docker Compose to run a local Convex backend with PostgreSQL da
 ## 🎯 Game Rules
 
 ### Betting System
+
 - **Entry Bets**: Place during waiting phase (bet on yourself)
 - **Spectator Bets**: Place during betting phase (bet on others)
 - **Payout Distribution**: 95% to winners, 5% house edge
 - **Min/Max Limits**: 10-10,000 game coins per bet
 
 ### Single Player Mode
+
 - Automatically runs with bots for entertainment
 - Player always wins (practice mode)
 - Bet is refunded with no profit/loss
