@@ -20,13 +20,6 @@ export default function App() {
   // Handle undefined (loading state), null, or missing gameState
   const isDemoMode = !gameState || !gameState.gameState;
 
-  // State to track demo info for UI (passed from DemoGameManager via ref or context if needed)
-  const [demoState, setDemoState] = useState({
-    phase: "spawning" as "spawning" | "arena" | "results",
-    countdown: 30,
-    participantCount: 0,
-  });
-
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
     // Handle scene based on whether we're in demo or real game
@@ -88,7 +81,7 @@ export default function App() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Demo Game Manager - handles all demo logic */}
-      <DemoGameManager isActive={isDemoMode} phaserRef={phaserRef} onStateChange={setDemoState} />
+      <DemoGameManager isActive={isDemoMode} phaserRef={phaserRef} />
 
       {/* Full Background Phaser Game */}
       <div className="fixed inset-0 w-full h-full">

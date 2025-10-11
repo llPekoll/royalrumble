@@ -17,7 +17,6 @@ export type DemoPhase = "spawning" | "arena" | "results";
 interface DemoGameManagerProps {
   isActive: boolean; // True when no real game exists
   phaserRef: React.RefObject<IRefPhaserGame | null>;
-  onStateChange?: (state: DemoStateForUI) => void; // Callback to send state to parent
 }
 
 export interface DemoState {
@@ -34,7 +33,7 @@ export interface DemoStateForUI {
   participantCount: number;
 }
 
-export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGameManagerProps) {
+export function DemoGameManager({ isActive, phaserRef }: DemoGameManagerProps) {
   const [countdown, setCountdown] = useState(30);
   const [spawnedParticipants, setSpawnedParticipants] = useState<DemoParticipant[]>([]);
   const [phase, setPhase] = useState<DemoPhase>("spawning");
@@ -54,15 +53,6 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
 
   // Notify parent of state changes AND update Phaser UI
   useEffect(() => {
-    // Update React parent component
-    if (onStateChange) {
-      onStateChange({
-        phase,
-        countdown,
-        participantCount: spawnedParticipants.length,
-      });
-    }
-
     // Update Phaser DemoScene UI
     if (phaserRef.current?.scene?.scene.key === "DemoScene") {
       const scene = phaserRef.current.scene as any;
@@ -70,7 +60,7 @@ export function DemoGameManager({ isActive, phaserRef, onStateChange }: DemoGame
         scene.updateDemoUI(phase, countdown, spawnedParticipants.length);
       }
     }
-  }, [phase, countdown, spawnedParticipants.length, onStateChange, phaserRef]);
+  }, [phase, countdown, spawnedParticipants.length, phaserRef]);
 
   // Initialize demo mode when activated
   useEffect(() => {
