@@ -454,13 +454,27 @@ export class PlayerManager {
         }
       });
 
-      // Move winner to center of screen
+      // Reset sprite Y offset to 0 so feet are exactly at container position
+      winnerParticipant.sprite.y = 0;
+
+      // Move winner to center where throne is
       this.scene.tweens.add({
         targets: winnerParticipant.container,
         x: this.centerX,
         y: this.centerY,
         duration: 1000,
         ease: "Power2.easeInOut",
+        onComplete: () => {
+          // After reaching center, start bouncing animation
+          this.scene.tweens.add({
+            targets: winnerParticipant.container,
+            y: this.centerY - 20, // Bounce up by 20 pixels
+            duration: 500,
+            ease: "Sine.easeInOut",
+            yoyo: true,
+            repeat: -1,
+          });
+        },
       });
 
       // Scale up the winner sprite
@@ -473,10 +487,10 @@ export class PlayerManager {
       });
 
       // Make winner golden
-      winnerParticipant.sprite.setTint(0xffd700);
-      winnerParticipant.nameText.setColor("#ffd700");
-      winnerParticipant.nameText.setFontSize(20);
-      winnerParticipant.nameText.setStroke("#000000", 4);
+      // winnerParticipant.sprite.setTint(0xffd700);
+      // winnerParticipant.nameText.setColor("#ffd700");
+      // winnerParticipant.nameText.setFontSize(20);
+      // winnerParticipant.nameText.setStroke("#000000", 4);
 
       // Victory animation
       const victoryAnimKey = `${winnerParticipant.characterKey}-idle`;

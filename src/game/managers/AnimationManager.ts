@@ -94,6 +94,56 @@ export class AnimationManager {
     // Play victory sound when winner celebration starts
     SoundManager.playVictory(this.scene, 0.6);
 
+    // DEBUG: Show sprite anchor point visualization
+    const debugAnchor = this.scene.add.graphics();
+    debugAnchor.setDepth(1000); // On top of everything
+
+    // Draw a crosshair at the anchor point
+    const anchorWorldX = winnerPlayer.container.x + winnerPlayer.sprite.x;
+    const anchorWorldY = winnerPlayer.container.y + winnerPlayer.sprite.y;
+
+    // Red circle at anchor point
+    debugAnchor.fillStyle(0xff0000, 1);
+    debugAnchor.fillCircle(anchorWorldX, anchorWorldY, 8);
+
+    // Yellow crosshair
+    debugAnchor.lineStyle(3, 0xffff00, 1);
+    debugAnchor.beginPath();
+    debugAnchor.moveTo(anchorWorldX - 20, anchorWorldY);
+    debugAnchor.lineTo(anchorWorldX + 20, anchorWorldY);
+    debugAnchor.moveTo(anchorWorldX, anchorWorldY - 20);
+    debugAnchor.lineTo(anchorWorldX, anchorWorldY + 20);
+    debugAnchor.strokePath();
+
+    // Add label showing anchor coordinates
+    const anchorLabel = this.scene.add.text(
+      anchorWorldX + 25,
+      anchorWorldY - 10,
+      `Anchor: (${winnerPlayer.sprite.originX.toFixed(2)}, ${winnerPlayer.sprite.originY.toFixed(2)})`,
+      {
+        fontFamily: "Arial",
+        fontSize: "14px",
+        color: "#ffff00",
+        backgroundColor: "#000000",
+        padding: { x: 5, y: 5 },
+      }
+    );
+    anchorLabel.setDepth(1000);
+
+    // Track for cleanup
+    this.celebrationObjects.push(debugAnchor, anchorLabel);
+
+    console.log("[AnimationManager] 🎯 DEBUG: Winner sprite anchor at", {
+      originX: winnerPlayer.sprite.originX,
+      originY: winnerPlayer.sprite.originY,
+      worldX: anchorWorldX,
+      worldY: anchorWorldY,
+      spriteX: winnerPlayer.sprite.x,
+      spriteY: winnerPlayer.sprite.y,
+      containerX: winnerPlayer.container.x,
+      containerY: winnerPlayer.container.y,
+    });
+
     // Create dark background overlay for focus
     const backgroundOverlay = this.scene.add.rectangle(
       this.centerX,
@@ -127,20 +177,7 @@ export class AnimationManager {
       ease: "Power2",
     });
 
-    const victoryText = this.scene.add
-      .text(this.centerX, this.centerY - 120, "🏆 WINNER! 🏆", {
-        fontFamily: "Arial Black",
-        fontSize: 48,
-        color: "#ffd700",
-        stroke: "#000000",
-        strokeThickness: 6,
-        align: "center",
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-
     // Apply pixelated rendering - render at lower resolution for crisp pixel art look
-    victoryText.postFX.addPixelate();
 
     // Get screen height for positioning at bottom
     const screenHeight = this.scene.game.config.height as number;
@@ -172,27 +209,7 @@ export class AnimationManager {
       .setDepth(200);
 
     // Track all celebration objects for cleanup
-    this.celebrationObjects.push(backgroundOverlay, throne, victoryText, nameText, betText);
-
-    // Animate victory text
-    victoryText.setScale(0);
-    this.scene.tweens.add({
-      targets: victoryText,
-      scale: { from: 0, to: 1 },
-      duration: 500,
-      ease: "Back.easeOut",
-    });
-
-    // Pulse animation for victory text
-    this.scene.tweens.add({
-      targets: victoryText,
-      scale: { from: 1, to: 1.2 },
-      duration: 1000,
-      ease: "Sine.easeInOut",
-      yoyo: true,
-      repeat: -1,
-      delay: 500,
-    });
+    this.celebrationObjects.push(backgroundOverlay, throne, nameText, betText);
 
     // Animate name and bet text
     nameText.setAlpha(0);
@@ -212,15 +229,7 @@ export class AnimationManager {
       delay: 500,
     });
 
-    // Bounce animation for winner sprite
-    this.scene.tweens.add({
-      targets: winnerPlayer.container,
-      y: this.centerY - 20,
-      duration: 500,
-      ease: "Sine.easeInOut",
-      yoyo: true,
-      repeat: -1,
-    });
+    // Bounce animation is now handled in PlayerManager.showResults()
 
     // Add confetti particles
     this.createConfetti();
