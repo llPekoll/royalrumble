@@ -34,7 +34,7 @@ export const createGameStateRecord = internalMutation({
       
       // ORAO VRF fields (matches Anchor VRF integration)
       vrfRequestPubkey: gameRound.vrfRequestPubkey?.toString() || undefined,
-      vrfSeed: gameRound.vrfSeed ? Buffer.from(gameRound.vrfSeed).toString('hex') : undefined,
+      vrfSeed: gameRound.vrfSeed ? Array.from(gameRound.vrfSeed as number[]).map((b: number) => b.toString(16).padStart(2, '0')).join('') : undefined,
       randomnessFulfilled: gameRound.randomnessFulfilled,
       
       // Convex-specific fields for cron management

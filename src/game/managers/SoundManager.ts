@@ -69,9 +69,9 @@ export class SoundManager {
       // Only play if not muted
       if (!this.isMuted) {
         sound.play();
-        console.log(`[SoundManager] Playing "${key}" at volume ${finalVolume.toFixed(2)}`);
+        // console.log(`[SoundManager] Playing "${key}" at volume ${finalVolume.toFixed(2)}`);
       } else {
-        console.log(`[SoundManager] Sound "${key}" created but not played (muted)`);
+        // console.log(`[SoundManager] Sound "${key}" created but not played (muted)`);
       }
 
       return sound;
@@ -97,9 +97,9 @@ export class SoundManager {
 
     try {
       scene.sound.play(key, { volume: finalVolume });
-      console.log(`[SoundManager] Playing sound "${key}" at volume ${finalVolume.toFixed(2)}`);
+      // console.log(`[SoundManager] Playing sound "${key}" at volume ${finalVolume.toFixed(2)}`);
     } catch (error) {
-      console.error(`[SoundManager] Failed to play sound "${key}":`, error);
+      // console.error(`[SoundManager] Failed to play sound "${key}":`, error);
     }
   }
 

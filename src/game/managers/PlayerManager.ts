@@ -76,11 +76,11 @@ export class PlayerManager {
   addParticipant(participant: any, withFanfare: boolean = false) {
     const participantId = participant._id || participant.id;
 
-    console.log("[PlayerManager] addParticipant called", {
-      id: participantId,
-      existingCount: this.participants.size,
-      alreadyExists: this.participants.has(participantId),
-    });
+    // console.log("[PlayerManager] addParticipant called", {
+    //   id: participantId,
+    //   existingCount: this.participants.size,
+    //   alreadyExists: this.participants.has(participantId),
+    // });
 
     // Double-check participant doesn't already exist
     if (this.participants.has(participantId)) {
@@ -101,7 +101,7 @@ export class PlayerManager {
       }
     }
 
-    console.log("[PlayerManager] Creating container for", participantId);
+    // console.log("[PlayerManager] Creating container for", participantId);
     const container = this.scene.add.container(spawnX, spawnY);
 
     // Set depth based on Y position - higher Y = further back = lower depth
@@ -238,7 +238,7 @@ export class PlayerManager {
 
         // Play random impact sound when hitting ground
         try {
-          console.log(`[PlayerManager] Playing random impact sound for ${participantId}`);
+          // console.log(`[PlayerManager] Playing random impact sound for ${participantId}`);
           SoundManager.playRandomImpact(this.scene, 0.4);
         } catch (e) {
           console.error("[PlayerManager] Failed to play impact sound:", e);
@@ -264,10 +264,10 @@ export class PlayerManager {
     };
 
     this.participants.set(participantId, gameParticipant);
-    console.log("[PlayerManager] Participant added successfully", {
-      id: participantId,
-      newCount: this.participants.size,
-    });
+    // console.log("[PlayerManager] Participant added successfully", {
+    //   id: participantId,
+    //   newCount: this.participants.size,
+    // });
   }
 
   private calculateParticipantScale(betAmountInCoins: number): number {
@@ -430,11 +430,11 @@ export class PlayerManager {
     // Find winner - get directly from PlayerManager using winnerId
     const winnerId = gameState.winnerId;
 
-    console.log("[PlayerManager] showResults called", {
-      winnerId,
-      participantIds: Array.from(this.participants.keys()),
-      hasWinner: this.participants.has(winnerId),
-    });
+    // console.log("[PlayerManager] showResults called", {
+    //   winnerId,
+    //   participantIds: Array.from(this.participants.keys()),
+    //   hasWinner: this.participants.has(winnerId),
+    // });
 
     const winnerParticipant = this.participants.get(winnerId);
 
@@ -498,7 +498,7 @@ export class PlayerManager {
         winnerParticipant.sprite.play(victoryAnimKey);
       }
 
-      console.log("[PlayerManager] Returning winner participant:", winnerParticipant.id);
+      // console.log("[PlayerManager] Returning winner participant:", winnerParticipant.id);
       return winnerParticipant;
     }
 

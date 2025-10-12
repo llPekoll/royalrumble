@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useQuery } from "convex/react";
+import { useWallets } from "@privy-io/react-auth/solana";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -7,7 +8,19 @@ import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
-import { sendDepositBetTransaction, validateBetAmount } from "../lib/solana-deposit-bet";
+import { validateBetAmount } from "../lib/solana-deposit-bet";
+import {
+  pipe,
+  createSolanaRpc,
+  getTransactionEncoder,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstructions,
+  compileTransaction,
+  address
+} from '@solana/kit';
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 
 interface Character {
   _id: Id<"characters">;
@@ -22,10 +35,14 @@ interface CharacterSelectionProps {
 const CharacterSelection = memo(function CharacterSelection({
   onParticipantAdded,
 }: CharacterSelectionProps) {
-  const { connected, publicKey, wallet } = usePrivyWallet();
+  const { connected, publicKey } = usePrivyWallet();
+  const { wallets } = useWallets();
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get the selected wallet (first wallet from Privy)
+  const selectedWallet = wallets[0];
 
   // Memoize wallet address to prevent unnecessary re-queries
   const walletAddress = useMemo(
@@ -94,7 +111,7 @@ const CharacterSelection = memo(function CharacterSelection({
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !wallet || !playerData || !currentCharacter) {
+    if (!connected || !publicKey || !selectedWallet || !playerData || !currentCharacter) {
       toast.error("Please wait for data to load");
       return;
     }
@@ -124,8 +141,8 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    if (amount > gameCoins / 100000) {
-      toast.error(`Insufficient SOL. You have ${gameCoins / 100000} SOL`);
+    if (amount > gameCoins / 10000) {
+      toast.error(`Insufficient SOL. You have ${gameCoins / 10000} SOL`);
       return;
     }
 
@@ -138,22 +155,82 @@ const CharacterSelection = memo(function CharacterSelection({
         throw new Error(validation.error);
       }
 
-      // Create transaction instruction for deposit_bet
-      const { instruction } = await sendDepositBetTransaction({
-        walletPublicKey: publicKey.toString(),
-        betAmountSol: amount,
-      });
+      // Create the deposit bet instruction manually
+      const programId = new PublicKey('CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9eKv2dptMpiXfK');
+      
+      // Derive PDAs for game_round and vault (matching Rust constants)
+      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode('game_round')],
+        programId
+      );
+      
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode('vault')],
+        programId
+      );
 
-      // Use Privy wallet to sign and send transaction
-      if (!wallet) {
-        throw new Error("Wallet not found");
-      }
+      // Convert SOL to lamports
+      const amountLamports = Math.floor(amount * 1_000_000_000);
 
-      const result = await wallet.signAndSendTransaction(instruction);
-      console.log("Transaction successful:", result);
+      // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
+      const instructionData = new Uint8Array(16);
+      
+      // Use actual discriminator from built program IDL
+      const discriminator = new Uint8Array([82, 23, 26, 58, 40, 4, 106, 159]);
+      instructionData.set(discriminator, 0);
+      
+      // Write amount as little-endian u64
+      const view = new DataView(instructionData.buffer);
+      view.setBigUint64(8, BigInt(amountLamports), true);
 
-      // Convert signature Uint8Array to hex string for display
-      const signatureHex = Array.from(result.signature)
+      // Create deposit_bet instruction in @solana/kit format
+      const depositBetInstruction = {
+        programAddress: programId.toString() as any,
+        accounts: [
+          { address: gameRoundPDA.toString(), role: 0 }, // writable
+          { address: vaultPDA.toString(), role: 0 }, // writable  
+          { address: selectedWallet.address, role: 2 }, // signer + writable
+          { address: SystemProgram.programId.toString(), role: 1 } // readonly
+        ],
+        data: instructionData
+      };
+
+      console.log("Created deposit bet instruction:", depositBetInstruction);
+      console.log("Using wallet:", selectedWallet);
+
+      // Configure RPC connection to point to devnet
+      const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
+      const rpcUrl = network === "mainnet" 
+        ? "https://api.mainnet-beta.solana.com"
+        : "https://api.devnet.solana.com";
+      
+      const { getLatestBlockhash } = createSolanaRpc(rpcUrl);
+      const { value: latestBlockhash } = await getLatestBlockhash().send();
+
+      // Create transaction using @solana/kit
+      const transaction = pipe(
+        createTransactionMessage({ version: 0 }),
+        (tx) => setTransactionMessageFeePayer(address(selectedWallet.address), tx),
+        (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+        (tx) => appendTransactionMessageInstructions([depositBetInstruction], tx),
+        (tx) => compileTransaction(tx),
+        (tx) => new Uint8Array(getTransactionEncoder().encode(tx))
+      );
+
+      // Send the transaction with explicit chain specification
+      const chainId = `solana:${network}`;
+      const receipts = await selectedWallet.signAndSendAllTransactions([
+        {
+          chain: chainId,
+          transaction
+        }
+      ]);
+
+      console.log("Transaction successful:", receipts);
+
+      // Convert signature to hex string for display
+      const signature = receipts[0].signature;
+      const signatureHex = Array.from(signature as Uint8Array)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
@@ -183,7 +260,7 @@ const CharacterSelection = memo(function CharacterSelection({
   }, [
     connected,
     publicKey,
-    wallet,
+    selectedWallet,
     playerData,
     currentCharacter,
     betAmount,

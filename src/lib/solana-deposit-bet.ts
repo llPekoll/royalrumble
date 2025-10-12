@@ -3,6 +3,8 @@
  * This file contains the logic for calling the deposit_bet instruction from the Domin8 program
  */
 
+import { Buffer } from 'buffer';
+
 // Types for transaction parameters
 export interface DepositBetParams {
   walletPublicKey: string;
@@ -59,7 +61,7 @@ export async function sendDepositBetTransaction(
   const view = new DataView(instructionData.buffer);
   view.setBigUint64(8, BigInt(amountLamports), true);
 
-  // Convert Uint8Array to Buffer for TransactionInstruction
+  // Convert to Buffer for Solana web3.js compatibility
   const dataBuffer = Buffer.from(instructionData);
 
   // Create deposit_bet instruction

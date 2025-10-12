@@ -55,7 +55,7 @@ export class DemoScene extends Scene {
 
     // Initialize background immediately with preloaded demo map
     if (demoMapData?.background) {
-      console.log("[DemoScene] Initializing background with:", demoMapData.background);
+      // console.log("[DemoScene] Initializing background with:", demoMapData.background);
       this.backgroundManager.setTexture(demoMapData.background);
     } else {
       console.warn("[DemoScene] No demo map data available!");
@@ -252,7 +252,7 @@ export class DemoScene extends Scene {
   }
 
   public setDemoMap(mapData: any) {
-    console.log("[DemoScene] setDemoMap called:", mapData?.name);
+    // console.log("[DemoScene] setDemoMap called:", mapData?.name);
 
     if (mapData?.background) {
       this.backgroundManager.setTexture(mapData.background);
@@ -262,11 +262,11 @@ export class DemoScene extends Scene {
   public spawnDemoParticipant(participant: any) {
     const participantId = participant._id || participant.id;
 
-    console.log("[DemoScene] spawnDemoParticipant called", {
-      id: participantId,
-      currentParticipantsCount: this.participants.length,
-      playerManagerCount: this.playerManager.getParticipants().size,
-    });
+    // console.log("[DemoScene] spawnDemoParticipant called", {
+    //   id: participantId,
+    //   currentParticipantsCount: this.participants.length,
+    //   playerManagerCount: this.playerManager.getParticipants().size,
+    // });
 
     // Check if participant already exists to prevent double spawning
     if (this.playerManager.getParticipant(participantId)) {
@@ -284,10 +284,10 @@ export class DemoScene extends Scene {
       return;
     }
 
-    console.log(`[DemoScene] Adding participant ${participantId} to scene`);
+    // console.log(`[DemoScene] Adding participant ${participantId} to scene`);
     this.playerManager.addParticipant(participant);
     this.participants.push(participant);
-    console.log(`[DemoScene] Participant ${participantId} added successfully`);
+    // console.log(`[DemoScene] Participant ${participantId} added successfully`);
   }
 
   public moveParticipantsToCenter() {
@@ -295,7 +295,7 @@ export class DemoScene extends Scene {
 
     // After 2 seconds of running, start continuous explosions
     this.time.delayedCall(500, () => {
-      console.log("[DemoScene] 💥 Starting continuous explosions after 2 seconds of running");
+      // console.log("[DemoScene] 💥 Starting continuous explosions after 2 seconds of running");
       this.animationManager.createContinuousExplosions();
     });
   }
@@ -316,7 +316,7 @@ export class DemoScene extends Scene {
 
     // After 3 seconds: Show winner celebration
     this.time.delayedCall(3000, () => {
-      console.log("[DemoScene] 🎉 Starting winner celebration for:", winner);
+      // console.log("[DemoScene] 🎉 Starting winner celebration for:", winner);
 
       const demoGameState = {
         status: "results",
@@ -328,11 +328,11 @@ export class DemoScene extends Scene {
       // Show winner with PlayerManager (scales up, golden tint, etc.)
       const winnerParticipant = this.playerManager.showResults(demoGameState);
 
-      console.log("[DemoScene] Winner participant from showResults:", winnerParticipant);
+      // console.log("[DemoScene] Winner participant from showResults:", winnerParticipant);
 
       // Add celebration animations (confetti, text, bounce)
       if (winnerParticipant) {
-        console.log("[DemoScene] 🏆 Calling addWinnerCelebration");
+        // console.log("[DemoScene] 🏆 Calling addWinnerCelebration");
         this.animationManager.addWinnerCelebration(winnerParticipant, winner);
       } else {
         console.error("[DemoScene] ❌ No winner participant returned!");
@@ -341,9 +341,9 @@ export class DemoScene extends Scene {
   }
 
   public clearDemoParticipants() {
-    console.log("[DemoScene] Clearing demo participants", {
-      count: this.participants.length,
-    });
+    // console.log("[DemoScene] Clearing demo participants", {
+    //   count: this.participants.length,
+    // });
     this.playerManager.clearParticipants();
     this.animationManager.clearCelebration();
     this.participants = [];
