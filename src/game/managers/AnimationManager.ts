@@ -177,20 +177,7 @@ export class AnimationManager {
       ease: "Power2",
     });
 
-    const victoryText = this.scene.add
-      .text(this.centerX, this.centerY - 120, "🏆 WINNER! 🏆", {
-        fontFamily: "Arial Black",
-        fontSize: 48,
-        color: "#ffd700",
-        stroke: "#000000",
-        strokeThickness: 6,
-        align: "center",
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-
     // Apply pixelated rendering - render at lower resolution for crisp pixel art look
-    victoryText.postFX.addPixelate();
 
     // Get screen height for positioning at bottom
     const screenHeight = this.scene.game.config.height as number;
@@ -222,27 +209,7 @@ export class AnimationManager {
       .setDepth(200);
 
     // Track all celebration objects for cleanup
-    this.celebrationObjects.push(backgroundOverlay, throne, victoryText, nameText, betText);
-
-    // Animate victory text
-    victoryText.setScale(0);
-    this.scene.tweens.add({
-      targets: victoryText,
-      scale: { from: 0, to: 1 },
-      duration: 500,
-      ease: "Back.easeOut",
-    });
-
-    // Pulse animation for victory text
-    this.scene.tweens.add({
-      targets: victoryText,
-      scale: { from: 1, to: 1.2 },
-      duration: 1000,
-      ease: "Sine.easeInOut",
-      yoyo: true,
-      repeat: -1,
-      delay: 500,
-    });
+    this.celebrationObjects.push(backgroundOverlay, throne, nameText, betText);
 
     // Animate name and bet text
     nameText.setAlpha(0);
@@ -262,15 +229,7 @@ export class AnimationManager {
       delay: 500,
     });
 
-    // Bounce animation for winner sprite
-    this.scene.tweens.add({
-      targets: winnerPlayer.container,
-      y: this.centerY - 20,
-      duration: 500,
-      ease: "Sine.easeInOut",
-      yoyo: true,
-      repeat: -1,
-    });
+    // Bounce animation is now handled in PlayerManager.showResults()
 
     // Add confetti particles
     this.createConfetti();
