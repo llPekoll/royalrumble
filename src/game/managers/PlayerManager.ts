@@ -454,21 +454,35 @@ export class PlayerManager {
         }
       });
 
-      // Reset sprite Y offset to 0 so feet are exactly at container position
-      winnerParticipant.sprite.y = 0;
+      // DON'T reset sprite.y - it already has the correct offset from spawn
+      // The offset compensates for transparent space at bottom of sprite
+      const spriteOffset = winnerParticipant.sprite.y;
 
-      // Move winner to center where throne is
+      // Position container so feet align with throne anchor
+      // Need to ADD offset to move container down to account for sprite's internal offset
+      const targetThroneY = this.centerY + 180;
+      const containerY = targetThroneY + spriteOffset;
+
+      console.log("[PlayerManager] 🎯 Winner positioning debug:", {
+        centerY: this.centerY,
+        targetThroneY: targetThroneY,
+        spriteOffset: spriteOffset,
+        containerY: containerY,
+        feetY: containerY + spriteOffset,
+        characterKey: winnerParticipant.characterKey,
+      });
+
       this.scene.tweens.add({
         targets: winnerParticipant.container,
         x: this.centerX,
-        y: this.centerY,
+        y: containerY,
         duration: 1000,
         ease: "Power2.easeInOut",
         onComplete: () => {
           // After reaching center, start bouncing animation
           this.scene.tweens.add({
             targets: winnerParticipant.container,
-            y: this.centerY - 20, // Bounce up by 20 pixels
+            y: containerY - 20, // Bounce up by 20 pixels
             duration: 500,
             ease: "Sine.easeInOut",
             yoyo: true,
