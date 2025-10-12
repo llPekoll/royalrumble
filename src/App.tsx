@@ -16,9 +16,13 @@ export default function App() {
   // Get current game state from new Solana-based system
   const gameState = useQuery(api.gameManagerDb.getGameState);
 
-  // Demo mode is active when no real game exists
-  // Handle undefined (loading state), null, or missing gameState
-  const isDemoMode = !gameState || !gameState.gameState;
+  // Demo mode is active when no real game exists or game is in "idle" state
+  // Handle undefined (loading state), null, missing gameState, or idle status
+  console.log({ gameState });
+  const isDemoMode =
+    !gameState ||
+    !gameState.gameState ||
+    gameState.gameState.status === "idle";
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
@@ -40,7 +44,10 @@ export default function App() {
     if (!phaserRef.current?.scene) return;
 
     const scene = phaserRef.current.scene;
-    const hasRealGame = gameState && gameState.gameState;
+    const hasRealGame =
+      gameState &&
+      gameState.gameState &&
+      gameState.gameState.status !== "idle";
 
     // If real game starts and we're in demo scene, switch to game scene
     if (hasRealGame && scene.scene.key === "DemoScene") {
@@ -49,9 +56,9 @@ export default function App() {
       scene.scene.start("RoyalRumble");
     }
 
-    // If no game and we're in game scene, switch back to demo
+    // If no game (or idle game) and we're in game scene, switch back to demo
     if (!hasRealGame && scene.scene.key === "RoyalRumble") {
-      console.log("Switching from RoyalRumble to DemoScene - Game ended");
+      console.log("Switching from RoyalRumble to DemoScene - Game ended or idle");
       scene.scene.start("DemoScene");
     }
 
@@ -91,7 +98,6 @@ export default function App() {
       {/* Overlay UI Elements */}
       <div className="relative z-10">
         <Header />
-
         <div className="min-h-screen pt-16 pb-24">
           <div className="absolute right-4 top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
             <GameLobby />

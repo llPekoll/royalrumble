@@ -94,6 +94,56 @@ export class AnimationManager {
     // Play victory sound when winner celebration starts
     SoundManager.playVictory(this.scene, 0.6);
 
+    // DEBUG: Show sprite anchor point visualization
+    const debugAnchor = this.scene.add.graphics();
+    debugAnchor.setDepth(1000); // On top of everything
+
+    // Draw a crosshair at the anchor point
+    const anchorWorldX = winnerPlayer.container.x + winnerPlayer.sprite.x;
+    const anchorWorldY = winnerPlayer.container.y + winnerPlayer.sprite.y;
+
+    // Red circle at anchor point
+    debugAnchor.fillStyle(0xff0000, 1);
+    debugAnchor.fillCircle(anchorWorldX, anchorWorldY, 8);
+
+    // Yellow crosshair
+    debugAnchor.lineStyle(3, 0xffff00, 1);
+    debugAnchor.beginPath();
+    debugAnchor.moveTo(anchorWorldX - 20, anchorWorldY);
+    debugAnchor.lineTo(anchorWorldX + 20, anchorWorldY);
+    debugAnchor.moveTo(anchorWorldX, anchorWorldY - 20);
+    debugAnchor.lineTo(anchorWorldX, anchorWorldY + 20);
+    debugAnchor.strokePath();
+
+    // Add label showing anchor coordinates
+    const anchorLabel = this.scene.add.text(
+      anchorWorldX + 25,
+      anchorWorldY - 10,
+      `Anchor: (${winnerPlayer.sprite.originX.toFixed(2)}, ${winnerPlayer.sprite.originY.toFixed(2)})`,
+      {
+        fontFamily: "Arial",
+        fontSize: "14px",
+        color: "#ffff00",
+        backgroundColor: "#000000",
+        padding: { x: 5, y: 5 },
+      }
+    );
+    anchorLabel.setDepth(1000);
+
+    // Track for cleanup
+    this.celebrationObjects.push(debugAnchor, anchorLabel);
+
+    console.log("[AnimationManager] 🎯 DEBUG: Winner sprite anchor at", {
+      originX: winnerPlayer.sprite.originX,
+      originY: winnerPlayer.sprite.originY,
+      worldX: anchorWorldX,
+      worldY: anchorWorldY,
+      spriteX: winnerPlayer.sprite.x,
+      spriteY: winnerPlayer.sprite.y,
+      containerX: winnerPlayer.container.x,
+      containerY: winnerPlayer.container.y,
+    });
+
     // Create dark background overlay for focus
     const backgroundOverlay = this.scene.add.rectangle(
       this.centerX,
