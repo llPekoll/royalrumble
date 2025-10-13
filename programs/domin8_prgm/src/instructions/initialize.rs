@@ -58,7 +58,7 @@ pub fn initialize(
     game_round.round_id = 0;
     game_round.status = GameStatus::Idle;
     game_round.start_timestamp = 0;
-    game_round.players = Vec::new();
+    game_round.bets = Vec::new();
     // game_round.finalists = Vec::new(); // Removed for small games MVP
     // game_round.spectator_bets = Vec::new(); // Removed for small games MVP
     game_round.initial_pot = 0;
