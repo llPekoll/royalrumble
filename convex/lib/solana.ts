@@ -139,9 +139,9 @@ export class SolanaClient {
       roundId: account.roundId.toNumber(),
       status,
       startTimestamp: account.startTimestamp.toNumber(),
-      players: account.players.map((p) => ({
+      bets: account.players.map((p) => ({
         wallet: p.wallet.toBase58(), // Convert PublicKey to string
-        totalBet: p.totalBet.toNumber(),
+        betAmount: p.totalBet.toNumber(), // Convert total_bet from IDL to betAmount for our interface
         timestamp: p.timestamp.toNumber(),
       })),
       initialPot: account.initialPot.toNumber(),
@@ -196,8 +196,8 @@ export class SolanaClient {
     // Prepare remaining accounts - all player accounts that could potentially win
     const remainingAccounts = gameRoundAccount.players.map((player: any) => ({
       pubkey: player.wallet,
-      isWritable: true, // Players' accounts will receive funds if they win
-      isSigner: false, // Players are not signing this transaction
+      isWritable: true, // Player accounts will receive funds if they win
+      isSigner: false, // Player accounts are not signing this transaction
     }));
 
     const tx = await this.program.methods

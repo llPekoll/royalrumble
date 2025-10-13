@@ -77,7 +77,7 @@ export const checkAndProgressGames = internalAction({
         details: {
           success: true,
           fromStatus: gameRound.status,
-          playersCount: gameRound.players.length,
+          playersCount: gameRound.bets.length,
         },
       });
 
@@ -177,7 +177,7 @@ async function handleWaitingPhase(
           transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
           fromStatus: GameStatus.Waiting,
           toStatus: GameStatus.AwaitingWinnerRandomness,
-          playersCount: gameRound.players.length,
+          playersCount: gameRound.bets.length,
         },
       });
 

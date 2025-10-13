@@ -34,11 +34,11 @@ export interface GameDurationConfig {
   // Only one duration field in the small games MVP - no elimination or spectator phases
 }
 
-// Player entry in the game
+// Bet entry in the game (renamed from PlayerEntry)
 // Note: PublicKeys are serialized as strings for Convex compatibility
-export interface PlayerEntry {
+export interface BetEntry {
   wallet: string; // PublicKey as base58 string
-  totalBet: number;
+  betAmount: number;
   timestamp: number;
 }
 
@@ -48,7 +48,7 @@ export interface GameRound {
   roundId: number;
   status: GameStatus;
   startTimestamp: number;
-  players: PlayerEntry[];
+  bets: BetEntry[];
   initialPot: number;
   winner: string | null; // PublicKey as base58 string, or null if no winner yet
   // ORAO VRF integration

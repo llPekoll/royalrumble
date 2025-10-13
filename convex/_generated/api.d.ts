@@ -15,19 +15,14 @@ import type {
 } from "convex/server";
 import type * as bets from "../bets.js";
 import type * as characters from "../characters.js";
-import type * as cleanup from "../cleanup.js";
 import type * as crons from "../crons.js";
 import type * as gameManager from "../gameManager.js";
 import type * as gameManagerDb from "../gameManagerDb.js";
 import type * as gameParticipants from "../gameParticipants.js";
-import type * as leaderboard from "../leaderboard.js";
 import type * as lib_solana from "../lib/solana.js";
 import type * as lib_types from "../lib/types.js";
 import type * as maps from "../maps.js";
-import type * as monitoring from "../monitoring.js";
 import type * as players from "../players.js";
-import type * as privy from "../privy.js";
-import type * as transactions from "../transactions.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -40,19 +35,14 @@ import type * as transactions from "../transactions.js";
 declare const fullApi: ApiFromModules<{
   bets: typeof bets;
   characters: typeof characters;
-  cleanup: typeof cleanup;
   crons: typeof crons;
   gameManager: typeof gameManager;
   gameManagerDb: typeof gameManagerDb;
   gameParticipants: typeof gameParticipants;
-  leaderboard: typeof leaderboard;
   "lib/solana": typeof lib_solana;
   "lib/types": typeof lib_types;
   maps: typeof maps;
-  monitoring: typeof monitoring;
   players: typeof players;
-  privy: typeof privy;
-  transactions: typeof transactions;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
-use crate::state::{GameRound, GameStatus, PlayerEntry};
+use crate::state::{GameRound, GameStatus, BetEntry};
 use crate::constants::*;
 use crate::errors::Domin8Error;
 
@@ -37,7 +37,7 @@ pub fn deposit_bet(
     
     // Validate game state - must be Idle or Waiting
     require!(
-        game_round.can_accept_players(),
+        game_round.can_accept_bets(),
         Domin8Error::InvalidGameStatus
     );
     
@@ -47,9 +47,9 @@ pub fn deposit_bet(
         Domin8Error::BetTooSmall
     );
     
-    // Check if we've reached maximum players
+    // Check if we've reached maximum bets
     require!(
-        game_round.players.len() < MAX_PLAYERS,
+        game_round.bets.len() < MAX_PLAYERS,
         Domin8Error::MaxPlayersReached
     );
     
@@ -67,36 +67,36 @@ pub fn deposit_bet(
     
     // Update game state based on current status
     if game_round.status == GameStatus::Idle {
-        // First player - transition to Waiting
+        // First bet - transition to Waiting
         game_round.status = GameStatus::Waiting;
         game_round.start_timestamp = clock.unix_timestamp;
         game_round.initial_pot = amount;
         
-        msg!("Game started by first player");
+        msg!("Game started by first bet");
     } else {
         // Add to existing pot
         game_round.initial_pot = game_round.initial_pot.saturating_add(amount);
     }
     
-    // Find existing player or add new one
-    if let Some(existing_player) = game_round.find_player_mut(&player_key) {
+    // Find existing bet or add new one
+    if let Some(existing_bet) = game_round.find_bet_mut(&player_key) {
         // Player already exists - add to their bet
-        existing_player.total_bet = existing_player.total_bet.saturating_add(amount);
-        existing_player.timestamp = clock.unix_timestamp; // Update timestamp
+        existing_bet.bet_amount = existing_bet.bet_amount.saturating_add(amount);
+        existing_bet.timestamp = clock.unix_timestamp; // Update timestamp
         
-        msg!("Updated bet for player: {}, new total: {}", player_key, existing_player.total_bet);
+        msg!("Updated bet for player: {}, new total: {}", player_key, existing_bet.bet_amount);
     } else {
-        // New player
-        let player_entry = PlayerEntry {
+        // New bet
+        let bet_entry = BetEntry {
             wallet: player_key,
-            total_bet: amount,
+            bet_amount: amount,
             timestamp: clock.unix_timestamp,
         };
         
-        game_round.players.push(player_entry);
+        game_round.bets.push(bet_entry);
         
-        msg!("New player joined: {}, bet: {}, total players: {}", 
-             player_key, amount, game_round.players.len());
+        msg!("New bet placed: {}, amount: {}, total bets: {}", 
+             player_key, amount, game_round.bets.len());
     }
     
     msg!("Total pot: {} lamports", game_round.initial_pot);

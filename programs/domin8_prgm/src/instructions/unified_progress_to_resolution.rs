@@ -60,22 +60,22 @@ pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>)
         Domin8Error::InvalidGameStatus
     );
     
-    let player_count = game_round.players.len();
-    msg!("Unified progress: transitioning game {} with {} players", game_round.round_id, player_count);
+    let bet_count = game_round.bets.len();
+    msg!("Unified progress: transitioning game {} with {} bets", game_round.round_id, bet_count);
     
-    match player_count {
+    match bet_count {
         0 => {
             return Err(Domin8Error::InvalidGameStatus.into());
         },
         1 => {
-            // Single player - immediate finish with refund
+            // Single bet - immediate finish with refund
             game_round.status = GameStatus::Finished;
-            game_round.winner = game_round.players[0].wallet;
-            msg!("Single player game - immediate finish with refund");
+            game_round.winner = game_round.bets[0].wallet;
+            msg!("Single bet game - immediate finish with refund");
             return Ok(());
         },
         2..=64 => {
-            // Multi-player game - request ORAO VRF and transition to AwaitingWinnerRandomness
+            // Multi-bet game - request ORAO VRF and transition to AwaitingWinnerRandomness
             
             // Generate deterministic seed for this game round
             let seed: [u8; 32] = generate_vrf_seed(game_round.round_id);

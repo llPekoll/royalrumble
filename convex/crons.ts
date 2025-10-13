@@ -12,12 +12,4 @@ crons.interval(
   internal.gameManager.checkAndProgressGames
 );
 
-// Health monitoring cron job
-// Runs every minute to monitor system health
-crons.interval("health-check", { seconds: 60 }, internal.monitoring.systemHealthCheck);
-
-// Cleanup old events cron job
-// Runs every hour to clean up old game events (keep last 7 days)
-crons.interval("cleanup-old-events", { minutes: 60 }, internal.cleanup.cleanupOldEvents);
-
 export default crons;

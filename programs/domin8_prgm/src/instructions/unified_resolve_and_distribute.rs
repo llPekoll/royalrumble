@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameConfig, GameStatus, PlayerEntry};
+use crate::state::{GameRound, GameConfig, GameStatus, BetEntry};
 use crate::errors::Domin8Error;
 use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, VAULT_SEED};
 
@@ -67,12 +67,12 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     
     // 2. SELECT WINNER USING VERIFIED RANDOMNESS
     require!(
-        game_round.players.len() >= 2,
+        game_round.bets.len() >= 2,
         Domin8Error::InvalidGameStatus
     );
     
-    let player_refs: Vec<&PlayerEntry> = game_round.players.iter().collect();
-    let winner_wallet = select_weighted_winner(&player_refs, randomness)?;
+    let bet_refs: Vec<&BetEntry> = game_round.bets.iter().collect();
+    let winner_wallet = select_weighted_winner(&bet_refs, randomness)?;
     
     game_round.winner = winner_wallet;
     msg!("Winner selected: {}", winner_wallet);
@@ -129,7 +129,7 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     game_round.round_id = game_round.round_id
         .checked_add(1)
         .ok_or(Domin8Error::ArithmeticOverflow)?; // Increment for next game
-    game_round.players.clear();
+    game_round.bets.clear();
     game_round.initial_pot = 0;
     game_round.start_timestamp = 0;
     
@@ -159,13 +159,13 @@ fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
 }
 
 /// Select winner weighted by bet amounts
-fn select_weighted_winner(players: &[&PlayerEntry], randomness: u64) -> Result<Pubkey> {
-    if players.is_empty() {
+fn select_weighted_winner(bets: &[&BetEntry], randomness: u64) -> Result<Pubkey> {
+    if bets.is_empty() {
         return Err(Domin8Error::NoPlayers.into());
     }
     
     // Calculate total weight
-    let total_weight: u64 = players.iter().map(|p| p.total_bet).sum();
+    let total_weight: u64 = bets.iter().map(|b| b.bet_amount).sum();
     
     if total_weight == 0 {
         return Err(Domin8Error::InvalidBetAmount.into());
@@ -176,13 +176,13 @@ fn select_weighted_winner(players: &[&PlayerEntry], randomness: u64) -> Result<P
     
     // Find winner based on cumulative weights
     let mut cumulative = 0u64;
-    for player in players {
-        cumulative = cumulative.saturating_add(player.total_bet);
+    for bet in bets {
+        cumulative = cumulative.saturating_add(bet.bet_amount);
         if selection < cumulative {
-            return Ok(player.wallet);
+            return Ok(bet.wallet);
         }
     }
     
-    // Fallback to last player (should never reach here)
-    Ok(players.last().unwrap().wallet)
+    // Fallback to last bet (should never reach here)
+    Ok(bets.last().unwrap().wallet)
 }

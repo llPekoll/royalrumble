@@ -20,7 +20,7 @@ export const createGameStateRecord = internalMutation({
       status: gameRound.status,
       phaseStartTime: gameRound.startTimestamp * 1000,
       waitingDuration: gameConfig.smallGameDurationConfig.waitingPhaseDuration,
-      playersCount: gameRound.players.length,
+      playersCount: gameRound.bets.length,
       lastChecked: now,
     });
 

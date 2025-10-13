@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::PlayerEntry;
-// Removed SpectatorBet import for small games MVP
+use crate::state::BetEntry;
 
 /// Game status enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Debug)]
@@ -23,13 +22,12 @@ pub struct GameRound {
     pub status: GameStatus,
     pub start_timestamp: i64,
     
-    // Players (max 64)
-    pub players: Vec<PlayerEntry>,
+    // Individual bets (max 64)
+    pub bets: Vec<BetEntry>,
     
     
     // Pot tracking
     pub initial_pot: u64,
-    // pub spectator_pot: u64,  // Removed for small games MVP
     
     // Winner
     pub winner: Pubkey,
@@ -43,30 +41,30 @@ pub struct GameRound {
 impl GameRound {
     /// Account space calculation for small games MVP with ORAO VRF:
     /// 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start_timestamp)
-    /// + 4 (players vec len) + (64 * 48) (max players)
+    /// + 4 (bets vec len) + (64 * 48) (max bets)
     /// + 8 (initial_pot) + 32 (winner) 
     /// + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
     /// = 8 + 8 + 1 + 8 + 4 + 3072 + 8 + 32 + 32 + 32 + 1 = 3206 bytes (~3.1KB)
-    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 4 + (64 * PlayerEntry::LEN) + 8 + 32 + 32 + 32 + 1;
+    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 4 + (64 * BetEntry::LEN) + 8 + 32 + 32 + 32 + 1;
 
-    /// Check if the game is in a state where players can join
-    pub fn can_accept_players(&self) -> bool {
+    /// Check if the game is in a state where bets can be placed
+    pub fn can_accept_bets(&self) -> bool {
         matches!(self.status, GameStatus::Idle | GameStatus::Waiting)
     }
 
-    /// Check if the game is a small game (2+ players) - all games are small games in MVP
+    /// Check if the game is a small game (2+ bets) - all games are small games in MVP
     pub fn is_small_game(&self) -> bool {
-        self.players.len() >= 2
+        self.bets.len() >= 2
     }
 
-    /// Get player by wallet address
-    pub fn find_player(&self, wallet: &Pubkey) -> Option<&PlayerEntry> {
-        self.players.iter().find(|p| p.wallet == *wallet)
+    /// Get bet entry by wallet address
+    pub fn find_bet(&self, wallet: &Pubkey) -> Option<&BetEntry> {
+        self.bets.iter().find(|b| b.wallet == *wallet)
     }
 
-    /// Get mutable player by wallet address
-    pub fn find_player_mut(&mut self, wallet: &Pubkey) -> Option<&mut PlayerEntry> {
-        self.players.iter_mut().find(|p| p.wallet == *wallet)
+    /// Get mutable bet entry by wallet address
+    pub fn find_bet_mut(&mut self, wallet: &Pubkey) -> Option<&mut BetEntry> {
+        self.bets.iter_mut().find(|b| b.wallet == *wallet)
     }
 
     /// Calculate total pot value (just initial pot in small games MVP)
