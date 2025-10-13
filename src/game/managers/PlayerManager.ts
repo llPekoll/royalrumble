@@ -7,6 +7,8 @@ export interface GameParticipant {
   playerId?: string;
   container: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Sprite;
+  dustBackSprite?: Phaser.GameObjects.Sprite; // Dust animation behind character
+  dustFrontSprite?: Phaser.GameObjects.Sprite; // Dust animation in front of character
   nameText: Phaser.GameObjects.Text;
   characterKey: string;
   displayName: string;
@@ -114,6 +116,15 @@ export class PlayerManager {
       textureKey = "warrior";
     }
 
+    // Create dust back sprite (plays behind character)
+    const dustBackSprite = this.scene.add.sprite(0, 0, "dust");
+    dustBackSprite.setOrigin(0.5, 1.0); // Bottom-center anchor (same as character)
+    dustBackSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST); // Keep pixel art crisp
+    if (this.scene.anims.exists("dust-back")) {
+      dustBackSprite.play("dust-back");
+    }
+
+    // Create main character sprite
     const sprite = this.scene.add.sprite(0, 0, textureKey);
 
     // Set sprite origin to bottom-center for consistent positioning
@@ -133,6 +144,24 @@ export class PlayerManager {
     const scale = betScale * this.BASE_SCALE_MULTIPLIER;
     sprite.setScale(scale);
     sprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+    // Create dust front sprite (plays in front of character)
+    const dustFrontSprite = this.scene.add.sprite(0, 0, "dust");
+    dustFrontSprite.setOrigin(0.5, 1.0); // Bottom-center anchor (same as character)
+    dustFrontSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST); // Keep pixel art crisp
+    if (this.scene.anims.exists("dust-front")) {
+      dustFrontSprite.play("dust-front");
+    }
+
+    // Scale dust sprites relative to character size (same as old dust-impact)
+    const dustScale = scale * 0.2; // Scale dust relative to character size
+    dustBackSprite.setScale(dustScale);
+    dustFrontSprite.setScale(dustScale);
+
+    // Offset dust down from character's feet (same as old dust-impact)
+    const dustOffsetY = 15; // Offset down from character's feet
+    dustBackSprite.setY(dustOffsetY);
+    dustFrontSprite.setY(dustOffsetY);
 
     // Character-specific Y offset adjustments (scales with sprite size)
     // These values are in original sprite pixels and will be scaled automatically
@@ -168,8 +197,14 @@ export class PlayerManager {
     // Show names immediately in demo mode, hide in real games during spawn
     nameText.setVisible(isBot);
 
-    // Add sprite first, then name text (render order matters)
+    // Add sprites in correct order for layering (render order matters):
+    // 1. Back dust (behind character)
+    // 2. Character sprite (middle)
+    // 3. Front dust (in front of character)
+    // 4. Name text (always on top)
+    container.add(dustBackSprite);
     container.add(sprite);
+    container.add(dustFrontSprite);
     container.add(nameText);
     if (participant.colorHue !== undefined && !participant.isBot) {
       const hue = participant.colorHue / 360;
@@ -211,31 +246,6 @@ export class PlayerManager {
             }
           },
       onComplete: () => {
-        // Get the actual landed position (accounts for any jitter in targetY)
-        const actualLandedX = container.x;
-        const actualLandedY = container.y;
-
-        // Create dust impact effect when character lands
-        const dustOffsetY = 15; // Offset down from character's feet
-        const dustSprite = this.scene.add.sprite(
-          actualLandedX,
-          actualLandedY + dustOffsetY,
-          "dust"
-        );
-        dustSprite.setOrigin(0.5, 1.0); // Bottom-center anchor (same as character)
-        dustSprite.setScale(scale * 0.2); // Scale dust relative to character size
-        dustSprite.setDepth(baseDepth + depthFromY + 1); // In front of the character
-        dustSprite.texture.setFilter(Phaser.Textures.FilterMode.NEAREST); // Keep pixel art crisp
-
-        if (this.scene.anims.exists("dust-impact")) {
-          dustSprite.play("dust-impact");
-        }
-
-        // Destroy dust sprite after animation completes
-        dustSprite.once("animationcomplete", () => {
-          dustSprite.destroy();
-        });
-
         // Play random impact sound when hitting ground
         try {
           console.log(`[PlayerManager] Playing random impact sound for ${participantId}`);
@@ -250,6 +260,8 @@ export class PlayerManager {
       playerId: participant.playerId,
       container,
       sprite,
+      dustBackSprite,
+      dustFrontSprite,
       nameText,
       characterKey: textureKey,
       displayName: participant.displayName,

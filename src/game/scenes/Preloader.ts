@@ -24,11 +24,13 @@ export class Preloader extends Scene {
     this.load.setPath("assets");
 
     // Load custom fonts
-    this.load.addFile(new Phaser.Loader.FileTypes.FontFile(this.load, {
-      type: 'font',
-      key: 'metal-slug',
-      url: 'fonts/metal-slug-colour.colr.ttf'
-    } as any));
+    this.load.addFile(
+      new Phaser.Loader.FileTypes.FontFile(this.load, {
+        type: "font",
+        key: "metal-slug",
+        url: "fonts/metal-slug-colour.colr.ttf",
+      } as any)
+    );
 
     // Check if data is available (should always be true due to PhaserGame.tsx guard)
     if (!charactersData || charactersData.length === 0) {
@@ -213,17 +215,28 @@ export class Preloader extends Scene {
       });
     });
 
-    // Create dust impact animation
+    // Create dust back animation (plays behind character)
     this.anims.create({
-      key: "dust-impact",
+      key: "dust-back",
       frames: this.anims.generateFrameNames("dust", {
         prefix: "dust_char ",
         suffix: ".aseprite",
         start: 0,
-        end: 19,
+        end: 20,
       }),
       frameRate: 24,
-      repeat: 0,
+    });
+
+    // Create dust front animation (plays in front of character)
+    this.anims.create({
+      key: "dust-front",
+      frames: this.anims.generateFrameNames("dust", {
+        prefix: "dust_char ",
+        suffix: ".aseprite",
+        start: 21,
+        end: 40,
+      }),
+      frameRate: 24,
     });
 
     // Start with DemoScene by default
