@@ -43,11 +43,8 @@ export default defineSchema({
   players: defineTable({
     walletAddress: v.string(),
     displayName: v.optional(v.string()),
-    gameCoins: v.number(), // For demo mode only
-    pendingCoins: v.number(), // Coins pending from deposits/transactions
     totalGamesPlayed: v.number(),
     totalWins: v.number(),
-    totalEarnings: v.number(), // Lifetime earnings in game coins
     lastActive: v.number(),
     achievements: v.optional(v.array(v.string())), // Achievement IDs
   })
@@ -100,13 +97,10 @@ export default defineSchema({
     gameId: v.id("games"),
     playerId: v.optional(v.id("players")), // Optional for bots
     walletAddress: v.optional(v.string()), // For human players
-    displayName: v.string(), // Display name for this participant
     characterId: v.id("characters"), // Reference to selected character
-    colorHue: v.optional(v.number()), // Optional color variation (0-360)
     isBot: v.boolean(),
     betAmount: v.number(), // Amount bet (determines size and power)
     size: v.number(), // Visual size multiplier based on bet
-    power: v.number(), // Combat power (bet amount * character stats)
     spawnIndex: v.number(), // Index in the game's spawnPositions array
     position: v.object({ x: v.number(), y: v.number() }), // Current position in arena
     targetPosition: v.optional(v.object({ x: v.number(), y: v.number() })), // Where they're moving to
@@ -174,9 +168,9 @@ export default defineSchema({
   // Recent winners tracking (for displaying last game results)
   recentWinners: defineTable({
     gameId: v.id("games"),
+    playerId: v.id("player"),
     roundId: v.number(),            // From blockchain
     walletAddress: v.string(),      // Winner's wallet
-    displayName: v.string(),         // Winner's display name
     characterId: v.id("characters"), // Which character won
     characterName: v.string(),       // Character name for quick display
     betAmount: v.number(),           // How much the winner bet
@@ -184,7 +178,7 @@ export default defineSchema({
     totalPayout: v.number(),         // Total winnings
     timestamp: v.number(),           // When they won
   })
-  .index("by_timestamp", ["timestamp"]), // Query recent winners
+    .index("by_timestamp", ["timestamp"]), // Query recent winners
 
   // Audit log for all game state changes and transactions
   gameEvents: defineTable({
