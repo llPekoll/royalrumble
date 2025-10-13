@@ -9,8 +9,6 @@ export const addParticipant = mutation({
     walletAddress: v.string(),
     characterId: v.id("characters"),
     betAmount: v.number(),
-    displayName: v.optional(v.string()),
-    colorHue: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     // Validate game exists and is in waiting phase
@@ -22,14 +20,13 @@ export const addParticipant = mutation({
       throw new Error("Game is not accepting new participants");
     }
 
-    // Validate player has enough coins
+    // Validate player exists
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       throw new Error("Player not found");
     }
-    if (player.gameCoins < args.betAmount) {
-      throw new Error("Insufficient game coins");
-    }
+    // NOTE: Balance check removed - SOL balance verified by smart contract
+    // Player signs transaction via Privy, smart contract validates sufficient funds
 
     // Validate bet amount (lamports - 0.1 SOL = 10000, 10 SOL = 1000000)
     if (args.betAmount < 10000 || args.betAmount > 1000000) {
@@ -54,23 +51,18 @@ export const addParticipant = mutation({
     // Calculate spawn index
     const spawnIndex = existingParticipants.length;
 
-    // Calculate size and power based on bet (lamports scale)
+    // Calculate size based on bet (lamports scale)
     // 0.1 SOL (10k lamports) = 1.05x size, 10 SOL (1M lamports) = 6.0x size
     const size = 1 + (args.betAmount / 1000000) * 5; // Size scales from 1.0 to 6.0
-    const power = args.betAmount; // Power equals bet amount directly
 
     // Create participant
     const participantId = await ctx.db.insert("gameParticipants", {
       gameId: args.gameId,
       playerId: args.playerId,
       walletAddress: args.walletAddress,
-      displayName: args.displayName || player.displayName || `Player ${spawnIndex + 1}`,
       characterId: args.characterId,
-      colorHue: args.colorHue || Math.random() * 360,
-      isBot: false,
       betAmount: args.betAmount,
       size,
-      power,
       spawnIndex,
       position: { x: 0, y: 0 }, // Will be set when spawning
       targetPosition: undefined,
@@ -81,10 +73,8 @@ export const addParticipant = mutation({
       spectatorBets: 0,
     });
 
-    // Deduct coins from player
-    await ctx.db.patch(args.playerId, {
-      gameCoins: player.gameCoins - args.betAmount,
-    });
+    // NOTE: Coin deduction removed - SOL transferred via smart contract
+    // Transaction signed by player via Privy, funds held in GamePool PDA
 
     // Update game totals
     await ctx.db.patch(args.gameId, {
@@ -93,22 +83,13 @@ export const addParticipant = mutation({
       selfBetPool: game.selfBetPool + args.betAmount,
     });
 
-    // Check if this is the first human player
-    const humanParticipants = existingParticipants.filter(p => !p.isBot);
-    if (humanParticipants.length === 0) {
-      await ctx.db.patch(args.gameId, {
-        playerCount: 1,
-        isSinglePlayer: true,
-      });
-    } else {
-      // Check if different player
-      const uniquePlayers = new Set(humanParticipants.map(p => p.playerId));
-      uniquePlayers.add(args.playerId);
-      await ctx.db.patch(args.gameId, {
-        playerCount: uniquePlayers.size,
-        isSinglePlayer: uniquePlayers.size === 1,
-      });
-    }
+    // Update player count (all participants are human now, no bots)
+    const uniquePlayers = new Set(existingParticipants.map(p => p.playerId).filter(Boolean));
+    uniquePlayers.add(args.playerId);
+    await ctx.db.patch(args.gameId, {
+      playerCount: uniquePlayers.size,
+      isSinglePlayer: uniquePlayers.size === 1,
+    });
 
     return participantId;
   },
@@ -204,56 +185,4 @@ export const getSurvivors = query({
   },
 });
 
-// Add bot participant
-export const addBotParticipant = mutation({
-  args: {
-    gameId: v.id("games"),
-    botName: v.string(),
-    characterId: v.id("characters"),
-    betAmount: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const game = await ctx.db.get(args.gameId);
-    if (!game) {
-      throw new Error("Game not found");
-    }
-
-    const existingParticipants = await ctx.db
-      .query("gameParticipants")
-      .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
-      .collect();
-
-    const spawnIndex = existingParticipants.length;
-    // 0.1 SOL (10k lamports) = 1.05x size, 10 SOL (1M lamports) = 6.0x size
-    const size = 1 + (args.betAmount / 1000000) * 5; // Size scales from 1.0 to 6.0
-    const power = args.betAmount; // Power equals bet amount directly
-
-    const participantId = await ctx.db.insert("gameParticipants", {
-      gameId: args.gameId,
-      playerId: undefined,
-      walletAddress: undefined,
-      displayName: args.botName,
-      characterId: args.characterId,
-      colorHue: Math.random() * 360,
-      isBot: true,
-      betAmount: args.betAmount,
-      size,
-      power,
-      spawnIndex,
-      position: { x: 0, y: 0 },
-      targetPosition: undefined,
-      eliminated: false,
-      eliminatedAt: undefined,
-      eliminatedBy: undefined,
-      finalPosition: undefined,
-      spectatorBets: 0,
-    });
-
-    // Update game participant count
-    await ctx.db.patch(args.gameId, {
-      participantCount: existingParticipants.length + 1,
-    });
-
-    return participantId;
-  },
-});
+// NOTE: Bot participants removed - all participants are real players with SOL bets

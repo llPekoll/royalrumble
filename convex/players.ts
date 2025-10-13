@@ -65,12 +65,9 @@ export const createPlayer = mutation({
     const playerId = await ctx.db.insert("players", {
       walletAddress: args.walletAddress,
       displayName: args.displayName,
-      gameCoins: 1000, // Start with 1000 coins
-      pendingCoins: 0, // Start with 0 pending coins
       lastActive: Date.now(),
       totalGamesPlayed: 0,
       totalWins: 0,
-      totalEarnings: 0,
       achievements: [],
     });
 
@@ -94,57 +91,9 @@ export const updateLastActive = mutation({
   },
 });
 
-export const addGameCoins = mutation({
-  args: {
-    walletAddress: v.string(),
-    amount: v.number()
-  },
-  handler: async (ctx, args) => {
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
-      .first();
-
-    if (!player) {
-      throw new Error("Player not found");
-    }
-
-    await ctx.db.patch(player._id, {
-      gameCoins: player.gameCoins + args.amount,
-      lastActive: Date.now(),
-    });
-
-    return player.gameCoins + args.amount;
-  },
-});
-
-export const deductGameCoins = mutation({
-  args: {
-    walletAddress: v.string(),
-    amount: v.number()
-  },
-  handler: async (ctx, args) => {
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
-      .first();
-
-    if (!player) {
-      throw new Error("Player not found");
-    }
-
-    if (player.gameCoins < args.amount) {
-      throw new Error("Insufficient game coins");
-    }
-
-    await ctx.db.patch(player._id, {
-      gameCoins: player.gameCoins - args.amount,
-      lastActive: Date.now(),
-    });
-
-    return player.gameCoins - args.amount;
-  },
-});
+// NOTE: gameCoins and pendingCoins removed from schema
+// This game uses real SOL directly via Privy wallets
+// Balances are queried from on-chain wallet, not stored in database
 
 export const updateDisplayName = mutation({
   args: {
@@ -185,7 +134,6 @@ export const updatePlayerStats = mutation({
   args: {
     playerId: v.id("players"),
     won: v.boolean(),
-    earnings: v.number(),
   },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
@@ -196,72 +144,14 @@ export const updatePlayerStats = mutation({
     await ctx.db.patch(args.playerId, {
       totalGamesPlayed: player.totalGamesPlayed + 1,
       totalWins: player.totalWins + (args.won ? 1 : 0),
-      totalEarnings: player.totalEarnings + args.earnings,
       lastActive: Date.now(),
     });
   },
 });
 
-// Add pending coins (typically from deposits)
-export const addPendingCoins = mutation({
-  args: {
-    walletAddress: v.string(),
-    amount: v.number()
-  },
-  handler: async (ctx, args) => {
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
-      .first();
-
-    if (!player) {
-      throw new Error("Player not found");
-    }
-
-    await ctx.db.patch(player._id, {
-      pendingCoins: player.pendingCoins + args.amount,
-      lastActive: Date.now(),
-    });
-
-    return player.pendingCoins + args.amount;
-  },
-});
-
-// Process pending coins into game coins (when transaction is confirmed)
-export const processPendingCoins = mutation({
-  args: {
-    walletAddress: v.string(),
-    amount: v.optional(v.number()) // If not specified, processes all pending coins
-  },
-  handler: async (ctx, args) => {
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
-      .first();
-
-    if (!player) {
-      throw new Error("Player not found");
-    }
-
-    const amountToProcess = args.amount || player.pendingCoins;
-
-    if (player.pendingCoins < amountToProcess) {
-      throw new Error("Insufficient pending coins");
-    }
-
-    await ctx.db.patch(player._id, {
-      gameCoins: player.gameCoins + amountToProcess,
-      pendingCoins: player.pendingCoins - amountToProcess,
-      lastActive: Date.now(),
-    });
-
-    return {
-      gameCoins: player.gameCoins + amountToProcess,
-      pendingCoins: player.pendingCoins - amountToProcess,
-      processedAmount: amountToProcess,
-    };
-  },
-});
+// NOTE: Pending coins and coin processing removed
+// SOL transactions are handled directly via Privy + smart contract
+// No internal coin system needed
 
 // Add achievement to player
 export const addAchievement = mutation({

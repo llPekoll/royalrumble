@@ -98,8 +98,7 @@ export default defineSchema({
     playerId: v.optional(v.id("players")), // Optional for bots
     walletAddress: v.optional(v.string()), // For human players
     characterId: v.id("characters"), // Reference to selected character
-    isBot: v.boolean(),
-    betAmount: v.number(), // Amount bet (determines size and power)
+    betAmount: v.number(), // Amount bet (determines size)
     size: v.number(), // Visual size multiplier based on bet
     spawnIndex: v.number(), // Index in the game's spawnPositions array
     position: v.object({ x: v.number(), y: v.number() }), // Current position in arena
@@ -169,16 +168,15 @@ export default defineSchema({
   recentWinners: defineTable({
     gameId: v.id("games"),
     playerId: v.id("player"),
-    roundId: v.number(),            // From blockchain
-    walletAddress: v.string(),      // Winner's wallet
+    roundId: v.number(), // From blockchain
+    walletAddress: v.string(), // Winner's wallet
     characterId: v.id("characters"), // Which character won
-    characterName: v.string(),       // Character name for quick display
-    betAmount: v.number(),           // How much the winner bet
-    participantCount: v.number(),    // How many participants they had
-    totalPayout: v.number(),         // Total winnings
-    timestamp: v.number(),           // When they won
-  })
-    .index("by_timestamp", ["timestamp"]), // Query recent winners
+    characterName: v.string(), // Character name for quick display
+    betAmount: v.number(), // How much the winner bet
+    participantCount: v.number(), // How many participants they had
+    totalPayout: v.number(), // Total winnings
+    timestamp: v.number(), // When they won
+  }).index("by_timestamp", ["timestamp"]), // Query recent winners
 
   // Audit log for all game state changes and transactions
   gameEvents: defineTable({

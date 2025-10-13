@@ -31,9 +31,8 @@ export const placeBet = mutation({
     if (!player) {
       throw new Error("Player not found");
     }
-    if (player.gameCoins < args.amount) {
-      throw new Error("Insufficient game coins");
-    }
+    // NOTE: Balance check removed - SOL balance verified by smart contract
+    // Player signs transaction via Privy, smart contract validates sufficient funds
 
     // Validate bet amount
     if (args.amount < 10 || args.amount > 10000) {
@@ -82,14 +81,13 @@ export const placeBet = mutation({
     if (args.betType === "spectator") {
       const allSurvivors = await ctx.db
         .query("gameParticipants")
-        .withIndex("by_game_eliminated", (q) =>
-          q.eq("gameId", args.gameId).eq("eliminated", false)
-        )
+        .withIndex("by_game_eliminated", (q) => q.eq("gameId", args.gameId).eq("eliminated", false))
         .collect();
 
-      const totalPower = allSurvivors.reduce((sum, p) => sum + p.power, 0);
-      const targetPower = targetParticipant.power;
-      odds = totalPower / targetPower; // Simple odds calculation
+      // Calculate odds based on bet amounts (higher bet = lower odds)
+      const totalBetAmount = allSurvivors.reduce((sum, p) => sum + p.betAmount, 0);
+      const targetBetAmount = targetParticipant.betAmount;
+      odds = totalBetAmount / targetBetAmount; // Simple odds calculation
     }
 
     // Create bet
@@ -107,10 +105,8 @@ export const placeBet = mutation({
       settledAt: undefined,
     });
 
-    // Deduct coins from player
-    await ctx.db.patch(args.playerId, {
-      gameCoins: player.gameCoins - args.amount,
-    });
+    // NOTE: Coin deduction removed - SOL transferred via smart contract
+    // Transaction signed by player via Privy, funds held in GamePool PDA
 
     // Update game pools
     if (args.betType === "spectator") {
@@ -171,9 +167,7 @@ export const getPlayerBets = query({
     const bets = await betsQuery.collect();
 
     // Filter by game if specified
-    const filteredBets = args.gameId
-      ? bets.filter(b => b.gameId === args.gameId)
-      : bets;
+    const filteredBets = args.gameId ? bets.filter((b) => b.gameId === args.gameId) : bets;
 
     return filteredBets;
   },
@@ -207,24 +201,19 @@ export const settleBets = mutation({
             settledAt: Date.now(),
           });
 
-          // Return coins to player
-          const player = await ctx.db.get(bet.playerId);
-          if (player) {
-            await ctx.db.patch(bet.playerId, {
-              gameCoins: player.gameCoins + bet.amount,
-            });
-          }
+          // NOTE: Refund handled by smart contract cancel_and_refund instruction
+          // Backend calls refund_game(), SOL returned directly to player's wallet
         }
       }
       return;
     }
 
     // Calculate payouts for multi-player game
-    const selfBetWinners = bets.filter(b =>
-      b.betType === "self" && b.targetParticipantId === args.winnerId
+    const selfBetWinners = bets.filter(
+      (b) => b.betType === "self" && b.targetParticipantId === args.winnerId
     );
-    const spectatorBetWinners = bets.filter(b =>
-      b.betType === "spectator" && b.targetParticipantId === args.winnerId
+    const spectatorBetWinners = bets.filter(
+      (b) => b.betType === "spectator" && b.targetParticipantId === args.winnerId
     );
 
     // Calculate self bet payouts (split 95% of self pool)
@@ -235,9 +224,10 @@ export const settleBets = mutation({
       if (bet.betType === "self") {
         if (bet.targetParticipantId === args.winnerId) {
           // Winner - calculate proportional payout
-          const payout = totalSelfBetAmount > 0
-            ? (bet.amount / totalSelfBetAmount) * selfPoolPayout
-            : bet.amount;
+          const payout =
+            totalSelfBetAmount > 0
+              ? (bet.amount / totalSelfBetAmount) * selfPoolPayout
+              : bet.amount;
 
           await ctx.db.patch(bet._id, {
             status: "won",
@@ -245,13 +235,8 @@ export const settleBets = mutation({
             settledAt: Date.now(),
           });
 
-          // Pay out to player
-          const player = await ctx.db.get(bet.playerId);
-          if (player) {
-            await ctx.db.patch(bet.playerId, {
-              gameCoins: player.gameCoins + payout,
-            });
-          }
+          // NOTE: Payout handled by smart contract claim_entry_winnings instruction
+          // Winner calls smart contract to claim SOL directly to their wallet
         } else {
           // Loser
           await ctx.db.patch(bet._id, {
@@ -271,9 +256,10 @@ export const settleBets = mutation({
       if (bet.betType === "spectator") {
         if (bet.targetParticipantId === args.winnerId) {
           // Winner - calculate payout based on odds
-          const payout = totalSpectatorBetAmount > 0
-            ? (bet.amount / totalSpectatorBetAmount) * spectatorPoolPayout
-            : bet.amount * (bet.odds || 1);
+          const payout =
+            totalSpectatorBetAmount > 0
+              ? (bet.amount / totalSpectatorBetAmount) * spectatorPoolPayout
+              : bet.amount * (bet.odds || 1);
 
           await ctx.db.patch(bet._id, {
             status: "won",
@@ -281,13 +267,8 @@ export const settleBets = mutation({
             settledAt: Date.now(),
           });
 
-          // Pay out to player
-          const player = await ctx.db.get(bet.playerId);
-          if (player) {
-            await ctx.db.patch(bet.playerId, {
-              gameCoins: player.gameCoins + payout,
-            });
-          }
+          // NOTE: Payout handled by smart contract claim_entry_winnings instruction
+          // Winner calls smart contract to claim SOL directly to their wallet
         } else {
           // Loser
           await ctx.db.patch(bet._id, {
@@ -319,14 +300,13 @@ export const getBettingStats = query({
       .collect();
 
     // Calculate stats per participant
-    const participantStats = participants.map(p => {
-      const participantBets = bets.filter(b => b.targetParticipantId === p._id);
+    const participantStats = participants.map((p) => {
+      const participantBets = bets.filter((b) => b.targetParticipantId === p._id);
       const totalBetAmount = participantBets.reduce((sum, b) => sum + b.amount, 0);
       const betCount = participantBets.length;
 
       return {
         participantId: p._id,
-        displayName: p.displayName,
         totalBetAmount,
         betCount,
         odds: totalBetAmount > 0 ? game.totalPot / totalBetAmount : 0,
