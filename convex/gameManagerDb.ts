@@ -218,6 +218,22 @@ export const getGameState = query({
       return null;
     }
 
+    // Get players for this game from bets table (only self/bank bets represent participants)
+    const playerBets = await ctx.db
+      .query("bets")
+      .withIndex("by_game_type", (q) => q.eq("gameId", game._id).eq("betType", "self"))
+      .collect();
+
+    // Transform bets into player objects for frontend compatibility
+    const players = playerBets.map(bet => ({
+      wallet: bet.walletAddress,
+      playerId: bet.playerId,
+      betId: bet._id,
+      characterId: bet.characterId,
+      amount: bet.amount,
+      eliminated: bet.eliminated || false,
+    }));
+
     // Get recent events for this game
     const recentEvents = await ctx.db
       .query("gameEvents")
@@ -226,7 +242,10 @@ export const getGameState = query({
       .take(10);
 
     return {
-      game,
+      game: {
+        ...game,
+        players, // Add the players list to the game object
+      },
       recentEvents,
     };
   },

@@ -76,6 +76,9 @@ export default defineSchema({
     // Cron management
     lastChecked: v.number(), // Cron job tracking
     lastUpdated: v.number(), // Last blockchain sync
+
+    // Cached list of players (optional, for quick access in frontend)
+    players: v.optional(v.array(v.id("players"))),
   })
     .index("by_round_id", ["roundId"])
     .index("by_status", ["status"])

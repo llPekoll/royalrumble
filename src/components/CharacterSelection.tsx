@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -8,16 +8,23 @@ import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
 import { validateBetAmount } from "../lib/solana-deposit-bet";
-import { getSolanaRpcUrl } from "../lib/utils";
-import { useWallets, useSignAndSendTransaction } from "@privy-io/react-auth/solana";
+import { useWallets } from "@privy-io/react-auth/solana";
 import {
-  Connection,
-  Transaction,
   SystemProgram,
   PublicKey,
-  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { Buffer } from "buffer";
+import {
+  createSolanaRpc,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstructions,
+  compileTransaction,
+  getTransactionEncoder,
+  address,
+  pipe,
+} from "@solana/kit";
 
 // Make Buffer available globally for Privy
 if (typeof window !== "undefined") {
@@ -34,60 +41,11 @@ interface CharacterSelectionProps {
   onParticipantAdded?: () => void;
 }
 
-// Utility function to create SOL transfer transaction
-const createSOLTransferTransaction = async (
-  fromAddress: string,
-  toAddress: string,
-  amount: number // Amount in SOL
-) => {
-  // Set up connection to Solana network using environment-based RPC URL
-  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
-
-  // Create public key objects
-  const fromPubkey = new PublicKey(fromAddress);
-  const toPubkey = new PublicKey(toAddress);
-
-  // Convert SOL to lamports (1 SOL = 1,000,000,000 lamports)
-  const lamports = amount * LAMPORTS_PER_SOL;
-
-  // Create transfer instruction
-  const transferInstruction = SystemProgram.transfer({
-    fromPubkey,
-    toPubkey,
-    lamports,
-  });
-
-  // Create transaction and add instruction
-  const transaction = new Transaction().add(transferInstruction);
-
-  // Get recent blockhash
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = fromPubkey;
-
-  return { transaction, connection };
-};
-
 const CharacterSelection = memo(function CharacterSelection({
   onParticipantAdded,
 }: CharacterSelectionProps) {
-  const { connected, publicKey, solBalance, isLoadingBalance, refreshBalance } = usePrivyWallet();
+  const { connected, publicKey, solBalance, isLoadingBalance } = usePrivyWallet();
   const { wallets } = useWallets();
-  const { signAndSendTransaction } = useSignAndSendTransaction();
-  const placeEntryBet = useMutation(api.bets.placeEntryBet);
-
-  // Debug: Log what we got from the hooks
-  console.log("[CharacterSelection] Debug info:");
-  console.log("[CharacterSelection]- wallets:", wallets);
-  console.log("[CharacterSelection]- signAndSendTransaction:", signAndSendTransaction);
-  console.log(
-    "[CharacterSelection]- typeof signAndSendTransaction:",
-    typeof signAndSendTransaction
-  );
-  if (wallets.length > 0) {
-    console.log("[CharacterSelection]- wallet[0]:", wallets[0]);
-    console.log("[CharacterSelection]- wallet[0] methods:", Object.keys(wallets[0] || {}));
-  }
 
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
@@ -107,6 +65,13 @@ const CharacterSelection = memo(function CharacterSelection({
 
   // TODO: Fetch game state from Solana blockchain
   // For now, always in demo mode (no game status checks)
+
+  // Add missing variables for the updated handlePlaceBet function
+  const selectedWallet = wallets.length > 0 ? wallets[0] : null;
+  const gameState: any = null; // TODO: Replace with actual game state from Solana
+  const canPlaceBet = true; // TODO: Replace with actual game state logic
+  const isPlayerInGame = false; // TODO: Replace with actual check
+  const solBalanceInLamports = solBalance * 10000; // Convert SOL to lamports (assuming 1 SOL = 10000 lamports)
 
   // Check how many participants this player already has
   const playerParticipantCount = 0; // Disabled until Solana integration
@@ -142,8 +107,27 @@ const CharacterSelection = memo(function CharacterSelection({
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !playerData || !currentCharacter) {
+    if (!connected || !publicKey || !selectedWallet || !playerData || !currentCharacter) {
       toast.error("Please wait for data to load");
+      return;
+    }
+
+    // Check if player can place bet based on game state
+    if (!canPlaceBet) {
+      const status = gameState?.gameState?.status;
+      if (status === "awaitingWinnerRandomness") {
+        toast.error("Game is determining winner, please wait...");
+      } else if (status === "finished") {
+        toast.error("Game has finished, new game will start soon");
+      } else {
+        toast.error("Cannot place bet at this time");
+      }
+      return;
+    }
+
+    // Check if player is already in the current game
+    if (isPlayerInGame) {
+      toast.error("You are already participating in the current game");
       return;
     }
 
@@ -153,14 +137,10 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    // Check if player has sufficient SOL balance
-    if (amount > solBalance) {
-      toast.error(`Insufficient SOL. You have ${solBalance.toFixed(4)} SOL`);
+    if (amount > solBalanceInLamports / 10000) {
+      toast.error(`Insufficient SOL. You have ${solBalanceInLamports / 10000} SOL`);
       return;
     }
-
-    // TODO: Add game status check once Solana game state is integrated
-    // For now in demo mode, always allow betting
 
     setIsSubmitting(true);
 
@@ -171,72 +151,86 @@ const CharacterSelection = memo(function CharacterSelection({
         throw new Error(validation.error);
       }
 
-      // Find the Privy embedded wallet
-      const wallet = wallets.find(
-        (w) => w.address.toLowerCase() === publicKey.toString().toLowerCase()
+      // Create the deposit bet instruction manually
+      const programId = new PublicKey('CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9eKv2dptMpiXfK');
+      
+      // Derive PDAs for game_round and vault (matching Rust constants)
+      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode('game_round')],
+        programId
       );
-      if (!wallet) {
-        throw new Error("Wallet not found");
-      }
-
-      // TODO: Replace with actual game escrow address from smart contract
-      const gameEscrowAddress =
-        import.meta.env.VITE_GAME_ESCROW_ADDRESS || "PLACEHOLDER_ESCROW_ADDRESS";
-
-      // Create SOL transfer transaction
-      const { transaction } = await createSOLTransferTransaction(
-        publicKey.toString(),
-        gameEscrowAddress,
-        amount
+      
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode('vault')],
+        programId
       );
 
-      // Sign and send transaction using Privy's method
-      // Note: signAndSendTransaction expects serialized transaction bytes
-      console.log("[CharacterSelection] Signing and sending transaction...");
-      console.log({ transaction, wallet });
+      // Convert SOL to lamports
+      const amountLamports = Math.floor(amount * 1_000_000_000);
 
-      // Serialize the transaction to bytes
-      const serializedTransaction = transaction.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false,
-      });
+      // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
+      const instructionData = new Uint8Array(16);
+      
+      // Use actual discriminator from built program IDL
+      const discriminator = new Uint8Array([82, 23, 26, 58, 40, 4, 106, 159]);
+      instructionData.set(discriminator, 0);
+      
+      // Write amount as little-endian u64
+      const view = new DataView(instructionData.buffer);
+      view.setBigUint64(8, BigInt(amountLamports), true);
 
-      console.log("[CharacterSelection] Serialized transaction:", serializedTransaction);
+      // Create deposit_bet instruction in @solana/kit format
+      const depositBetInstruction = {
+        programAddress: address(programId.toString()),
+        accounts: [
+          { address: address(gameRoundPDA.toString()), role: 0 }, // writable
+          { address: address(vaultPDA.toString()), role: 0 }, // writable  
+          { address: address(selectedWallet.address), role: 2 }, // signer + writable
+          { address: address(SystemProgram.programId.toString()), role: 1 } // readonly
+        ],
+        data: instructionData
+      };
 
-      // Get Solana network from environment
-      const solanaNetwork = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-      const chain = `solana:${solanaNetwork}` as const;
+      console.log("Created deposit bet instruction:", depositBetInstruction);
+      console.log("Using wallet:", selectedWallet);
 
-      const result = await signAndSendTransaction({
-        transaction: serializedTransaction,
-        wallet,
-        chain,
-      });
+      // Configure RPC connection to point to devnet
+      const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
+      const rpcUrl = network === "mainnet" 
+        ? "https://api.mainnet-beta.solana.com"
+        : "https://api.devnet.solana.com";
+      
+      const { getLatestBlockhash } = createSolanaRpc(rpcUrl);
+      const { value: latestBlockhash } = await getLatestBlockhash().send();
 
-      console.log("Transaction successful:", result);
+      // Create transaction using @solana/kit
+      const transaction = pipe(
+        createTransactionMessage({ version: 0 }),
+        (tx) => setTransactionMessageFeePayer(address(selectedWallet.address), tx),
+        (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+        (tx) => appendTransactionMessageInstructions([depositBetInstruction], tx),
+        (tx) => compileTransaction(tx),
+        (tx) => new Uint8Array(getTransactionEncoder().encode(tx))
+      );
 
-      // Extract transaction signature
-      const txSignature = typeof result === "string" ? result : result?.signature || "Unknown";
+      // Send the transaction with explicit chain specification
+      const chainId = `solana:${network}` as `${string}:${string}`;
+      const receipts = await selectedWallet.signAndSendAllTransactions([
+        {
+          chain: chainId,
+          transaction
+        }
+      ]);
 
-      // Register bet in Convex and join/create game
-      console.log("[CharacterSelection] Registering bet in Convex...");
-      const gameInfo = await placeEntryBet({
-        walletAddress: publicKey.toString(),
-        characterId: currentCharacter._id,
-        betAmount: Math.floor(amount * LAMPORTS_PER_SOL), // Convert to lamports
-        txSignature: txSignature.toString(),
-      });
+      console.log("Transaction successful:", receipts);
 
-      console.log("[CharacterSelection] Game joined:", gameInfo);
+      // Convert signature to hex string for display
+      const signature = receipts[0].signature;
+      const signatureHex = Array.from(signature as Uint8Array)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 
-      // Show success toast with truncated transaction signature
-      toast.success(`Bet placed! 🎲 Game starting!`, {
-        description: `Transaction: ${txSignature.toString().slice(0, 8)}...${txSignature.toString().slice(-8)}\nPlayers: ${gameInfo.playersCount}`,
-        duration: 5000,
-      });
-
-      // Refresh balance after successful bet
-      await refreshBalance();
+      toast.success(`Bet placed! Signature: ${signatureHex.slice(0, 16)}...`);
 
       setBetAmount("0.1");
 
@@ -262,14 +256,14 @@ const CharacterSelection = memo(function CharacterSelection({
   }, [
     connected,
     publicKey,
+    selectedWallet,
     playerData,
     currentCharacter,
     betAmount,
-    solBalance,
-    wallets,
-    signAndSendTransaction,
-    placeEntryBet,
-    refreshBalance,
+    solBalanceInLamports,
+    canPlaceBet,
+    isPlayerInGame,
+    gameState,
     onParticipantAdded,
     allCharacters,
   ]);
