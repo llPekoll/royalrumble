@@ -96,7 +96,7 @@ export default defineSchema({
     betType: v.union(
       v.literal("self"),       // Player betting on themselves (creates participant)
       v.literal("spectator"),  // Player betting on another participant
-      v.literal("bank")        // Bank bot opponent
+      v.literal("refund")        // Bank bot opponent
     ),
     targetBetId: v.optional(v.id("bets")), // For spectator bets only: which participant they bet on
 

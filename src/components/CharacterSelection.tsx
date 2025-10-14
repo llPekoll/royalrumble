@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -12,6 +12,7 @@ import { useWallets } from "@privy-io/react-auth/solana";
 import {
   SystemProgram,
   PublicKey,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import {
@@ -46,6 +47,7 @@ const CharacterSelection = memo(function CharacterSelection({
 }: CharacterSelectionProps) {
   const { connected, publicKey, solBalance, isLoadingBalance } = usePrivyWallet();
   const { wallets } = useWallets();
+  const placeEntryBet = useMutation(api.bets.placeEntryBet);
 
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
@@ -230,7 +232,22 @@ const CharacterSelection = memo(function CharacterSelection({
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
-      toast.success(`Bet placed! Signature: ${signatureHex.slice(0, 16)}...`);
+      console.log("[CharacterSelection] Registering bet in Convex...");
+
+      // Register bet in Convex database after successful Solana transaction
+      const gameInfo = await placeEntryBet({
+        walletAddress: publicKey.toString(),
+        characterId: currentCharacter._id,
+        betAmount: amountLamports, // Already in lamports
+        txSignature: signatureHex,
+      });
+
+      console.log("[CharacterSelection] Game joined:", gameInfo);
+
+      toast.success(`Bet placed! 🎲 Game starting!`, {
+        description: `Transaction: ${signatureHex.slice(0, 8)}...${signatureHex.slice(-8)}\nPlayers: ${gameInfo.playersCount}`,
+        duration: 5000,
+      });
 
       setBetAmount("0.1");
 
@@ -264,6 +281,7 @@ const CharacterSelection = memo(function CharacterSelection({
     canPlaceBet,
     isPlayerInGame,
     gameState,
+    placeEntryBet,
     onParticipantAdded,
     allCharacters,
   ]);

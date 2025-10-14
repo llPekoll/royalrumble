@@ -8,7 +8,7 @@ export const placeBet = mutation({
     gameId: v.id("games"),
     playerId: v.id("players"),
     walletAddress: v.string(),
-    betType: v.union(v.literal("self"), v.literal("refund")),
+    betType: v.union(v.literal("self"), v.literal("refund"), v.literal("spectator")),
     targetBetId: v.id("bets"), // Now references a bet record instead of participant
     amount: v.number(),
   },
@@ -83,7 +83,6 @@ export const placeBet = mutation({
       playerId: args.playerId,
       walletAddress: args.walletAddress,
       amount: args.amount,
-      betTimestamp: Date.now(),
       betType: args.betType,
       odds,
       payout: undefined,
@@ -93,8 +92,7 @@ export const placeBet = mutation({
       
       // No positioning data for spectator bets
       position: undefined,
-      targetPosition: undefined,
-      size: undefined,
+
       spawnIndex: undefined,
       eliminated: undefined,
       eliminatedAt: undefined,
@@ -102,15 +100,9 @@ export const placeBet = mutation({
       finalPosition: undefined,
       isWinner: undefined,
       characterId: undefined,
-      spectatorBets: undefined,
-      totalWinnings: undefined,
-      refundAmount: undefined,
+
       onChainConfirmed: false,
       txSignature: undefined,
-      winChance: undefined,
-      
-      // Legacy field for migration compatibility
-      targetParticipantId: undefined,
     });
 
     return betId;
@@ -163,11 +155,12 @@ export const getPlayerBets = query({
   },
 });
 
-// Settle bets for a completed game
+// Update bet statuses after Solana program resolves and distributes
 export const settleBets = mutation({
   args: {
     gameId: v.id("games"),
-    winnerId: v.id("gameParticipants"),
+    winnerWallet: v.string(), // Winner wallet address from Solana program
+    txSignature: v.string(), // Transaction signature of the settlement
   },
   handler: async (ctx, args) => {
     const game = await ctx.db.get(args.gameId);
@@ -178,66 +171,69 @@ export const settleBets = mutation({
     const bets = await ctx.db
       .query("bets")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+      .filter((q) => q.eq(q.field("betType"), "self")) // Only self bets (participants)
       .collect();
 
-    // Handle refunds (solo player games handled by smart contract)
-    // NOTE: This function is primarily for tracking bet status in database
-    // Actual SOL transfers handled by smart contract instructions
+    if (bets.length === 0) {
+      throw new Error("No participants found in game");
+    }
 
-    // Check if this was a refunded game
-    const shouldRefund = game.status === "idle" && !args.winnerId;
+    // NOTE: All payout calculations and SOL transfers are handled by the Solana program
+    // This function only updates the database status to reflect on-chain settlement
 
-    if (shouldRefund) {
-      for (const bet of bets) {
-        // Refund all bets
-        await ctx.db.patch(bet._id, {
-          status: "refunded",
-          payout: bet.amount,
-          settledAt: Date.now(),
-        });
+    // Handle single player refund case
+    if (bets.length === 1) {
+      const soloPlayerBet = bets[0];
+      await ctx.db.patch(soloPlayerBet._id, {
+        status: "refunded",
+        payout: soloPlayerBet.amount, // Full refund (handled by Solana program)
+        settledAt: Date.now(),
+        onChainConfirmed: true,
+        isWinner: undefined, // No winner in solo game
+      });
 
-        // NOTE: Refund handled by smart contract cancel_and_refund instruction
-        // Backend calls refund_game(), SOL returned directly to player's wallet
-      }
+      // Update game status
+      await ctx.db.patch(game._id, {
+        status: "finished",
+        winner: undefined, // No winner in solo refund
+        lastUpdated: Date.now(),
+      });
+
       return;
     }
 
-    // Calculate payouts for multi-player game
-    const selfBetWinners = bets.filter(
-      (b) => b.betType === "self" && b.targetParticipantId === args.winnerId
-    );
-
-    // Calculate self bet payouts (split 95% of entry pool)
-    const selfPoolPayout = game.entryPool * 0.95;
-    const totalSelfBetAmount = selfBetWinners.reduce((sum, b) => sum + b.amount, 0);
-
+    // Multi-player game: Mark winner and losers based on Solana program result
     for (const bet of bets) {
-      if (bet.betType === "self") {
-        if (bet.targetParticipantId === args.winnerId) {
-          // Winner - calculate proportional payout
-          const payout =
-            totalSelfBetAmount > 0
-              ? (bet.amount / totalSelfBetAmount) * selfPoolPayout
-              : bet.amount;
-
-          await ctx.db.patch(bet._id, {
-            status: "won",
-            payout,
-            settledAt: Date.now(),
-          });
-
-          // NOTE: Payout handled by smart contract claim_entry_winnings instruction
-          // Winner calls smart contract to claim SOL directly to their wallet
-        } else {
-          // Loser
-          await ctx.db.patch(bet._id, {
-            status: "lost",
-            payout: 0,
-            settledAt: Date.now(),
-          });
-        }
+      if (bet.walletAddress === args.winnerWallet) {
+        // Winner - Solana program already transferred winnings to their wallet
+        await ctx.db.patch(bet._id, {
+          status: "won",
+          payout: undefined, // Payout amount handled by Solana program (we don't track exact amount)
+          settledAt: Date.now(),
+          onChainConfirmed: true,
+          isWinner: true,
+        });
+      } else {
+        // Loser - funds already transferred to winner by Solana program
+        await ctx.db.patch(bet._id, {
+          status: "lost",
+          payout: 0,
+          settledAt: Date.now(),
+          onChainConfirmed: true,
+          isWinner: false,
+        });
       }
     }
+
+    // Update game status with winner information
+    await ctx.db.patch(game._id, {
+      status: "finished",
+      winner: args.winnerWallet,
+      lastUpdated: Date.now(),
+    });
+
+    // Log settlement completion
+    console.log(`Game ${args.gameId} settled: Winner ${args.winnerWallet}, TX: ${args.txSignature}`);
   },
 });
 
@@ -251,30 +247,27 @@ export const getBettingStats = query({
     const bets = await ctx.db
       .query("bets")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+      .filter((q) => q.eq(q.field("betType"), "self")) // Only self bets (participants)
       .collect();
 
-    const participants = await ctx.db
-      .query("gameParticipants")
-      .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
-      .collect();
-
-    // Calculate stats per participant
-    const participantStats = participants.map((p) => {
-      const participantBets = bets.filter((b) => b.targetParticipantId === p._id);
-      const totalBetAmount = participantBets.reduce((sum, b) => sum + b.amount, 0);
-      const betCount = participantBets.length;
-
+    // Calculate stats per participant using the unified bets table
+    const participantStats = bets.map((bet) => {
+      // For now, each participant bet is standalone (no spectator betting implemented yet)
+      const totalBetAmount = bet.amount || 0;
+      
       return {
-        participantId: p._id,
+        participantId: bet._id, // Use bet ID as participant identifier
+        walletAddress: bet.walletAddress,
+        characterId: bet.characterId,
         totalBetAmount,
-        betCount,
+        betCount: 1, // Each participant has one self bet
         odds: totalBetAmount > 0 ? game.entryPool / totalBetAmount : 0,
       };
     });
 
     return {
       totalBets: bets.length,
-      totalBetAmount: bets.reduce((sum, b) => sum + b.amount, 0),
+      totalBetAmount: bets.reduce((sum, b) => sum + (b.amount || 0), 0),
       entryPool: game.entryPool,
       participantStats,
     };
@@ -393,7 +386,6 @@ export const placeEntryBet = mutation({
       
       // Betting core data
       amount: args.betAmount,
-      betTimestamp: Date.now(),
       betType: "self",
       odds: 1,
       status: "pending",
@@ -404,12 +396,9 @@ export const placeEntryBet = mutation({
       // Settlement tracking
       onChainConfirmed: false,
       txSignature: args.txSignature,
-      spectatorBets: [], // Empty array initially
       
       // UI positioning (moved from gameParticipants)
       position: { x: 0, y: 0 },
-      targetPosition: undefined,
-      size,
       spawnIndex,
       
       // Game state (moved from gameParticipants)
@@ -418,13 +407,9 @@ export const placeEntryBet = mutation({
       eliminatedBy: undefined,
       finalPosition: undefined,
       isWinner: undefined,
-      winChance: undefined,
       
       // Display enhancements
       characterId: args.characterId,
-      
-      // Legacy field for migration compatibility (will be removed)
-      targetParticipantId: undefined,
     });
 
     // Update game totals
@@ -503,24 +488,39 @@ export const getGameParticipants = query({
         const character = bet.characterId ? await ctx.db.get(bet.characterId) : null;
         const player = bet.playerId ? await ctx.db.get(bet.playerId) : null;
 
-        // Calculate additional betting stats
-        const totalSpectatorBets = bet.spectatorBets?.reduce(
-          (sum, spectatorBet) => sum + spectatorBet.amount, 0
-        ) || 0;
-
-        const totalBetAmount = bet.amount + totalSpectatorBets;
+        // Calculate additional betting stats using the schema fields
+        const totalSpectatorBets = bet.totalBetAmount ? bet.totalBetAmount - bet.amount : 0;
+        const totalBetAmount = bet.totalBetAmount || bet.amount;
         
         return {
           ...bet,
           character,
           player,
           totalBetAmount,
-          spectatorBetCount: bet.spectatorBets?.length || 0,
+          spectatorBetCount: bet.spectatorBetCount || 0,
           totalSpectatorBets,
         };
       })
     );
 
     return participantsWithData;
+  },
+});
+
+/**
+ * Mark game as awaiting randomness (called when game starts and VRF is requested)
+ * This bridges the gap between frontend game start and Solana program state
+ */
+export const markGameAwaitingRandomness = mutation({
+  args: {
+    gameId: v.id("games"),
+    vrfRequestPubkey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.gameId, {
+      status: "awaitingWinnerRandomness",
+      vrfRequestPubkey: args.vrfRequestPubkey,
+      lastUpdated: Date.now(),
+    });
   },
 });
