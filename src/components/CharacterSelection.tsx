@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -74,6 +74,7 @@ const CharacterSelection = memo(function CharacterSelection({
   const { connected, publicKey, solBalance, isLoadingBalance, refreshBalance } = usePrivyWallet();
   const { wallets } = useWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
+  const placeEntryBet = useMutation(api.bets.placeEntryBet);
 
   // Debug: Log what we got from the hooks
   console.log("[CharacterSelection] Debug info:");
@@ -214,10 +215,23 @@ const CharacterSelection = memo(function CharacterSelection({
 
       console.log("Transaction successful:", result);
 
-      // Show success toast with truncated transaction signature
+      // Extract transaction signature
       const txSignature = typeof result === "string" ? result : result?.signature || "Unknown";
-      toast.success(`Bet placed! 🎲`, {
-        description: `Transaction: ${txSignature.toString().slice(0, 8)}...${txSignature.toString().slice(-8)}`,
+
+      // Register bet in Convex and join/create game
+      console.log("[CharacterSelection] Registering bet in Convex...");
+      const gameInfo = await placeEntryBet({
+        walletAddress: publicKey.toString(),
+        characterId: currentCharacter._id,
+        betAmount: Math.floor(amount * LAMPORTS_PER_SOL), // Convert to lamports
+        txSignature: txSignature.toString(),
+      });
+
+      console.log("[CharacterSelection] Game joined:", gameInfo);
+
+      // Show success toast with truncated transaction signature
+      toast.success(`Bet placed! 🎲 Game starting!`, {
+        description: `Transaction: ${txSignature.toString().slice(0, 8)}...${txSignature.toString().slice(-8)}\nPlayers: ${gameInfo.playersCount}`,
         duration: 5000,
       });
 
@@ -254,6 +268,7 @@ const CharacterSelection = memo(function CharacterSelection({
     solBalance,
     wallets,
     signAndSendTransaction,
+    placeEntryBet,
     refreshBalance,
     onParticipantAdded,
     allCharacters,

@@ -267,3 +267,199 @@ export const getBettingStats = query({
     };
   },
 });
+
+/**
+ * Place an entry bet and join/create game
+ * Called from frontend after successful on-chain bet transaction
+ */
+export const placeEntryBet = mutation({
+  args: {
+    walletAddress: v.string(),
+    characterId: v.id("characters"),
+    betAmount: v.number(), // in lamports
+    txSignature: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get player
+    let player = await ctx.db
+      .query("players")
+      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+
+    if (!player) {
+      throw new Error("Player not found. Please ensure you're logged in.");
+    }
+
+    // Get or create active game in waiting status
+    let game = await ctx.db
+      .query("games")
+      .withIndex("by_last_checked")
+      .order("desc")
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "waiting"),
+          q.eq(q.field("status"), "idle")
+        )
+      )
+      .first();
+
+    // If no active game exists, create one
+    if (!game) {
+      // Get a random active map
+      const activeMaps = await ctx.db
+        .query("maps")
+        .withIndex("by_active", (q) => q.eq("isActive", true))
+        .collect();
+
+      if (activeMaps.length === 0) {
+        throw new Error("No active maps available");
+      }
+
+      const randomMap = activeMaps[Math.floor(Math.random() * activeMaps.length)];
+      const now = Date.now();
+
+      // Create new game
+      const gameId = await ctx.db.insert("games", {
+        roundId: Date.now(), // Temporary until synced with Solana
+        status: "waiting",
+        startTimestamp: now,
+        entryPool: 0,
+        winner: undefined,
+        playersCount: 0,
+        vrfRequestPubkey: undefined,
+        randomnessFulfilled: false,
+        mapId: randomMap._id,
+        winnerId: undefined,
+        phaseStartTime: now,
+        waitingDuration: 30, // 30 seconds waiting phase
+        lastChecked: now,
+        lastUpdated: now,
+      });
+
+      game = await ctx.db.get(gameId);
+    }
+
+    if (!game) {
+      throw new Error("Failed to create or find game");
+    }
+
+    // Check if game is accepting participants
+    if (game.status !== "waiting" && game.status !== "idle") {
+      throw new Error("Game is not accepting new participants");
+    }
+
+    // Get existing participants
+    const existingParticipants = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+
+    // Check map capacity
+    const map = await ctx.db.get(game.mapId);
+    if (!map) {
+      throw new Error("Map not found");
+    }
+
+    if (existingParticipants.length >= map.spawnConfiguration.maxPlayers) {
+      throw new Error("Game is full");
+    }
+
+    const spawnIndex = existingParticipants.length;
+
+    // Calculate size based on bet amount
+    // 0.1 SOL (100M lamports) = 1.01x, 10 SOL (10B lamports) = 1.5x
+    const size = 1 + (args.betAmount / 10_000_000_000) * 0.5;
+
+    // Create participant
+    const participantId = await ctx.db.insert("gameParticipants", {
+      gameId: game._id,
+      playerId: player._id,
+      walletAddress: args.walletAddress,
+      characterId: args.characterId,
+      betAmount: args.betAmount,
+      betTimestamp: Date.now(),
+      winChance: undefined,
+      size,
+      spawnIndex,
+      position: { x: 0, y: 0 },
+      targetPosition: undefined,
+      eliminated: false,
+      eliminatedAt: undefined,
+      eliminatedBy: undefined,
+      finalPosition: undefined,
+      isWinner: undefined,
+    });
+
+    // Create bet record
+    await ctx.db.insert("bets", {
+      gameId: game._id,
+      playerId: player._id,
+      walletAddress: args.walletAddress,
+      betType: "self",
+      targetParticipantId: participantId,
+      amount: args.betAmount,
+      txSignature: args.txSignature,
+      onChainConfirmed: false,
+      timestamp: Date.now(),
+      odds: 1,
+      payout: undefined,
+      status: "pending",
+      placedAt: Date.now(),
+      settledAt: undefined,
+    });
+
+    // Update game totals
+    const uniquePlayers = new Set(existingParticipants.map((p) => p.playerId));
+    uniquePlayers.add(player._id);
+
+    await ctx.db.patch(game._id, {
+      playersCount: uniquePlayers.size,
+      entryPool: game.entryPool + args.betAmount,
+      status: "waiting", // Move to waiting if was idle
+      phaseStartTime: game.status === "idle" ? Date.now() : game.phaseStartTime, // Reset countdown on first bet
+      lastUpdated: Date.now(),
+    });
+
+    return {
+      gameId: game._id,
+      participantId,
+      playersCount: uniquePlayers.size,
+      entryPool: game.entryPool + args.betAmount,
+    };
+  },
+});
+
+/**
+ * Get current active game
+ */
+export const getCurrentGame = query({
+  args: {},
+  handler: async (ctx) => {
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_last_checked")
+      .order("desc")
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "waiting"),
+          q.eq(q.field("status"), "awaitingWinnerRandomness")
+        )
+      )
+      .first();
+
+    if (!game) {
+      return null;
+    }
+
+    // Get participants count
+    const participants = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+
+    return {
+      ...game,
+      participantsCount: participants.length,
+    };
+  },
+});
