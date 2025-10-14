@@ -202,17 +202,25 @@ const CharacterSelection = memo(function CharacterSelection({
 
       console.log("[CharacterSelection] Serialized transaction:", serializedTransaction);
 
+      // Get Solana network from environment
+      const solanaNetwork = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
+      const chain = `solana:${solanaNetwork}` as const;
+
       const result = await signAndSendTransaction({
         transaction: serializedTransaction,
         wallet,
-        chain: "solana:devnet", // Use devnet instead of mainnet
+        chain,
       });
 
       console.log("Transaction successful:", result);
-      // Wait for confirmation
-      // await connection.confirmTransaction(signature, "confirmed");
 
-      // toast.success(`Bet placed! Tx: ${signature.slice(0, 16)}...`);
+      // Show success toast with truncated transaction signature
+      const txSignature = typeof result === "string" ? result : result?.signature || "Unknown";
+      toast.success(`Bet placed! 🎲`, {
+        description: `Transaction: ${txSignature.toString().slice(0, 8)}...${txSignature.toString().slice(-8)}`,
+        duration: 5000,
+      });
+
       // Refresh balance after successful bet
       await refreshBalance();
 
