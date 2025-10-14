@@ -8,6 +8,21 @@ import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
 import { sendDepositBetTransaction, validateBetAmount } from "../lib/solana-deposit-bet";
+import { getSolanaRpcUrl } from "../lib/utils";
+import { useWallets, useSignAndSendTransaction } from "@privy-io/react-auth/solana";
+import {
+  Connection,
+  Transaction,
+  SystemProgram,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import { Buffer } from "buffer";
+
+// Make Buffer available globally for Privy
+if (typeof window !== "undefined") {
+  window.Buffer = Buffer;
+}
 
 interface Character {
   _id: Id<"characters">;
@@ -19,10 +34,60 @@ interface CharacterSelectionProps {
   onParticipantAdded?: () => void;
 }
 
+// Utility function to create SOL transfer transaction
+const createSOLTransferTransaction = async (
+  fromAddress: string,
+  toAddress: string,
+  amount: number // Amount in SOL
+) => {
+  // Set up connection to Solana network using environment-based RPC URL
+  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
+
+  // Create public key objects
+  const fromPubkey = new PublicKey(fromAddress);
+  const toPubkey = new PublicKey(toAddress);
+
+  // Convert SOL to lamports (1 SOL = 1,000,000,000 lamports)
+  const lamports = amount * LAMPORTS_PER_SOL;
+
+  // Create transfer instruction
+  const transferInstruction = SystemProgram.transfer({
+    fromPubkey,
+    toPubkey,
+    lamports,
+  });
+
+  // Create transaction and add instruction
+  const transaction = new Transaction().add(transferInstruction);
+
+  // Get recent blockhash
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = fromPubkey;
+
+  return { transaction, connection };
+};
+
 const CharacterSelection = memo(function CharacterSelection({
   onParticipantAdded,
 }: CharacterSelectionProps) {
-  const { connected, publicKey, wallet } = usePrivyWallet();
+  const { connected, publicKey, solBalance, isLoadingBalance, refreshBalance } = usePrivyWallet();
+  const { wallets } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
+
+  // Debug: Log what we got from the hooks
+  console.log("[CharacterSelection] Debug info:");
+  console.log("[CharacterSelection]- wallets:", wallets);
+  console.log("[CharacterSelection]- signAndSendTransaction:", signAndSendTransaction);
+  console.log(
+    "[CharacterSelection]- typeof signAndSendTransaction:",
+    typeof signAndSendTransaction
+  );
+  if (wallets.length > 0) {
+    console.log("[CharacterSelection]- wallet[0]:", wallets[0]);
+    console.log("[CharacterSelection]- wallet[0] methods:", Object.keys(wallets[0] || {}));
+  }
+
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,7 +110,7 @@ const CharacterSelection = memo(function CharacterSelection({
   // Check how many participants this player already has
   const playerParticipantCount = 0; // Disabled until Solana integration
 
-  const gameCoins = playerData?.gameCoins || 0;
+  // solBalance is now fetched from the Privy wallet via usePrivyWallet hook
 
   // Initialize with random character when characters load
   useEffect(() => {
@@ -76,7 +141,7 @@ const CharacterSelection = memo(function CharacterSelection({
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !wallet || !playerData || !currentCharacter) {
+    if (!connected || !publicKey || !playerData || !currentCharacter) {
       toast.error("Please wait for data to load");
       return;
     }
@@ -87,8 +152,9 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    if (amount > gameCoins / 100000) {
-      toast.error(`Insufficient SOL. You have ${gameCoins / 100000} SOL`);
+    // Check if player has sufficient SOL balance
+    if (amount > solBalance) {
+      toast.error(`Insufficient SOL. You have ${solBalance.toFixed(4)} SOL`);
       return;
     }
 
@@ -104,26 +170,50 @@ const CharacterSelection = memo(function CharacterSelection({
         throw new Error(validation.error);
       }
 
-      // Create transaction instruction for deposit_bet
-      const { instruction } = await sendDepositBetTransaction({
-        walletPublicKey: publicKey.toString(),
-        betAmountSol: amount,
-      });
-
-      // Use Privy wallet to sign and send transaction
+      // Find the Privy embedded wallet
+      const wallet = wallets.find(
+        (w) => w.address.toLowerCase() === publicKey.toString().toLowerCase()
+      );
       if (!wallet) {
         throw new Error("Wallet not found");
       }
 
-      const result = await wallet.signAndSendTransaction(instruction);
+      // TODO: Replace with actual game escrow address from smart contract
+      const gameEscrowAddress =
+        import.meta.env.VITE_GAME_ESCROW_ADDRESS || "PLACEHOLDER_ESCROW_ADDRESS";
+
+      // Create SOL transfer transaction
+      const { transaction, connection } = await createSOLTransferTransaction(
+        publicKey.toString(),
+        gameEscrowAddress,
+        amount
+      );
+
+      // Sign and send transaction using Privy's method
+      // Note: signAndSendTransaction expects serialized transaction bytes
+      console.log("[CharacterSelection] Signing and sending transaction...");
+      console.log({ transaction, wallet });
+
+      // Serialize the transaction to bytes
+      const serializedTransaction = transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+
+      console.log("[CharacterSelection] Serialized transaction:", serializedTransaction);
+
+      const result = await signAndSendTransaction({
+        transaction: serializedTransaction,
+        wallet,
+      });
+
       console.log("Transaction successful:", result);
+      // Wait for confirmation
+      // await connection.confirmTransaction(signature, "confirmed");
 
-      // Convert signature Uint8Array to hex string for display
-      const signatureHex = Array.from(result.signature)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-
-      toast.success(`Bet placed! Signature: ${signatureHex.slice(0, 16)}...`);
+      // toast.success(`Bet placed! Tx: ${signature.slice(0, 16)}...`);
+      // Refresh balance after successful bet
+      await refreshBalance();
 
       setBetAmount("0.1");
 
@@ -149,11 +239,13 @@ const CharacterSelection = memo(function CharacterSelection({
   }, [
     connected,
     publicKey,
-    wallet,
     playerData,
     currentCharacter,
     betAmount,
-    gameCoins,
+    solBalance,
+    wallets,
+    signAndSendTransaction,
+    refreshBalance,
     onParticipantAdded,
     allCharacters,
   ]);
@@ -209,8 +301,10 @@ const CharacterSelection = memo(function CharacterSelection({
         {/* Betting Section */}
         <div className="p-3 space-y-3">
           <div className="flex items-center justify-between text-lg uppercase tracking-wide">
-            <span className="text-amber-400">Your Bet</span>
-            <span className="text-amber-300">{gameCoins / 100000} Sol</span>
+            <span className="text-amber-400">Your Balance</span>
+            <span className="text-amber-300">
+              {isLoadingBalance ? "Loading..." : `${solBalance.toFixed(4)} SOL`}
+            </span>
           </div>
 
           <div className="relative">
@@ -253,11 +347,11 @@ const CharacterSelection = memo(function CharacterSelection({
           {/* Place bet button */}
           <button
             onClick={() => void handlePlaceBet()}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoadingBalance}
             className={`flex justify-center items-center w-full  bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white uppercase tracking-wider text-lg transition-all shadow-lg shadow-amber-900/50 disabled:opacity-50 ${styles.shineButton}`}
           >
             <img src="/assets/insert-coin.png" alt="Coin" className="h-8" />
-            {isSubmitting ? "Inserting..." : "Insert coin"}
+            {isSubmitting ? "Inserting..." : isLoadingBalance ? "Loading..." : "Insert coin"}
           </button>
         </div>
       </div>

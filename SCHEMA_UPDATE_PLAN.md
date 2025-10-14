@@ -1,20 +1,24 @@
 # Convex Schema Update Plan
 
 ## 🎯 **Objective**
+
 Clean up the Convex schema by eliminating redundancy between `games` and `gameStates` tables while preserving essential UI functionality for positioning, animations, and system health monitoring.
 
 ## 📊 **Current Issues Analysis**
 
 ### **Major Redundancy**
+
 - ❌ **`games` + `gameStates`** tables duplicate game status, timing, and player counts
 - ❌ **Complex UI phases** not needed for VRF-based winner selection
 - ❌ **Spectator betting** features not implemented in Anchor program
 - ❌ **Over-engineered elimination logic** for simple betting game
 
 ### **Reference Errors**
+
 - ❌ `recentWinners.playerId: v.id("player")` → Invalid table reference (should be `"players"`)
 
 ### **MVP Scope Creep**
+
 - ❌ Large game phases removed from Anchor program but still in schema
 - ❌ Complex betting pools not needed for simple "winner takes all" model
 
@@ -25,14 +29,15 @@ Clean up the Convex schema by eliminating redundancy between `games` and `gameSt
 ### **1.1 Merge `games` + `gameStates` → Single `games` Table**
 
 #### **Keep from `gameStates` (Blockchain Mirror)**
+
 ```typescript
-// Blockchain fields (from Anchor GameRound)
+// Blockchain fields (from Anchor GamePool)
 roundId: v.number(),              // PRIMARY KEY - matches blockchain
 status: v.string(),               // "idle", "waiting", "awaitingWinnerRandomness", "finished"
 startTimestamp: v.optional(v.number()),  // From blockchain
-initialPot: v.optional(v.number()),      // From blockchain (sum of all bets)
-winner: v.optional(v.string()),          // Winner wallet address
-playersCount: v.number(),                // From blockchain bets.length
+entryPool: v.number(),            // From blockchain GamePool.entry_pool (phase 1 bets)
+winner: v.optional(v.string()),   // Winner wallet address
+playersCount: v.number(),         // From blockchain bets.length
 
 // VRF fields (from blockchain)
 vrfRequestPubkey: v.optional(v.string()),
@@ -40,6 +45,7 @@ randomnessFulfilled: v.optional(v.boolean()),
 ```
 
 #### **Keep from `games` (UI Enhancement)**
+
 ```typescript
 // UI enhancement fields
 mapId: v.id("maps"),              // Which map to display
@@ -55,6 +61,7 @@ lastUpdated: v.number(),          // Last blockchain sync
 ```
 
 #### **Remove (Redundant/Complex)**
+
 ```typescript
 // ❌ Complex UI phases
 status: v.union(...),             // Replace with simple string
@@ -86,6 +93,7 @@ participantCount: v.number(),     // Duplicate of playersCount
 ### **2.1 Simplify `gameParticipants` (Keep UI Fields)**
 
 #### **✅ KEEP (Essential for UI)**
+
 ```typescript
 // Blockchain mirror
 walletAddress: v.string(),        // From BetEntry (made required)
@@ -108,11 +116,10 @@ isWinner: v.optional(v.boolean()),
 
 // Display enhancements
 characterId: v.id("characters"),
-displayName: v.optional(v.string()),
-colorHue: v.optional(v.number()),
 ```
 
 #### **❌ REMOVE**
+
 ```typescript
 spectatorBets: v.number(),        // Not in MVP
 
@@ -121,6 +128,7 @@ spectatorBets: v.number(),        // Not in MVP
 ### **2.2 Simplify `bets` Table**
 
 #### **✅ KEEP (Core Functionality)**
+
 ```typescript
 gameId: v.id("games"),
 playerId: v.id("players"),
@@ -136,6 +144,7 @@ settledAt: v.optional(v.number()),
 ```
 
 #### **❌ REMOVE**
+
 ```typescript
 betType: v.literal("spectator"),  // Not in MVP
 
@@ -144,11 +153,12 @@ betType: v.literal("spectator"),  // Not in MVP
 ### **2.3 Fix `recentWinners` Table**
 
 #### **🔧 FIX Reference Error**
+
 ```typescript
 // ❌ BEFORE
 playerId: v.id("player"),         // Invalid table reference
 
-// ✅ AFTER  
+// ✅ AFTER
 // Remove playerId entirely - not needed for display
 roundId: v.number(),
 walletAddress: v.string(),
@@ -165,6 +175,7 @@ timestamp: v.number(),
 ## 🧹 **Phase 3: Update Indexes**
 
 ### **3.1 New `games` Table Indexes**
+
 ```typescript
 .index("by_round_id", ["roundId"])     // Primary lookup
 .index("by_status", ["status"])        // Status filtering
@@ -172,6 +183,7 @@ timestamp: v.number(),
 ```
 
 ### **3.2 Updated `gameEvents` Indexes**
+
 ```typescript
 // Change from gameId to roundId for consistency
 .index("by_round_id", ["roundId"])     // Match games table
@@ -185,6 +197,7 @@ timestamp: v.number(),
 ## 🚀 **Phase 4: Migration Strategy**
 
 ### **4.1 Preparation Steps**
+
 1. **Backup Current Data**
    - Export existing games and gameStates data
    - Document current query patterns
@@ -202,19 +215,22 @@ timestamp: v.number(),
 ### **4.2 Code Updates Required**
 
 #### **Backend Files to Update**
+
 - `convex/gameManagerDb.ts` - Core database operations
-- `convex/gameManager.ts` - Cron job logic  
+- `convex/gameManager.ts` - Cron job logic
 - `convex/games.ts` - UI game queries
 - `convex/gameParticipants.ts` - Participant queries
 - `convex/bets.ts` - Betting logic
 
 #### **Frontend Files to Update**
+
 - `src/components/GameLobby.tsx` - Query current game
 - `src/components/CharacterSelection.tsx` - Game state checks
 - `src/App.tsx` - Game state display
 - Any other components using game queries
 
 ### **4.3 Testing Strategy**
+
 1. **Unit Tests** - Verify all queries work with new schema
 2. **Integration Tests** - Test cron jobs with unified table
 3. **UI Tests** - Ensure frontend displays correctly
@@ -225,24 +241,28 @@ timestamp: v.number(),
 ## 📋 **Phase 5: Implementation Checklist**
 
 ### **Schema Update**
+
 - [ ] Update `schema.ts` with unified `games` table
 - [ ] Fix `recentWinners` table reference error
 - [ ] Remove redundant fields from all tables
 - [ ] Update all table indexes
 
 ### **Backend Updates**
+
 - [ ] Update `gameManagerDb.ts` functions
 - [ ] Modify `gameManager.ts` cron logic
 - [ ] Test all database operations
 - [ ] Verify Solana blockchain sync
 
-### **Frontend Updates**  
+### **Frontend Updates**
+
 - [ ] Update `GameLobby.tsx` queries
 - [ ] Fix `CharacterSelection.tsx` game checks
 - [ ] Update `App.tsx` game state logic
 - [ ] Test UI positioning/animations still work
 
 ### **Quality Assurance**
+
 - [ ] All TypeScript errors resolved
 - [ ] No broken queries or undefined references
 - [ ] UI animations and positioning preserved
@@ -254,21 +274,25 @@ timestamp: v.number(),
 ## 🎉 **Expected Benefits**
 
 ### **Simplified Architecture**
+
 - ✅ Single source of truth for game state
 - ✅ No sync issues between duplicate tables
 - ✅ Cleaner query patterns
 
 ### **Improved Performance**
+
 - ✅ Fewer database tables to maintain
 - ✅ Simpler cron job logic
 - ✅ Reduced data duplication
 
 ### **Better Maintainability**
+
 - ✅ Schema directly mirrors Anchor program structure
 - ✅ Clear separation of blockchain vs UI data
 - ✅ Easier to debug and extend
 
 ### **Preserved Functionality**
+
 - ✅ UI positioning and animations maintained
 - ✅ System health monitoring kept
 - ✅ All essential game features preserved
@@ -279,16 +303,19 @@ timestamp: v.number(),
 ## ⚠️ **Risk Mitigation**
 
 ### **Data Loss Prevention**
+
 - Export all current data before schema changes
 - Test migration on development environment first
 - Keep backup of original schema file
 
 ### **Downtime Minimization**
+
 - Plan migration during low-usage periods
 - Have rollback plan ready
 - Monitor system health during migration
 
 ### **Feature Preservation**
+
 - Document all current UI behaviors
 - Test positioning/animation systems thoroughly
 - Verify system monitoring dashboard functionality

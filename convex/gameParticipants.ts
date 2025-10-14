@@ -62,6 +62,8 @@ export const addParticipant = mutation({
       walletAddress: args.walletAddress,
       characterId: args.characterId,
       betAmount: args.betAmount,
+      betTimestamp: Date.now(),
+      winChance: undefined, // Will be calculated later
       size,
       spawnIndex,
       position: { x: 0, y: 0 }, // Will be set when spawning
@@ -70,25 +72,19 @@ export const addParticipant = mutation({
       eliminatedAt: undefined,
       eliminatedBy: undefined,
       finalPosition: undefined,
-      spectatorBets: 0,
+      isWinner: undefined,
     });
 
     // NOTE: Coin deduction removed - SOL transferred via smart contract
     // Transaction signed by player via Privy, funds held in GamePool PDA
 
     // Update game totals
-    await ctx.db.patch(args.gameId, {
-      participantCount: existingParticipants.length + 1,
-      totalPot: game.totalPot + args.betAmount,
-      selfBetPool: game.selfBetPool + args.betAmount,
-    });
-
-    // Update player count (all participants are human now, no bots)
     const uniquePlayers = new Set(existingParticipants.map(p => p.playerId).filter(Boolean));
     uniquePlayers.add(args.playerId);
+
     await ctx.db.patch(args.gameId, {
-      playerCount: uniquePlayers.size,
-      isSinglePlayer: uniquePlayers.size === 1,
+      playersCount: uniquePlayers.size,
+      entryPool: game.entryPool + args.betAmount,
     });
 
     return participantId;

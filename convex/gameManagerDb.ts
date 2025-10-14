@@ -8,40 +8,67 @@ import { v } from "convex/values";
 // ============================================================================
 
 /**
- * Create new game state tracking record
+ * Create new game record (unified games table)
  */
-export const createGameStateRecord = internalMutation({
-  args: { gameId: v.string(), gameRound: v.any(), gameConfig: v.any() },
-  handler: async (ctx, { gameId, gameRound, gameConfig }) => {
+export const createGameRecord = internalMutation({
+  args: {
+    roundId: v.number(),
+    gameRound: v.any(),
+    gameConfig: v.any(),
+    mapId: v.id("maps"),
+  },
+  handler: async (ctx, { roundId, gameRound, gameConfig, mapId }) => {
     const now = Date.now();
 
-    const gameStateId = await ctx.db.insert("gameStates", {
-      gameId,
+    const gameId = await ctx.db.insert("games", {
+      // Blockchain fields
+      roundId,
       status: gameRound.status,
-      phaseStartTime: gameRound.startTimestamp * 1000,
-      waitingDuration: gameConfig.smallGameDurationConfig.waitingPhaseDuration,
-      playersCount: gameRound.bets.length,
+      startTimestamp: gameRound.startTimestamp ? gameRound.startTimestamp * 1000 : undefined,
+      entryPool: gameRound.entryPool || 0,
+      winner: gameRound.winner,
+      playersCount: gameRound.bets?.length || 0,
+
+      // VRF fields
+      vrfRequestPubkey: gameRound.vrfRequestPubkey,
+      randomnessFulfilled: gameRound.randomnessFulfilled || false,
+
+      // UI enhancement fields
+      mapId,
+      winnerId: undefined,
+
+      // Essential timing
+      phaseStartTime: gameRound.startTimestamp ? gameRound.startTimestamp * 1000 : now,
+      waitingDuration: gameConfig.smallGameDurationConfig?.waitingPhaseDuration || 30,
+
+      // Cron management
       lastChecked: now,
+      lastUpdated: now,
     });
 
-    return await ctx.db.get(gameStateId);
+    return await ctx.db.get(gameId);
   },
 });
 
 /**
- * Update game state record
+ * Update game record
  */
-export const updateGameState = internalMutation({
+export const updateGame = internalMutation({
   args: {
-    gameStateId: v.id("gameStates"),
+    gameId: v.id("games"),
     lastChecked: v.optional(v.number()),
+    lastUpdated: v.optional(v.number()),
     status: v.optional(v.string()),
-    gameType: v.optional(v.string()),
-    resolvingPhaseEnd: v.optional(v.number()),
+    entryPool: v.optional(v.number()),
+    winner: v.optional(v.string()),
+    winnerId: v.optional(v.id("gameParticipants")),
+    playersCount: v.optional(v.number()),
+    vrfRequestPubkey: v.optional(v.string()),
+    randomnessFulfilled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { gameStateId, ...updates } = args;
-    await ctx.db.patch(gameStateId, updates);
+    const { gameId, ...updates } = args;
+    await ctx.db.patch(gameId, updates);
   },
 });
 
@@ -50,7 +77,7 @@ export const updateGameState = internalMutation({
  */
 export const logGameEventRecord = internalMutation({
   args: {
-    gameId: v.string(),
+    roundId: v.number(),
     event: v.string(),
     details: v.object({
       success: v.boolean(),
@@ -64,9 +91,9 @@ export const logGameEventRecord = internalMutation({
       retryCount: v.optional(v.number()),
     }),
   },
-  handler: async (ctx, { gameId, event, details }) => {
+  handler: async (ctx, { roundId, event, details }) => {
     await ctx.db.insert("gameEvents", {
-      gameId,
+      roundId,
       event,
       timestamp: Date.now(),
       success: details.success,
@@ -126,15 +153,36 @@ export const updateSystemHealth = internalMutation({
 // ============================================================================
 
 /**
- * Get game state by game ID
+ * Get game by round ID
  */
-export const getGameStateByGameId = internalQuery({
-  args: { gameId: v.string() },
-  handler: async (ctx, { gameId }) => {
+export const getGameByRoundId = internalQuery({
+  args: { roundId: v.number() },
+  handler: async (ctx, { roundId }) => {
     return await ctx.db
-      .query("gameStates")
-      .withIndex("by_game_id", (q) => q.eq("gameId", gameId))
+      .query("games")
+      .withIndex("by_round_id", (q) => q.eq("roundId", roundId))
       .first();
+  },
+});
+
+/**
+ * Get a random active map
+ */
+export const getRandomActiveMap = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const activeMaps = await ctx.db
+      .query("maps")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+
+    if (activeMaps.length === 0) {
+      throw new Error("No active maps available");
+    }
+
+    // Select random map
+    const randomIndex = Math.floor(Math.random() * activeMaps.length);
+    return activeMaps[randomIndex];
   },
 });
 
@@ -159,26 +207,26 @@ export const getSystemHealthErrorCount = internalQuery({
 export const getGameState = query({
   args: {},
   handler: async (ctx) => {
-    // Get latest game state
-    const gameState = await ctx.db
-      .query("gameStates")
+    // Get latest game
+    const game = await ctx.db
+      .query("games")
       .withIndex("by_last_checked")
       .order("desc")
       .first();
 
-    if (!gameState) {
+    if (!game) {
       return null;
     }
 
     // Get recent events for this game
     const recentEvents = await ctx.db
       .query("gameEvents")
-      .withIndex("by_game_id", (q) => q.eq("gameId", gameState.gameId))
+      .withIndex("by_round_id", (q) => q.eq("roundId", game.roundId))
       .order("desc")
       .take(10);
 
     return {
-      gameState,
+      game,
       recentEvents,
     };
   },
@@ -199,5 +247,81 @@ export const getSystemHealth = query({
       errorCount: record.errorCount,
       lastError: record.lastError,
     }));
+  },
+});
+
+// ============================================================================
+// Cleanup Helper Queries and Mutations
+// ============================================================================
+
+/**
+ * Get old completed games for cleanup
+ */
+export const getOldCompletedGames = internalQuery({
+  args: { cutoffTime: v.number() },
+  handler: async (ctx, { cutoffTime }) => {
+    // Get games that have been updated before the cutoff time
+    // and are in finished status
+    const allGames = await ctx.db.query("games").collect();
+
+    return allGames.filter(
+      (game) => game.status === "finished" && game.lastUpdated < cutoffTime
+    );
+  },
+});
+
+/**
+ * Get game participants for cleanup
+ */
+export const getGameParticipants = internalQuery({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    return await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+  },
+});
+
+/**
+ * Get game bets for cleanup
+ */
+export const getGameBets = internalQuery({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    return await ctx.db
+      .query("bets")
+      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .collect();
+  },
+});
+
+/**
+ * Delete a participant
+ */
+export const deleteParticipant = internalMutation({
+  args: { participantId: v.id("gameParticipants") },
+  handler: async (ctx, { participantId }) => {
+    await ctx.db.delete(participantId);
+  },
+});
+
+/**
+ * Delete a bet
+ */
+export const deleteBet = internalMutation({
+  args: { betId: v.id("bets") },
+  handler: async (ctx, { betId }) => {
+    await ctx.db.delete(betId);
+  },
+});
+
+/**
+ * Delete a game
+ */
+export const deleteGame = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    await ctx.db.delete(gameId);
   },
 });

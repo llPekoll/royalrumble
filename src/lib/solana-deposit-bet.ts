@@ -3,6 +3,8 @@
  * This file contains the logic for calling the deposit_bet instruction from the Domin8 program
  */
 
+import { Buffer } from 'buffer';
+
 // Types for transaction parameters
 export interface DepositBetParams {
   walletPublicKey: string;
@@ -56,12 +58,10 @@ export async function sendDepositBetTransaction(
   instructionData.set(discriminator, 0);
   
   // Write amount as little-endian u64
-  const view = new DataView(instructionData.buffer);
+  const view = new DataView(instructionData.buffer, instructionData.byteOffset, instructionData.byteLength);
   view.setBigUint64(8, BigInt(amountLamports), true);
 
-  // Convert Uint8Array to Buffer for TransactionInstruction
-  const dataBuffer = Buffer.from(instructionData);
-
+  // TransactionInstruction accepts Uint8Array directly (no need for Buffer in browser)
   // Create deposit_bet instruction
   const depositBetIx = new TransactionInstruction({
     keys: [
@@ -71,7 +71,7 @@ export async function sendDepositBetTransaction(
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }       // system_program
     ],
     programId: PROGRAM_ID,
-    data: dataBuffer
+    data: Buffer.from(instructionData) // Convert Uint8Array to Buffer for type compatibility
   });
 
   return {

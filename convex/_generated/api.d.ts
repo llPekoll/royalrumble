@@ -23,6 +23,7 @@ import type * as lib_solana from "../lib/solana.js";
 import type * as lib_types from "../lib/types.js";
 import type * as maps from "../maps.js";
 import type * as players from "../players.js";
+import type * as transactions from "../transactions.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "lib/types": typeof lib_types;
   maps: typeof maps;
   players: typeof players;
+  transactions: typeof transactions;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

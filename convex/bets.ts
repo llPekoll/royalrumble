@@ -7,7 +7,7 @@ export const placeBet = mutation({
     gameId: v.id("games"),
     playerId: v.id("players"),
     walletAddress: v.string(),
-    betType: v.union(v.literal("self"), v.literal("spectator")),
+    betType: v.union(v.literal("self"), v.literal("refund")), // Removed spectator
     targetParticipantId: v.id("gameParticipants"),
     amount: v.number(),
   },
@@ -21,9 +21,6 @@ export const placeBet = mutation({
     // Validate bet type based on game phase
     if (args.betType === "self" && game.status !== "waiting") {
       throw new Error("Self betting only allowed during waiting phase");
-    }
-    if (args.betType === "spectator" && game.status !== "betting") {
-      throw new Error("Spectator betting only allowed during betting phase");
     }
 
     // Validate player
@@ -48,14 +45,9 @@ export const placeBet = mutation({
       throw new Error("Participant not in this game");
     }
 
-    // For spectator bets, ensure player isn't betting on themselves
-    if (args.betType === "spectator") {
-      if (targetParticipant.playerId === args.playerId) {
-        throw new Error("Cannot place spectator bet on your own participant");
-      }
-      if (targetParticipant.eliminated) {
-        throw new Error("Cannot bet on eliminated participant");
-      }
+    // Validate participant isn't eliminated
+    if (targetParticipant.eliminated) {
+      throw new Error("Cannot bet on eliminated participant");
     }
 
     // Check for existing bet
@@ -76,19 +68,16 @@ export const placeBet = mutation({
       throw new Error("Already placed a bet on this participant");
     }
 
-    // Calculate odds for spectator bets
-    let odds = 1;
-    if (args.betType === "spectator") {
-      const allSurvivors = await ctx.db
-        .query("gameParticipants")
-        .withIndex("by_game_eliminated", (q) => q.eq("gameId", args.gameId).eq("eliminated", false))
-        .collect();
+    // Calculate odds based on current participants
+    const allParticipants = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+      .collect();
 
-      // Calculate odds based on bet amounts (higher bet = lower odds)
-      const totalBetAmount = allSurvivors.reduce((sum, p) => sum + p.betAmount, 0);
-      const targetBetAmount = targetParticipant.betAmount;
-      odds = totalBetAmount / targetBetAmount; // Simple odds calculation
-    }
+    // Calculate odds based on bet amounts (higher bet = lower odds)
+    const totalBetAmount = allParticipants.reduce((sum, p) => sum + p.betAmount, 0);
+    const targetBetAmount = targetParticipant.betAmount;
+    const odds = totalBetAmount > 0 ? totalBetAmount / targetBetAmount : 1;
 
     // Create bet
     const betId = await ctx.db.insert("bets", {
@@ -108,18 +97,8 @@ export const placeBet = mutation({
     // NOTE: Coin deduction removed - SOL transferred via smart contract
     // Transaction signed by player via Privy, funds held in GamePool PDA
 
-    // Update game pools
-    if (args.betType === "spectator") {
-      await ctx.db.patch(args.gameId, {
-        spectatorBetPool: game.spectatorBetPool + args.amount,
-        totalPot: game.totalPot + args.amount,
-      });
-
-      // Update participant's spectator bets total
-      await ctx.db.patch(args.targetParticipantId, {
-        spectatorBets: targetParticipant.spectatorBets + args.amount,
-      });
-    }
+    // NOTE: Game pool updates handled by smart contract
+    // entryPool automatically updated when place_entry_bet instruction is called
 
     return betId;
   },
@@ -137,9 +116,7 @@ export const getGameBets = query({
     // Fetch participant and player data
     const betsWithData = await Promise.all(
       bets.map(async (bet) => {
-        const participant = bet.targetParticipantId
-          ? await ctx.db.get(bet.targetParticipantId)
-          : null;
+        const participant = await ctx.db.get(bet.targetParticipantId);
         const player = await ctx.db.get(bet.playerId);
         return {
           ...bet,
@@ -190,20 +167,24 @@ export const settleBets = mutation({
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
       .collect();
 
-    // Handle single player refunds
-    if (game.isSinglePlayer) {
-      for (const bet of bets) {
-        if (bet.betType === "self") {
-          // Refund self bets
-          await ctx.db.patch(bet._id, {
-            status: "refunded",
-            payout: bet.amount,
-            settledAt: Date.now(),
-          });
+    // Handle refunds (solo player games handled by smart contract)
+    // NOTE: This function is primarily for tracking bet status in database
+    // Actual SOL transfers handled by smart contract instructions
 
-          // NOTE: Refund handled by smart contract cancel_and_refund instruction
-          // Backend calls refund_game(), SOL returned directly to player's wallet
-        }
+    // Check if this was a refunded game
+    const shouldRefund = game.status === "idle" && !args.winnerId;
+
+    if (shouldRefund) {
+      for (const bet of bets) {
+        // Refund all bets
+        await ctx.db.patch(bet._id, {
+          status: "refunded",
+          payout: bet.amount,
+          settledAt: Date.now(),
+        });
+
+        // NOTE: Refund handled by smart contract cancel_and_refund instruction
+        // Backend calls refund_game(), SOL returned directly to player's wallet
       }
       return;
     }
@@ -212,12 +193,9 @@ export const settleBets = mutation({
     const selfBetWinners = bets.filter(
       (b) => b.betType === "self" && b.targetParticipantId === args.winnerId
     );
-    const spectatorBetWinners = bets.filter(
-      (b) => b.betType === "spectator" && b.targetParticipantId === args.winnerId
-    );
 
-    // Calculate self bet payouts (split 95% of self pool)
-    const selfPoolPayout = game.selfBetPool * 0.95;
+    // Calculate self bet payouts (split 95% of entry pool)
+    const selfPoolPayout = game.entryPool * 0.95;
     const totalSelfBetAmount = selfBetWinners.reduce((sum, b) => sum + b.amount, 0);
 
     for (const bet of bets) {
@@ -228,38 +206,6 @@ export const settleBets = mutation({
             totalSelfBetAmount > 0
               ? (bet.amount / totalSelfBetAmount) * selfPoolPayout
               : bet.amount;
-
-          await ctx.db.patch(bet._id, {
-            status: "won",
-            payout,
-            settledAt: Date.now(),
-          });
-
-          // NOTE: Payout handled by smart contract claim_entry_winnings instruction
-          // Winner calls smart contract to claim SOL directly to their wallet
-        } else {
-          // Loser
-          await ctx.db.patch(bet._id, {
-            status: "lost",
-            payout: 0,
-            settledAt: Date.now(),
-          });
-        }
-      }
-    }
-
-    // Calculate spectator bet payouts (95% of spectator pool)
-    const spectatorPoolPayout = game.spectatorBetPool * 0.95;
-    const totalSpectatorBetAmount = spectatorBetWinners.reduce((sum, b) => sum + b.amount, 0);
-
-    for (const bet of bets) {
-      if (bet.betType === "spectator") {
-        if (bet.targetParticipantId === args.winnerId) {
-          // Winner - calculate payout based on odds
-          const payout =
-            totalSpectatorBetAmount > 0
-              ? (bet.amount / totalSpectatorBetAmount) * spectatorPoolPayout
-              : bet.amount * (bet.odds || 1);
 
           await ctx.db.patch(bet._id, {
             status: "won",
@@ -309,15 +255,14 @@ export const getBettingStats = query({
         participantId: p._id,
         totalBetAmount,
         betCount,
-        odds: totalBetAmount > 0 ? game.totalPot / totalBetAmount : 0,
+        odds: totalBetAmount > 0 ? game.entryPool / totalBetAmount : 0,
       };
     });
 
     return {
       totalBets: bets.length,
       totalBetAmount: bets.reduce((sum, b) => sum + b.amount, 0),
-      selfBetPool: game.selfBetPool,
-      spectatorBetPool: game.spectatorBetPool,
+      entryPool: game.entryPool,
       participantStats,
     };
   },

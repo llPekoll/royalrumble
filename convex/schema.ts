@@ -51,64 +51,62 @@ export default defineSchema({
     .index("by_wallet", ["walletAddress"])
     .index("by_last_active", ["lastActive"]),
 
-  // Main game state (for UI phases and synchronization)
+  // Unified game state (combines blockchain mirror + UI enhancement)
   games: defineTable({
-    status: v.union(
-      v.literal("waiting"),
-      v.literal("selection"),
-      v.literal("arena"),
-      v.literal("elimination"),
-      v.literal("betting"),
-      v.literal("battle"),
-      v.literal("results"),
-      v.literal("completed")
-    ),
-    phase: v.number(), // Current phase number
-    startTime: v.number(),
-    endTime: v.optional(v.number()),
+    // Blockchain fields (from Anchor GamePool)
+    roundId: v.number(), // PRIMARY KEY - matches blockchain
+    status: v.string(), // "idle", "waiting", "awaitingWinnerRandomness", "finished"
+    startTimestamp: v.optional(v.number()), // From blockchain
+    entryPool: v.number(), // From blockchain GamePool.entry_pool (phase 1 bets)
+    winner: v.optional(v.string()), // Winner wallet address
+    playersCount: v.number(), // From blockchain bets.length
+
+    // VRF fields (from blockchain)
+    vrfRequestPubkey: v.optional(v.string()),
+    randomnessFulfilled: v.optional(v.boolean()),
+
+    // UI enhancement fields
+    mapId: v.id("maps"), // Which map to display
+    winnerId: v.optional(v.id("gameParticipants")), // UI reference to winner
+
+    // Essential timing
     phaseStartTime: v.number(), // When current phase started
-    nextPhaseTime: v.number(), // When next phase will start
-    playerCount: v.number(), // Unique players (not participants)
-    participantCount: v.number(), // Total game participants
-    totalPot: v.number(),
-    selfBetPool: v.number(), // Pool from initial entry bets
-    spectatorBetPool: v.number(), // Pool from top 4 betting
-    winnerId: v.optional(v.id("gameParticipants")),
-    isSinglePlayer: v.boolean(), // True if only one human player
-    isSmallGame: v.boolean(), // True if < 8 participants (3 phases only)
-    mapId: v.id("maps"), // Reference to selected map
-    survivorIds: v.optional(v.array(v.id("gameParticipants"))), // Top 4 survivors after elimination
-    // Blockchain call tracking for dynamic phase timing
-    blockchainCallStatus: v.optional(
-      v.union(
-        v.literal("pending"), // Call initiated but not completed
-        v.literal("completed"), // Call completed, winner determined
-        v.literal("none") // No call needed/made
-      )
-    ),
-    blockchainCallStartTime: v.optional(v.number()), // When blockchain call was initiated
+    waitingDuration: v.number(), // Duration for waiting phase
+
+    // Cron management
+    lastChecked: v.number(), // Cron job tracking
+    lastUpdated: v.number(), // Last blockchain sync
   })
+    .index("by_round_id", ["roundId"])
     .index("by_status", ["status"])
-    .index("by_start_time", ["startTime"])
-    .index("by_map", ["mapId"]),
+    .index("by_last_checked", ["lastChecked"]),
 
   // Individual participants (CRITICAL for display)
   gameParticipants: defineTable({
     gameId: v.id("games"),
     playerId: v.optional(v.id("players")), // Optional for bots
-    walletAddress: v.optional(v.string()), // For human players
-    characterId: v.id("characters"), // Reference to selected character
-    betAmount: v.number(), // Amount bet (determines size)
-    size: v.number(), // Visual size multiplier based on bet
-    spawnIndex: v.number(), // Index in the game's spawnPositions array
-    position: v.object({ x: v.number(), y: v.number() }), // Current position in arena
-    targetPosition: v.optional(v.object({ x: v.number(), y: v.number() })), // Where they're moving to
+
+    // Blockchain mirror
+    walletAddress: v.string(), // From BetEntry (now required)
+    betAmount: v.number(), // From BetEntry
+    betTimestamp: v.number(), // From BetEntry timestamp
+    winChance: v.optional(v.number()), // Win chance at bet time
+
+    // UI positioning (ESSENTIAL for frontend)
+    position: v.object({ x: v.number(), y: v.number() }),
+    targetPosition: v.optional(v.object({ x: v.number(), y: v.number() })),
+    size: v.number(), // Visual size based on bet
+    spawnIndex: v.number(), // Spawn position index
+
+    // Game progression
     eliminated: v.boolean(),
     eliminatedAt: v.optional(v.number()),
-    eliminatedBy: v.optional(v.id("gameParticipants")), // Who eliminated them
-    finalPosition: v.optional(v.number()), // 1st, 2nd, 3rd, etc.
-    isWinner: v.optional(v.boolean()), // Mark the winning participant
-    spectatorBets: v.number(), // Total spectator bets on this participant
+    eliminatedBy: v.optional(v.id("gameParticipants")),
+    finalPosition: v.optional(v.number()),
+    isWinner: v.optional(v.boolean()),
+
+    // Display enhancements
+    characterId: v.id("characters"),
   })
     .index("by_game", ["gameId"])
     .index("by_player", ["playerId"])
@@ -121,10 +119,10 @@ export default defineSchema({
     gameId: v.id("games"),
     playerId: v.id("players"),
     walletAddress: v.string(),
-    betType: v.union(v.literal("self"), v.literal("spectator"), v.literal("refund")),
-    targetParticipantId: v.optional(v.id("gameParticipants")), // Who they bet on
-    amount: v.number(), // Bet amount in game coins
+    betType: v.union(v.literal("self"), v.literal("refund")), // Removed spectator
     odds: v.optional(v.number()), // Odds at time of bet placement
+    targetParticipantId: v.id("gameParticipants"), // Who they bet on
+    amount: v.number(), // Bet amount in SOL
     payout: v.optional(v.number()), // Actual payout amount (0 if lost)
     status: v.union(
       v.literal("pending"),
@@ -141,46 +139,24 @@ export default defineSchema({
     .index("by_game_wallet", ["gameId", "walletAddress"])
     .index("by_status", ["status"]),
 
-  // Blockchain state mirror (matches Anchor GameRound)
-  gameStates: defineTable({
-    gameId: v.string(), // "round_{round_id}"
-    status: v.string(), // "idle", "waiting", "awaitingWinnerRandomness", "finished"
-    roundId: v.optional(v.number()),
-    startTimestamp: v.optional(v.number()),
-    playersCount: v.number(),
-    initialPot: v.optional(v.number()),
-    winner: v.optional(v.string()), // Winner wallet address
-    phaseStartTime: v.number(), // Unix timestamp when current phase started
-    waitingDuration: v.number(), // Duration in seconds for waiting phase
-    lastChecked: v.number(), // Last time this game was checked by cron
-    gameType: v.optional(v.string()), // Always "small" in MVP
-    waitingPhaseEnd: v.optional(v.number()), // When waiting phase should end
-    resolvingPhaseEnd: v.optional(v.number()), // When resolving phase should end
-    vrfRequestPubkey: v.optional(v.string()),
-    randomnessFulfilled: v.optional(v.boolean()),
-    winnerRandomnessCommitted: v.optional(v.boolean()),
-  })
-    .index("by_game_id", ["gameId"])
-    .index("by_status", ["status"])
-    .index("by_last_checked", ["lastChecked"]),
-
   // Recent winners tracking (for displaying last game results)
   recentWinners: defineTable({
-    gameId: v.id("games"),
-    playerId: v.id("player"),
     roundId: v.number(), // From blockchain
     walletAddress: v.string(), // Winner's wallet
     characterId: v.id("characters"), // Which character won
     characterName: v.string(), // Character name for quick display
     betAmount: v.number(), // How much the winner bet
-    participantCount: v.number(), // How many participants they had
+    participantCount: v.number(), // How many participants in game
     totalPayout: v.number(), // Total winnings
     timestamp: v.number(), // When they won
   }).index("by_timestamp", ["timestamp"]), // Query recent winners
 
   // Audit log for all game state changes and transactions
   gameEvents: defineTable({
-    gameId: v.string(),
+    // TODO: migration delete when possible
+    gameId: v.optional(v.string()), // Changed from gameId for consistency
+    // TODO: not optional
+    roundId: v.optional(v.number()), // Changed from gameId for consistency
     event: v.string(), // "game_started", "phase_transition", "transaction_sent", "transaction_confirmed", "error"
     timestamp: v.number(),
     transactionHash: v.optional(v.string()),
@@ -197,7 +173,7 @@ export default defineSchema({
     // Additional metadata for system events
     metadata: v.optional(v.any()),
   })
-    .index("by_game_id", ["gameId"])
+    .index("by_round_id", ["roundId"]) // Updated index name
     .index("by_timestamp", ["timestamp"])
     .index("by_event", ["event"])
     .index("by_success", ["success"]),

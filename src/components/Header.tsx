@@ -60,10 +60,7 @@ export function Header() {
     const fetchBalance = async () => {
       setIsLoadingBalance(true);
       try {
-        const connection = new Connection(
-          import.meta.env.VITE_SOLANA_RPC_URL || getSolanaRpcUrl(),
-          "confirmed"
-        );
+        const connection = new Connection(getSolanaRpcUrl(), "confirmed");
         const publicKey = new PublicKey(privyWalletAddress);
         const lamports = await connection.getBalance(publicKey);
         setBalance(lamports / LAMPORTS_PER_SOL);
@@ -75,10 +72,10 @@ export function Header() {
       }
     };
 
-    fetchBalance();
+    void fetchBalance();
 
     // Refresh balance every 10 seconds
-    const interval = setInterval(fetchBalance, 10000);
+    const interval = setInterval(() => void fetchBalance(), 10000);
     return () => clearInterval(interval);
   }, [authenticated, privyWalletAddress]);
 
@@ -120,19 +117,20 @@ export function Header() {
 
             <div className="flex items-center space-x-4">
               {/* Game Status Display */}
-              {gameState && gameState.gameState && (
+              {gameState && gameState.game && (
                 <div className="flex flex-col items-center text-amber-300">
                   <div className="flex items-center gap-2">
                     <Map className="w-4 h-4 text-amber-400" />
                     <div className="font-bold text-amber-300 text-lg uppercase tracking-wide">
-                      Round #{gameState.gameState.gameId.replace("round_", "")}
+                      Round #{gameState.game.roundId}
                     </div>
                   </div>
                   <div className="text-amber-300 text-sm flex items-center gap-1 mt-1">
                     <span className="text-yellow-300">⚡</span>
-                    {gameState.gameState.status === "waiting" && "Waiting for players"}
-                    {gameState.gameState.status === "awaitingWinnerRandomness" && "Determining winner..."}
-                    {gameState.gameState.status === "idle" && "Ready"}
+                    {gameState.game.status === "waiting" && "Waiting for players"}
+                    {gameState.game.status === "awaitingWinnerRandomness" &&
+                      "Determining winner..."}
+                    {gameState.game.status === "idle" && "Ready"}
                   </div>
                 </div>
               )}

@@ -40,10 +40,7 @@ async function main() {
     program.programId
   );
 
-  const [vaultPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault")],
-    program.programId
-  );
+  const [vaultPDA] = PublicKey.findProgramAddressSync([Buffer.from("vault")], program.programId);
 
   console.log("📍 PDAs:");
   console.log(`  Config PDA: ${configPDA.toString()}`);
@@ -88,9 +85,7 @@ async function main() {
   console.log("🚀 Sending initialize transaction...");
 
   try {
-    const txSignature = await program.methods
-      .initialize(treasuryWallet)
-      .rpc();
+    const txSignature = await program.methods.initialize(treasuryWallet).rpc();
 
     console.log("✅ Program initialized successfully!");
     console.log(`  Transaction: ${txSignature}`);
@@ -103,16 +98,24 @@ async function main() {
     console.log("📋 Game Configuration:");
     console.log(`  Authority: ${gameConfig.authority.toString()}`);
     console.log(`  Treasury: ${gameConfig.treasury.toString()}`);
-    console.log(`  House Fee: ${gameConfig.houseFeeBasisPoints} basis points (${gameConfig.houseFeeBasisPoints / 100}%)`);
-    console.log(`  Min Bet: ${gameConfig.minBetLamports.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`);
-    console.log(`  Waiting Phase Duration: ${gameConfig.smallGameDurationConfig.waitingPhaseDuration} seconds`);
+    console.log(
+      `  House Fee: ${gameConfig.houseFeeBasisPoints} basis points (${gameConfig.houseFeeBasisPoints / 100}%)`
+    );
+    console.log(
+      `  Min Bet: ${gameConfig.minBetLamports.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`
+    );
+    console.log(
+      `  Waiting Phase Duration: ${gameConfig.smallGameDurationConfig.waitingPhaseDuration} seconds`
+    );
     console.log("");
 
     console.log("📋 Initial Game Round State:");
     console.log(`  Round ID: ${gameRound.roundId.toString()}`);
     console.log(`  Status: ${Object.keys(gameRound.status)[0]}`);
-    console.log(`  Players: ${gameRound.players.length}`);
-    console.log(`  Initial Pot: ${gameRound.initialPot.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`);
+    console.log(`  Players: ${gameRound.bets.length}`);
+    console.log(
+      `  Initial Pot: ${gameRound.initialPot.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`
+    );
     console.log("");
 
     console.log("🎉 Initialization complete! Your game is ready to accept bets.");
@@ -121,7 +124,6 @@ async function main() {
     console.log("  1. Run the tests: anchor test");
     console.log("  2. Start your frontend: bun run dev");
     console.log("  3. Players can now deposit bets and play!");
-
   } catch (error: any) {
     console.error("❌ Initialization failed:");
     console.error(error);

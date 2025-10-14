@@ -14,22 +14,22 @@ export default function App() {
   const phaserRef = useRef<IRefPhaserGame | null>(null);
 
   // Get current game state from new Solana-based system
-  const gameState = useQuery(api.gameManagerDb.getGameState);
+  const gameData = useQuery(api.gameManagerDb.getGameState);
 
   // Demo mode is active when no real game exists or game is in "idle" state
-  // Handle undefined (loading state), null, missing gameState, or idle status
-  console.log({ gameState });
+  // Handle undefined (loading state), null, or idle status
+  console.log({ gameData });
   const isDemoMode =
-    !gameState ||
-    !gameState.gameState ||
-    gameState.gameState.status === "idle";
+    !gameData ||
+    !gameData.game ||
+    gameData.game.status === "idle";
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
     // Handle scene based on whether we're in demo or real game
-    if (scene.scene.key === "RoyalRumble" && gameState && gameState.gameState) {
+    if (scene.scene.key === "RoyalRumble" && gameData?.game) {
       // Real game scene - update with blockchain game state
-      (scene as any).updateGameState?.(gameState.gameState);
+      (scene as any).updateGameState?.(gameData.game);
 
       // Blockchain calls now handled by Solana crank system (no frontend trigger needed)
       console.log("Real game active - Solana crank managing blockchain calls");
@@ -45,14 +45,13 @@ export default function App() {
 
     const scene = phaserRef.current.scene;
     const hasRealGame =
-      gameState &&
-      gameState.gameState &&
-      gameState.gameState.status !== "idle";
+      gameData?.game &&
+      gameData.game.status !== "idle";
 
     // If real game starts and we're in demo scene, switch to game scene
     if (hasRealGame && scene.scene.key === "DemoScene") {
       console.log("Switching from DemoScene to RoyalRumble - Real game started");
-      console.log("Game state:", gameState.gameState);
+      console.log("Game state:", gameData.game);
       scene.scene.start("RoyalRumble");
     }
 
@@ -64,26 +63,26 @@ export default function App() {
 
     // Update game scene with real blockchain game state
     if (hasRealGame && scene.scene.key === "RoyalRumble") {
-      (scene as any).updateGameState?.(gameState.gameState);
+      (scene as any).updateGameState?.(gameData.game);
 
       // TODO: Fetch and display participants from Solana blockchain
       // For now, game state only has minimal tracking data
-      console.log("Game status:", gameState.gameState.status);
-      console.log("Players count:", gameState.gameState.playersCount);
+      console.log("Game status:", gameData.game.status);
+      console.log("Players count:", gameData.game.playersCount);
     }
-  }, [gameState]);
+  }, [gameData]);
 
   // Show blockchain dialog during VRF randomness
   useEffect(() => {
-    if (gameState?.gameState) {
-      const isAwaitingRandomness = gameState.gameState.status === "awaitingWinnerRandomness";
+    if (gameData?.game) {
+      const isAwaitingRandomness = gameData.game.status === "awaitingWinnerRandomness";
 
       // Show dialog while waiting for Solana VRF
       setShowBlockchainDialog(isAwaitingRandomness);
     } else {
       setShowBlockchainDialog(false);
     }
-  }, [gameState]);
+  }, [gameData]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
