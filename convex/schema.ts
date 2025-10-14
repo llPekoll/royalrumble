@@ -81,107 +81,67 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_last_checked", ["lastChecked"]),
 
-  // Individual participants (CRITICAL for display)
-  gameParticipants: defineTable({
-    gameId: v.id("games"),
-    playerId: v.optional(v.id("players")), // Optional for bots
+  // CONSOLIDATED: Unified bets table combining participants + betting data
 
-    // Blockchain mirror
-    walletAddress: v.string(), // From BetEntry (now required)
-    betAmount: v.number(), // From BetEntry
-    betTimestamp: v.number(), // From BetEntry timestamp
-    winChance: v.optional(v.number()), // Win chance at bet time
-
-    // UI positioning (ESSENTIAL for frontend)
-    position: v.object({ x: v.number(), y: v.number() }),
-    targetPosition: v.optional(v.object({ x: v.number(), y: v.number() })),
-    size: v.number(), // Visual size based on bet
-    spawnIndex: v.number(), // Spawn position index
-
-    // Game progression
-    eliminated: v.boolean(),
-    eliminatedAt: v.optional(v.number()),
-    eliminatedBy: v.optional(v.id("gameParticipants")),
-    finalPosition: v.optional(v.number()),
-    isWinner: v.optional(v.boolean()),
-
-    // Display enhancements
-    characterId: v.id("characters"),
-  })
-    .index("by_game", ["gameId"])
-    .index("by_player", ["playerId"])
-    .index("by_character", ["characterId"])
-    .index("by_game_wallet", ["gameId", "walletAddress"])
-    .index("by_game_eliminated", ["gameId", "eliminated"]),
-
-  // Enhanced bets table (consolidates betting + participant positioning)
   bets: defineTable({
+    // Core identifiers
     gameId: v.id("games"),
     playerId: v.optional(v.id("players")), // Optional for bots
-
-    // Blockchain mirror (from BetEntry) - ENHANCED
     walletAddress: v.string(),
-    amount: v.number(), // Bet amount in SOL (renamed from betAmount for consistency)
-    betTimestamp: v.number(),
-    winChance: v.optional(v.number()),
 
-    // Betting core data
-    betType: v.union(v.literal("self"), v.literal("refund")),
-    odds: v.optional(v.number()),
-    payout: v.optional(v.number()),
+    // Bet classification
+    betType: v.union(
+      v.literal("self"),       // Player betting on themselves (creates participant)
+      v.literal("spectator"),  // Player betting on another participant
+      v.literal("bank")        // Bank bot opponent
+    ),
+    targetBetId: v.optional(v.id("bets")), // For spectator bets only: which participant they bet on
+
+    // Financial data
+    amount: v.number(), // Bet amount in SOL
+    odds: v.optional(v.number()), // Win probability (0-1) at time of bet
+    payout: v.optional(v.number()), // Actual payout amount if won
+
+    // Status tracking
     status: v.union(
       v.literal("pending"),
       v.literal("won"),
       v.literal("lost"),
       v.literal("refunded")
     ),
-    placedAt: v.number(),
-    settledAt: v.optional(v.number()),
+    placedAt: v.number(), // Timestamp when bet was placed
+    settledAt: v.optional(v.number()), // Timestamp when bet was settled
 
-    // UI positioning (ESSENTIAL for frontend) - MOVED FROM gameParticipants
-    position: v.optional(v.object({ x: v.number(), y: v.number() })), // Optional for non-self bets
-    targetPosition: v.optional(v.object({ x: v.number(), y: v.number() })),
-    size: v.optional(v.number()), // Visual size based on bet, only for self bets
-    spawnIndex: v.optional(v.number()), // Spawn position index, only for self bets
+    // Participant data (only for self/bank bets, null for spectator)
+    characterId: v.optional(v.id("characters")),
+    position: v.optional(v.object({ x: v.number(), y: v.number() })),
+    spawnIndex: v.optional(v.number()), // Spawn position index
 
-    // Game progression - MOVED FROM gameParticipants
-    eliminated: v.optional(v.boolean()), // Only relevant for self bets
+    // Game progression (only for self/bank bets)
+    eliminated: v.optional(v.boolean()),
     eliminatedAt: v.optional(v.number()),
-    eliminatedBy: v.optional(v.id("bets")), // Reference to other bet record
-    finalPosition: v.optional(v.number()),
+    eliminatedBy: v.optional(v.id("bets")), // Reference to eliminator participant
+    finalPosition: v.optional(v.number()), // 1st, 2nd, 3rd, etc.
     isWinner: v.optional(v.boolean()),
 
-    // CONSOLIDATED BETTING FIELDS
-    spectatorBets: v.optional(v.array(v.object({
-      betterWallet: v.string(),
-      betterId: v.id("players"), 
-      amount: v.number(),
-      placedAt: v.number(),
-      odds: v.optional(v.number()),
-      txSignature: v.optional(v.string()),
-    }))), // Array of bets placed on this participant by others
+    // Aggregated data (calculated fields for self bets)
+    totalBetAmount: v.optional(v.number()), // Self bet + all spectator bets on them
+    spectatorBetCount: v.optional(v.number()), // Number of spectators betting on them
 
-    // Settlement & Payout Tracking
-    totalWinnings: v.optional(v.number()), // Total winnings if they won
-    refundAmount: v.optional(v.number()), // Refunds if game cancelled
-
-    // Blockchain integration
-    onChainConfirmed: v.optional(v.boolean()),
-    txSignature: v.optional(v.string()),
-
-    // Display enhancements - MOVED FROM gameParticipants
-    characterId: v.optional(v.id("characters")), // Only for self bets
-
-    // Legacy field for migration compatibility
-    targetParticipantId: v.optional(v.id("gameParticipants")), // Will be removed after migration
+    // Blockchain tracking
+    txSignature: v.optional(v.string()), // Transaction signature
+    onChainConfirmed: v.optional(v.boolean()), // Transaction confirmed on-chain
   })
     .index("by_game", ["gameId"])
     .index("by_player", ["playerId"])
-    .index("by_character", ["characterId"])
     .index("by_wallet", ["walletAddress"])
     .index("by_game_wallet", ["gameId", "walletAddress"])
-    .index("by_game_eliminated", ["gameId", "eliminated"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_bet_type", ["betType"])
+    .index("by_game_type", ["gameId", "betType"])
+    .index("by_target", ["targetBetId"])
+    .index("by_character", ["characterId"])
+    .index("by_eliminated", ["gameId", "eliminated"]),
 
   // Recent winners tracking (for displaying last game results)
   recentWinners: defineTable({
