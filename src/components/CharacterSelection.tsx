@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
-import { sendDepositBetTransaction, validateBetAmount } from "../lib/solana-deposit-bet";
+import { validateBetAmount } from "../lib/solana-deposit-bet";
 import { getSolanaRpcUrl } from "../lib/utils";
 import { useWallets, useSignAndSendTransaction } from "@privy-io/react-auth/solana";
 import {
@@ -183,7 +183,7 @@ const CharacterSelection = memo(function CharacterSelection({
         import.meta.env.VITE_GAME_ESCROW_ADDRESS || "PLACEHOLDER_ESCROW_ADDRESS";
 
       // Create SOL transfer transaction
-      const { transaction, connection } = await createSOLTransferTransaction(
+      const { transaction } = await createSOLTransferTransaction(
         publicKey.toString(),
         gameEscrowAddress,
         amount
@@ -205,6 +205,7 @@ const CharacterSelection = memo(function CharacterSelection({
       const result = await signAndSendTransaction({
         transaction: serializedTransaction,
         wallet,
+        chain: "solana:devnet", // Use devnet instead of mainnet
       });
 
       console.log("Transaction successful:", result);
