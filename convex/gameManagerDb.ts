@@ -61,7 +61,7 @@ export const updateGame = internalMutation({
     status: v.optional(v.string()),
     entryPool: v.optional(v.number()),
     winner: v.optional(v.string()),
-    winnerId: v.optional(v.id("gameParticipants")),
+    winnerId: v.optional(v.id("bets")), // Updated to reference bets table
     playersCount: v.optional(v.number()),
     vrfRequestPubkey: v.optional(v.string()),
     randomnessFulfilled: v.optional(v.boolean()),
@@ -271,20 +271,22 @@ export const getOldCompletedGames = internalQuery({
 });
 
 /**
- * Get game participants for cleanup
+ * Get game participants for cleanup (now from bets table)
  */
 export const getGameParticipants = internalQuery({
   args: { gameId: v.id("games") },
   handler: async (ctx, { gameId }) => {
+    // Get self bets which represent participants in the consolidated schema
     return await ctx.db
-      .query("gameParticipants")
+      .query("bets")
       .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .filter((q) => q.eq(q.field("betType"), "self"))
       .collect();
   },
 });
 
 /**
- * Get game bets for cleanup
+ * Get game bets for cleanup (all bets including spectator bets)
  */
 export const getGameBets = internalQuery({
   args: { gameId: v.id("games") },
@@ -297,10 +299,10 @@ export const getGameBets = internalQuery({
 });
 
 /**
- * Delete a participant
+ * Delete a participant (now deletes bet record)
  */
 export const deleteParticipant = internalMutation({
-  args: { participantId: v.id("gameParticipants") },
+  args: { participantId: v.id("bets") }, // Now references bet ID instead
   handler: async (ctx, { participantId }) => {
     await ctx.db.delete(participantId);
   },

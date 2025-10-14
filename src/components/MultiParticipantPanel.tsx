@@ -5,16 +5,22 @@
 // import { useMemo } from "react";
 
 export function MultiParticipantPanel() {
-  // TODO: Fetch participants from Solana blockchain
+  // TODO: Fetch participants from consolidated bets table
   // In demo mode, hide this panel until Solana integration is complete
   return null;
 
-  // The following code will be enabled once Solana game state is integrated:
+  // The following code will be enabled once consolidation is tested:
   /*
-  const currentGame = null; // Will be replaced with Solana query
+  const { connected, publicKey } = usePrivyWallet();
+  const walletAddress = connected && publicKey ? publicKey.toString() : null;
 
+  // Get current game from unified game state
+  const gameData = useQuery(api.gameManagerDb.getGameState);
+  const currentGame = gameData?.game;
+
+  // Get participants from enhanced bets table
   const allParticipants = useQuery(
-    api.gameParticipants.getGameParticipants,
+    api.bets.getGameParticipants, // Updated to use bets table
     currentGame ? { gameId: currentGame._id } : "skip"
   );
 
@@ -23,7 +29,7 @@ export function MultiParticipantPanel() {
 
   const totalPot = useMemo(() => {
     if (!allParticipants) return 0;
-    return allParticipants.reduce((sum: number, p: any) => sum + (p.betAmount || 0), 0);
+    return allParticipants.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   }, [allParticipants]);
 
   if (!currentGame) {
@@ -56,7 +62,7 @@ export function MultiParticipantPanel() {
                 const isEliminated = participant.eliminated;
                 // Calculate win percentage based on bet amount
                 const winPercentage =
-                  totalPot > 0 ? ((participant.betAmount / totalPot) * 100).toFixed(1) : "0.0";
+                  totalPot > 0 ? ((participant.amount / totalPot) * 100).toFixed(1) : "0.0";
 
                 return (
                   <div
@@ -88,7 +94,7 @@ export function MultiParticipantPanel() {
                         >
                           {isEliminated && participant.finalPosition
                             ? `#${participant.finalPosition}`
-                            : participant.displayName?.charAt(0) || "?"}
+                            : participant.player?.displayName?.charAt(0) || "?"}
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -99,7 +105,7 @@ export function MultiParticipantPanel() {
                               ${isOwn ? "text-green-100" : isEliminated ? "text-red-200" : "text-amber-100"}
                             `}
                             >
-                              {participant.displayName}
+                              {participant.player?.displayName}
                             </span>
                             {isOwn && <span className="text-green-400 text-xs">(You)</span>}
                           </div>
@@ -121,7 +127,7 @@ export function MultiParticipantPanel() {
                           ${isOwn ? "text-green-300" : isEliminated ? "text-red-300" : "text-amber-300"}
                         `}
                         >
-                          {(participant.betAmount / 100000).toFixed(2)} SOL
+                          {(participant.amount / 100000).toFixed(2)} SOL
                         </div>
                         <div
                           className={`text-xs ${isEliminated ? "text-red-500" : "text-amber-500"}`}

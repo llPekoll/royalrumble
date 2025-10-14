@@ -1,14 +1,15 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Place a bet on a participant (self or spectator)
+// LEGACY: Place spectator bet on a participant - now using enhanced bets table
+// Note: This function is deprecated in favor of the consolidated approach
 export const placeBet = mutation({
   args: {
     gameId: v.id("games"),
     playerId: v.id("players"),
     walletAddress: v.string(),
-    betType: v.union(v.literal("self"), v.literal("refund")), // Removed spectator
-    targetParticipantId: v.id("gameParticipants"),
+    betType: v.union(v.literal("self"), v.literal("refund")),
+    targetBetId: v.id("bets"), // Now references a bet record instead of participant
     amount: v.number(),
   },
   handler: async (ctx, args) => {
@@ -28,77 +29,89 @@ export const placeBet = mutation({
     if (!player) {
       throw new Error("Player not found");
     }
-    // NOTE: Balance check removed - SOL balance verified by smart contract
-    // Player signs transaction via Privy, smart contract validates sufficient funds
 
     // Validate bet amount
     if (args.amount < 10 || args.amount > 10000) {
       throw new Error("Bet amount must be between 10 and 10,000 coins");
     }
 
-    // Validate target participant
-    const targetParticipant = await ctx.db.get(args.targetParticipantId);
-    if (!targetParticipant) {
-      throw new Error("Target participant not found");
+    // Validate target bet (participant)
+    const targetBet = await ctx.db.get(args.targetBetId);
+    if (!targetBet) {
+      throw new Error("Target participant bet not found");
     }
-    if (targetParticipant.gameId !== args.gameId) {
+    if (targetBet.gameId !== args.gameId) {
       throw new Error("Participant not in this game");
+    }
+    if (targetBet.betType !== "self") {
+      throw new Error("Can only bet on participant (self) bets");
     }
 
     // Validate participant isn't eliminated
-    if (targetParticipant.eliminated) {
+    if (targetBet.eliminated) {
       throw new Error("Cannot bet on eliminated participant");
     }
 
-    // Check for existing bet
+    // Check for existing bet (simplified for new schema)
     const existingBet = await ctx.db
       .query("bets")
       .withIndex("by_game_wallet", (q) =>
         q.eq("gameId", args.gameId).eq("walletAddress", args.walletAddress)
       )
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("betType"), args.betType),
-          q.eq(q.field("targetParticipantId"), args.targetParticipantId)
-        )
-      )
+      .filter((q) => q.eq(q.field("betType"), args.betType))
       .first();
 
     if (existingBet) {
-      throw new Error("Already placed a bet on this participant");
+      throw new Error("Already placed a bet of this type in this game");
     }
 
-    // Calculate odds based on current participants
+    // Calculate odds based on current participants (simplified)
     const allParticipants = await ctx.db
-      .query("gameParticipants")
+      .query("bets")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+      .filter((q) => q.eq(q.field("betType"), "self"))
       .collect();
 
     // Calculate odds based on bet amounts (higher bet = lower odds)
-    const totalBetAmount = allParticipants.reduce((sum, p) => sum + p.betAmount, 0);
-    const targetBetAmount = targetParticipant.betAmount;
+    const totalBetAmount = allParticipants.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const targetBetAmount = targetBet.amount || 1;
     const odds = totalBetAmount > 0 ? totalBetAmount / targetBetAmount : 1;
 
-    // Create bet
+    // For spectator bets, create a new bet record without positioning data
     const betId = await ctx.db.insert("bets", {
       gameId: args.gameId,
       playerId: args.playerId,
       walletAddress: args.walletAddress,
-      betType: args.betType,
-      targetParticipantId: args.targetParticipantId,
       amount: args.amount,
+      betTimestamp: Date.now(),
+      betType: args.betType,
       odds,
       payout: undefined,
       status: "pending",
       placedAt: Date.now(),
       settledAt: undefined,
+      
+      // No positioning data for spectator bets
+      position: undefined,
+      targetPosition: undefined,
+      size: undefined,
+      spawnIndex: undefined,
+      eliminated: undefined,
+      eliminatedAt: undefined,
+      eliminatedBy: undefined,
+      finalPosition: undefined,
+      isWinner: undefined,
+      characterId: undefined,
+      spectatorBets: undefined,
+      totalWinnings: undefined,
+      refundAmount: undefined,
+      onChainConfirmed: false,
+      txSignature: undefined,
+      winChance: undefined,
+      
+      // Legacy field for migration compatibility
+      targetParticipantId: undefined,
     });
-
-    // NOTE: Coin deduction removed - SOL transferred via smart contract
-    // Transaction signed by player via Privy, funds held in GamePool PDA
-
-    // NOTE: Game pool updates handled by smart contract
-    // entryPool automatically updated when place_entry_bet instruction is called
 
     return betId;
   },
@@ -113,14 +126,14 @@ export const getGameBets = query({
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
       .collect();
 
-    // Fetch participant and player data
+    // Fetch character and player data for enhanced bets
     const betsWithData = await Promise.all(
       bets.map(async (bet) => {
-        const participant = await ctx.db.get(bet.targetParticipantId);
-        const player = await ctx.db.get(bet.playerId);
+        const character = bet.characterId ? await ctx.db.get(bet.characterId) : null;
+        const player = bet.playerId ? await ctx.db.get(bet.playerId) : null;
         return {
           ...bet,
-          participant,
+          character,
           player,
         };
       })
@@ -271,6 +284,7 @@ export const getBettingStats = query({
 /**
  * Place an entry bet and join/create game
  * Called from frontend after successful on-chain bet transaction
+ * ENHANCED: Now creates a unified bet record with participant positioning data
  */
 export const placeEntryBet = mutation({
   args: {
@@ -281,7 +295,7 @@ export const placeEntryBet = mutation({
   },
   handler: async (ctx, args) => {
     // Get player
-    let player = await ctx.db
+    const player = await ctx.db
       .query("players")
       .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
       .first();
@@ -348,10 +362,11 @@ export const placeEntryBet = mutation({
       throw new Error("Game is not accepting new participants");
     }
 
-    // Get existing participants
+    // Get existing self bets (representing participants)
     const existingParticipants = await ctx.db
-      .query("gameParticipants")
+      .query("bets")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .filter((q) => q.eq(q.field("betType"), "self"))
       .collect();
 
     // Check map capacity
@@ -370,42 +385,46 @@ export const placeEntryBet = mutation({
     // 0.1 SOL (100M lamports) = 1.01x, 10 SOL (10B lamports) = 1.5x
     const size = 1 + (args.betAmount / 10_000_000_000) * 0.5;
 
-    // Create participant
-    const participantId = await ctx.db.insert("gameParticipants", {
+    // Create unified bet record with participant positioning data
+    const betId = await ctx.db.insert("bets", {
       gameId: game._id,
       playerId: player._id,
       walletAddress: args.walletAddress,
-      characterId: args.characterId,
-      betAmount: args.betAmount,
+      
+      // Betting core data
+      amount: args.betAmount,
       betTimestamp: Date.now(),
-      winChance: undefined,
-      size,
-      spawnIndex,
+      betType: "self",
+      odds: 1,
+      status: "pending",
+      placedAt: Date.now(),
+      settledAt: undefined,
+      payout: undefined,
+      
+      // Settlement tracking
+      onChainConfirmed: false,
+      txSignature: args.txSignature,
+      spectatorBets: [], // Empty array initially
+      
+      // UI positioning (moved from gameParticipants)
       position: { x: 0, y: 0 },
       targetPosition: undefined,
+      size,
+      spawnIndex,
+      
+      // Game state (moved from gameParticipants)
       eliminated: false,
       eliminatedAt: undefined,
       eliminatedBy: undefined,
       finalPosition: undefined,
       isWinner: undefined,
-    });
-
-    // Create bet record
-    await ctx.db.insert("bets", {
-      gameId: game._id,
-      playerId: player._id,
-      walletAddress: args.walletAddress,
-      betType: "self",
-      targetParticipantId: participantId,
-      amount: args.betAmount,
-      txSignature: args.txSignature,
-      onChainConfirmed: false,
-      timestamp: Date.now(),
-      odds: 1,
-      payout: undefined,
-      status: "pending",
-      placedAt: Date.now(),
-      settledAt: undefined,
+      winChance: undefined,
+      
+      // Display enhancements
+      characterId: args.characterId,
+      
+      // Legacy field for migration compatibility (will be removed)
+      targetParticipantId: undefined,
     });
 
     // Update game totals
@@ -422,7 +441,7 @@ export const placeEntryBet = mutation({
 
     return {
       gameId: game._id,
-      participantId,
+      betId, // Return betId instead of participantId
       playersCount: uniquePlayers.size,
       entryPool: game.entryPool + args.betAmount,
     };
@@ -451,15 +470,57 @@ export const getCurrentGame = query({
       return null;
     }
 
-    // Get participants count
+    // Get participants count from self bets
     const participants = await ctx.db
-      .query("gameParticipants")
+      .query("bets")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .filter((q) => q.eq(q.field("betType"), "self"))
       .collect();
 
     return {
       ...game,
       participantsCount: participants.length,
     };
+  },
+});
+
+/**
+ * Get game participants from enhanced bets table
+ * Replaces api.gameParticipants.getGameParticipants
+ */
+export const getGameParticipants = query({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const bets = await ctx.db
+      .query("bets")
+      .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+      .filter((q) => q.eq(q.field("betType"), "self")) // Only self bets represent participants
+      .collect();
+
+    // Fetch character and player data for each participant bet
+    const participantsWithData = await Promise.all(
+      bets.map(async (bet) => {
+        const character = bet.characterId ? await ctx.db.get(bet.characterId) : null;
+        const player = bet.playerId ? await ctx.db.get(bet.playerId) : null;
+
+        // Calculate additional betting stats
+        const totalSpectatorBets = bet.spectatorBets?.reduce(
+          (sum, spectatorBet) => sum + spectatorBet.amount, 0
+        ) || 0;
+
+        const totalBetAmount = bet.amount + totalSpectatorBets;
+        
+        return {
+          ...bet,
+          character,
+          player,
+          totalBetAmount,
+          spectatorBetCount: bet.spectatorBets?.length || 0,
+          totalSpectatorBets,
+        };
+      })
+    );
+
+    return participantsWithData;
   },
 });
