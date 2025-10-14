@@ -73,7 +73,7 @@ const CharacterSelection = memo(function CharacterSelection({
   const gameState: any = null; // TODO: Replace with actual game state from Solana
   const canPlaceBet = true; // TODO: Replace with actual game state logic
   const isPlayerInGame = false; // TODO: Replace with actual check
-  const solBalanceInLamports = solBalance * 10000; // Convert SOL to lamports (assuming 1 SOL = 10000 lamports)
+  const solBalanceIn10K = solBalance * 10000; // Convert SOL to lamports (assuming 1 SOL = 10000 lamports)
 
   // Check how many participants this player already has
   const playerParticipantCount = 0; // Disabled until Solana integration
@@ -139,8 +139,8 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    if (amount > solBalanceInLamports / 10000) {
-      toast.error(`Insufficient SOL. You have ${solBalanceInLamports / 10000} SOL`);
+    if (amount > solBalanceIn10K / 10000) {
+      toast.error(`Insufficient SOL. You have ${solBalanceIn10K / 10000} SOL`);
       return;
     }
 
@@ -154,7 +154,7 @@ const CharacterSelection = memo(function CharacterSelection({
       }
 
       // Create the deposit bet instruction manually
-      const programId = new PublicKey('CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9eKv2dptMpiXfK');
+      const programId = new PublicKey('35ooYhrDLzTz3U7BH9bYivSsLJYm4vtwzoPNFfsQhcof');
       
       // Derive PDAs for game_round and vault (matching Rust constants)
       const [gameRoundPDA] = PublicKey.findProgramAddressSync(
@@ -168,7 +168,13 @@ const CharacterSelection = memo(function CharacterSelection({
       );
 
       // Convert SOL to lamports
-      const amountLamports = Math.floor(amount * 1_000_000_000);
+      const amountLamports = Math.floor(amount * LAMPORTS_PER_SOL);
+
+      // Configure RPC connection to point to devnet
+      const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
+      const rpcUrl = network === "mainnet" 
+        ? "https://api.mainnet-beta.solana.com"
+        : "https://api.devnet.solana.com";
 
       // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
       const instructionData = new Uint8Array(16);
@@ -181,14 +187,28 @@ const CharacterSelection = memo(function CharacterSelection({
       const view = new DataView(instructionData.buffer);
       view.setBigUint64(8, BigInt(amountLamports), true);
 
+      // First, let's try creating the vault account explicitly if it doesn't exist
+      const { getAccountInfo } = createSolanaRpc(rpcUrl);
+      let vaultExists = false;
+      try {
+        const vaultInfo = await getAccountInfo(address(vaultPDA.toString())).send();
+        vaultExists = vaultInfo.value !== null;
+      } catch (error) {
+        vaultExists = false;
+      }
+
+      console.log("Vault exists:", vaultExists);
+      console.log("Vault PDA:", vaultPDA.toString());
+      console.log("Game Round PDA:", gameRoundPDA.toString());
+
       // Create deposit_bet instruction in @solana/kit format
       const depositBetInstruction = {
         programAddress: address(programId.toString()),
         accounts: [
-          { address: address(gameRoundPDA.toString()), role: 0 }, // writable
-          { address: address(vaultPDA.toString()), role: 0 }, // writable  
-          { address: address(selectedWallet.address), role: 2 }, // signer + writable
-          { address: address(SystemProgram.programId.toString()), role: 1 } // readonly
+          { address: address(gameRoundPDA.toString()), role: 1 }, // writable 
+          { address: address(vaultPDA.toString()), role: 1 }, // writable  
+          { address: address(selectedWallet.address), role: 3 }, // signer + writable 
+          { address: address(SystemProgram.programId.toString()), role: 0 } // readonly 
         ],
         data: instructionData
       };
@@ -196,12 +216,6 @@ const CharacterSelection = memo(function CharacterSelection({
       console.log("Created deposit bet instruction:", depositBetInstruction);
       console.log("Using wallet:", selectedWallet);
 
-      // Configure RPC connection to point to devnet
-      const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-      const rpcUrl = network === "mainnet" 
-        ? "https://api.mainnet-beta.solana.com"
-        : "https://api.devnet.solana.com";
-      
       const { getLatestBlockhash } = createSolanaRpc(rpcUrl);
       const { value: latestBlockhash } = await getLatestBlockhash().send();
 
@@ -277,7 +291,7 @@ const CharacterSelection = memo(function CharacterSelection({
     playerData,
     currentCharacter,
     betAmount,
-    solBalanceInLamports,
+    solBalanceIn10K,
     canPlaceBet,
     isPlayerInGame,
     gameState,

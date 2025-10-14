@@ -28,7 +28,7 @@ export interface DepositBetResult {
 export async function sendDepositBetTransaction(
   params: DepositBetParams
 ): Promise<DepositBetResult> {
-  const { walletPublicKey, betAmountSol, programId = 'CsCFNMvVnp8Mm1ijHJd7HvKHDB8TPQ9eKv2dptMpiXfK' } = params;
+  const { walletPublicKey, betAmountSol, programId = '35ooYhrDLzTz3U7BH9bYivSsLJYm4vtwzoPNFfsQhcof' } = params;
 
   // Dynamic imports to reduce bundle size
   const { PublicKey, TransactionInstruction, SystemProgram } = await import('@solana/web3.js');
