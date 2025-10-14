@@ -96,4 +96,10 @@ pub enum Domin8Error {
 
     #[msg("Arithmetic overflow occurred")]
     ArithmeticOverflow,
+
+    #[msg("Emergency time threshold not yet elapsed")]
+    EmergencyTimeNotElapsed,
+
+    #[msg("No funds available to refund")]
+    NoFundsToRefund,
 }

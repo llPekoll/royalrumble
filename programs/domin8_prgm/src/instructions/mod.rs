@@ -13,6 +13,9 @@ pub mod deposit_bet;
 pub mod unified_progress_to_resolution;
 pub mod unified_resolve_and_distribute;
 
+// Emergency instruction
+pub mod emergency_withdraw;
+
 pub use initialize::*;
 pub use deposit_bet::*;
 // pub use place_spectator_bet::*;  // Removed for small games MVP
@@ -26,3 +29,6 @@ pub use deposit_bet::*;
 // ORAO VRF unified exports
 pub use unified_progress_to_resolution::*;
 pub use unified_resolve_and_distribute::*;
+
+// Emergency export
+pub use emergency_withdraw::*;

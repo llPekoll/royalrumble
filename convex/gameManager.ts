@@ -43,9 +43,32 @@ export const checkAndProgressGames = internalAction({
         return;
       }
 
-      // Get current game state from Solana
-      const gameRound = await solanaClient.getGameRound();
-      const gameConfig = await solanaClient.getGameConfig();
+      // Get current game state from Solana with error handling
+      let gameRound, gameConfig;
+      try {
+        gameRound = await solanaClient.getGameRound();
+        gameConfig = await solanaClient.getGameConfig();
+      } catch (error) {
+        console.error("Failed to fetch game state from Solana:", error);
+        await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
+          component: "cron_job",
+          status: "unhealthy",
+          lastCheck: now,
+          lastError: `Failed to fetch game state: ${error instanceof Error ? error.message : String(error)}`,
+        });
+        return;
+      }
+
+      // Validate the fetched data
+      if (!gameRound || gameRound.roundId === undefined) {
+        console.error("Invalid game round data received from Solana");
+        return;
+      }
+
+      if (!gameConfig) {
+        console.error("Invalid game config data received from Solana");
+        return;
+      }
 
       // Get or create game tracking in Convex
       const roundId = gameRound.roundId;

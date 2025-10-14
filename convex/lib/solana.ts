@@ -107,18 +107,23 @@ export class SolanaClient {
     const { gameConfig } = this.getPDAs();
     const account = await this.program.account.gameConfig.fetch(gameConfig);
 
+    // Add null checks for account fields
+    if (!account) {
+      throw new Error("Failed to fetch game config account");
+    }
+
     return {
-      authority: account.authority.toBase58(), // Convert PublicKey to string
-      treasury: account.treasury.toBase58(), // Convert PublicKey to string
-      houseFeeBasisPoints: account.houseFeeBasisPoints,
-      minBetLamports: account.minBetLamports.toNumber(),
+      authority: account.authority?.toBase58() ?? "", // Convert PublicKey to string
+      treasury: account.treasury?.toBase58() ?? "", // Convert PublicKey to string
+      houseFeeBasisPoints: account.houseFeeBasisPoints ?? 0,
+      minBetLamports: account.minBetLamports?.toNumber() ?? 0,
       smallGameDurationConfig: {
-        waitingPhaseDuration: account.smallGameDurationConfig.waitingPhaseDuration.toNumber(),
+        waitingPhaseDuration: account.smallGameDurationConfig?.waitingPhaseDuration?.toNumber() ?? 0,
       },
       // ORAO VRF configuration
-      vrfFeeLamports: account.vrfFeeLamports.toNumber(),
-      vrfNetworkState: account.vrfNetworkState.toBase58(), // Convert PublicKey to string
-      vrfTreasury: account.vrfTreasury.toBase58(), // Convert PublicKey to string
+      vrfFeeLamports: account.vrfFeeLamports?.toNumber() ?? 0,
+      vrfNetworkState: account.vrfNetworkState?.toBase58() ?? "", // Convert PublicKey to string
+      vrfTreasury: account.vrfTreasury?.toBase58() ?? "", // Convert PublicKey to string
     };
   }
 
@@ -127,24 +132,31 @@ export class SolanaClient {
     const { gameRound } = this.getPDAs();
     const account = await this.program.account.gameRound.fetch(gameRound);
 
+    // Add null checks for account fields
+    if (!account) {
+      throw new Error("Failed to fetch game round account");
+    }
+
     // Convert status from Anchor enum to our enum (simplified for small games MVP)
     let status: GameStatus;
-    if (account.status.idle) status = GameStatus.Idle;
-    else if (account.status.waiting) status = GameStatus.Waiting;
-    else if (account.status.awaitingWinnerRandomness) status = GameStatus.AwaitingWinnerRandomness;
-    else if (account.status.finished) status = GameStatus.Finished;
+    if (account.status?.idle) status = GameStatus.Idle;
+    else if (account.status?.waiting) status = GameStatus.Waiting;
+    else if (account.status?.awaitingWinnerRandomness) status = GameStatus.AwaitingWinnerRandomness;
+    else if (account.status?.finished) status = GameStatus.Finished;
     else throw new Error("Unknown game status");
 
+    console.log("Fetched game round account:", account);
+
     return {
-      roundId: account.roundId.toNumber(),
+      roundId: account.roundId?.toNumber() ?? 0,
       status,
-      startTimestamp: account.startTimestamp.toNumber(),
+      startTimestamp: account.startTimestamp?.toNumber() ?? 0,
       bets: (account.bets || []).map((p: any) => ({
-        wallet: p.wallet.toBase58(), // Convert PublicKey to string
-        betAmount: p.totalBet.toNumber(), // Convert total_bet from IDL to betAmount for our interface
-        timestamp: p.timestamp.toNumber(),
+        wallet: p.wallet?.toBase58() ?? "", // Convert PublicKey to string
+        betAmount: p.totalBet?.toNumber() ?? 0, // Convert total_bet from IDL to betAmount for our interface
+        timestamp: p.timestamp?.toNumber() ?? 0,
       })),
-      initialPot: account.initialPot.toNumber(),
+      initialPot: account.initialPot?.toNumber() ?? 0,
       winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
       // ORAO VRF integration
       vrfRequestPubkey: account.vrfRequestPubkey ? account.vrfRequestPubkey.toBase58() : null, // Convert PublicKey to string or null

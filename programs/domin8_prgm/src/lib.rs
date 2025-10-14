@@ -39,4 +39,10 @@ pub mod domin8_prgm {
     pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>) -> Result<()> {
         instructions::unified_resolve_and_distribute(ctx)
     }
+
+    /// EMERGENCY INSTRUCTION: Refund all players proportionally when game is stuck for >24 hours
+    /// Only callable by program authority as a last resort when VRF or other systems fail
+    pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>) -> Result<()> {
+        instructions::emergency_withdraw(ctx)
+    }
 }
