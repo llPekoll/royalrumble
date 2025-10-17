@@ -16,17 +16,12 @@ impl GameDurationConfig {
 pub struct GameConfig {
     pub authority: Pubkey,
     pub treasury: Pubkey,
-    pub house_fee_basis_points: u16,     // 500 = 5%
-    pub min_bet_lamports: u64,           // 10,000,000 = 0.01 SOL
+    pub house_fee_basis_points: u16, // 500 = 5%
+    pub min_bet_lamports: u64,       // 10,000,000 = 0.01 SOL
     pub small_game_duration_config: GameDurationConfig,
 
-    // ORAO VRF configuration
-    pub vrf_fee_lamports: u64,        // Fee for VRF requests (0.001 SOL)
-    pub vrf_network_state: Pubkey,    // ORAO network state account
-    pub vrf_treasury: Pubkey,         // ORAO treasury account
-
     // Game control flags
-    pub game_locked: bool,            // Prevents new bets during game resolution
+    pub game_locked: bool, // Prevents new bets during game resolution
 }
 
 impl GameConfig {
@@ -34,7 +29,8 @@ impl GameConfig {
     /// 8 (discriminator) + 32 (authority) + 32 (treasury) + 2 (house_fee) + 8 (min_bet)
     /// + 32 (small_game_config) + 32 (large_game_config)
     /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (game_locked) = 219 bytes
-    pub const LEN: usize = 8 + 32 + 32 + 2 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1;
+    pub const LEN: usize =
+        8 + 32 + 32 + 2 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1;
 
     /// Calculate house fee from pot amount
     pub fn calculate_house_fee(&self, pot_amount: u64) -> u64 {

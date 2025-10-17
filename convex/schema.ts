@@ -135,6 +135,7 @@ export default defineSchema({
     // Blockchain tracking
     txSignature: v.optional(v.string()), // Transaction signature
     onChainConfirmed: v.optional(v.boolean()), // Transaction confirmed on-chain
+    timestamp: v.optional(v.number()), // When bet was placed (for event listener)
   })
     .index("by_game", ["gameId"])
     .index("by_player", ["playerId"])
@@ -145,7 +146,8 @@ export default defineSchema({
     .index("by_game_type", ["gameId", "betType"])
     .index("by_target", ["targetBetId"])
     .index("by_character", ["characterId"])
-    .index("by_eliminated", ["gameId", "eliminated"]),
+    .index("by_eliminated", ["gameId", "eliminated"])
+    .index("by_tx_signature", ["txSignature"]),
 
   // Recent winners tracking (for displaying last game results)
   recentWinners: defineTable({

@@ -48,8 +48,10 @@ export interface GameRound {
   roundId: number;
   status: GameStatus;
   startTimestamp: number;
+  endTimestamp: number; // When betting window closes
   bets: BetEntry[];
   initialPot: number;
+  entryPool: number; // Alias for initialPot (used by gameManager)
   winner: string | null; // PublicKey as base58 string, or null if no winner yet
   // ORAO VRF integration
   vrfRequestPubkey: string | null; // PublicKey as base58 string, or null if not requested
@@ -60,6 +62,7 @@ export interface GameRound {
 // PDA seeds
 export const PDA_SEEDS = {
   GAME_CONFIG: Buffer.from("game_config"),
+  GAME_COUNTER: Buffer.from("game_counter"),
   GAME_ROUND: Buffer.from("game_round"),
   VAULT: Buffer.from("vault"),
 } as const;
@@ -79,9 +82,8 @@ export const TRANSACTION_TYPES = {
 // Instruction names (simplified for small games MVP)
 export const INSTRUCTION_NAMES = {
   INITIALIZE: "initialize",
-  DEPOSIT_BET: "deposit_bet",
-  PROGRESS_TO_RESOLUTION: "progressToResolution",
-  RESOLVE_WINNER: "resolveWinner",
-  DISTRIBUTE_WINNINGS_AND_RESET: "distributeWinningsAndReset",
-  CLAIM_WINNINGS: "claimWinnings",
+  CREATE_GAME: "create_game",
+  PLACE_BET: "place_bet",
+  UNIFIED_PROGRESS_TO_RESOLUTION: "unified_progress_to_resolution",
+  UNIFIED_RESOLVE_AND_DISTRIBUTE: "unified_resolve_and_distribute",
 } as const;

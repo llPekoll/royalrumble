@@ -4,15 +4,23 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Main game progression cron job
-// Runs every 5 seconds to check for games that need progression (real games only)
+// Event listener - listens to blockchain events for real-time updates
+// Runs every 5 seconds to fetch and process recent on-chain events
+// This is the PRIMARY update mechanism (faster than polling)
 crons.interval(
-  "game-progression-check",
+  "blockchain-event-listener",
   { seconds: 5 },
-  internal.gameManager.checkAndProgressGames
+  internal.eventListener.listenToBlockchainEvents
 );
 
-// TODO: Add these cron jobs once the corresponding functions are implemented:
+// Game progression check - fallback polling mechanism
+// Runs every 15 seconds to check for games that need progression
+// This acts as a FALLBACK in case events are missed
+crons.interval(
+  "game-progression-check",
+  { seconds: 15 },
+  internal.gameManager.checkAndProgressGames
+);
 
 // Transaction cleanup - removes 7-day old transactions
 crons.interval("transaction-cleanup", { hours: 24 }, internal.transactions.cleanupOldTransactions);

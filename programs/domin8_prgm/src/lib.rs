@@ -47,5 +47,10 @@ pub mod domin8_prgm {
         instructions::unified_resolve_and_distribute(ctx)
     }
 
+    /// Cleanup old game round (backend-triggered after 1 week)
+    pub fn cleanup_old_game(ctx: Context<CleanupOldGame>, round_id: u64) -> Result<()> {
+        instructions::cleanup_old_game(ctx, round_id)
+    }
+
     // TODO: Add emergency_withdraw instruction for stuck games (24+ hours)
 }

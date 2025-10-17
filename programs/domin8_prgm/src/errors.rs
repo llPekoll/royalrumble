@@ -111,4 +111,10 @@ pub enum Domin8Error {
 
     #[msg("Game is locked during resolution")]
     GameLocked,
+
+    #[msg("Cannot cleanup active or current game")]
+    CannotCleanupActiveGame,
+
+    #[msg("Game is too recent to cleanup (must be older than 1 week)")]
+    GameTooRecentToCleanup,
 }

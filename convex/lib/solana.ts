@@ -89,17 +89,43 @@ export class SolanaClient {
   }
 
   // Get PDAs for the game accounts
-  private getPDAs() {
+  private getPDAs(roundId?: number) {
     const [gameConfig] = PublicKey.findProgramAddressSync(
       [PDA_SEEDS.GAME_CONFIG],
       DOMIN8_PROGRAM_ID
     );
 
-    const [gameRound] = PublicKey.findProgramAddressSync([PDA_SEEDS.GAME_ROUND], DOMIN8_PROGRAM_ID);
+    const [gameCounter] = PublicKey.findProgramAddressSync(
+      [PDA_SEEDS.GAME_COUNTER],
+      DOMIN8_PROGRAM_ID
+    );
 
     const [vault] = PublicKey.findProgramAddressSync([PDA_SEEDS.VAULT], DOMIN8_PROGRAM_ID);
 
-    return { gameConfig, gameRound, vault };
+    // Derive per-game PDA if roundId is provided
+    let gameRound: PublicKey | undefined;
+    if (roundId !== undefined) {
+      const roundIdBuffer = Buffer.alloc(8);
+      roundIdBuffer.writeBigUInt64LE(BigInt(roundId));
+      [gameRound] = PublicKey.findProgramAddressSync(
+        [PDA_SEEDS.GAME_ROUND, roundIdBuffer],
+        DOMIN8_PROGRAM_ID
+      );
+    }
+
+    return { gameConfig, gameCounter, gameRound, vault };
+  }
+
+  // Get current round ID from GameCounter
+  async getCurrentRoundId(): Promise<number> {
+    const { gameCounter } = this.getPDAs();
+    const account = await this.program.account.gameCounter.fetch(gameCounter);
+
+    if (!account) {
+      throw new Error("Failed to fetch game counter account");
+    }
+
+    return account.currentRoundId?.toNumber() ?? 0;
   }
 
   // Get current game configuration
@@ -128,41 +154,60 @@ export class SolanaClient {
   }
 
   // Get current game round state (simplified for small games MVP)
-  async getGameRound(): Promise<GameRound> {
-    const { gameRound } = this.getPDAs();
-    const account = await this.program.account.gameRound.fetch(gameRound);
+  async getGameRound(): Promise<GameRound | null> {
+    // First get the current round ID
+    const currentRoundId = await this.getCurrentRoundId();
 
-    // Add null checks for account fields
-    if (!account) {
-      throw new Error("Failed to fetch game round account");
+    // Derive the PDA for the current round
+    const { gameRound } = this.getPDAs(currentRoundId);
+
+    if (!gameRound) {
+      throw new Error("Failed to derive game round PDA");
     }
 
-    // Convert status from Anchor enum to our enum (simplified for small games MVP)
-    let status: GameStatus;
-    if (account.status?.idle) status = GameStatus.Idle;
-    else if (account.status?.waiting) status = GameStatus.Waiting;
-    else if (account.status?.awaitingWinnerRandomness) status = GameStatus.AwaitingWinnerRandomness;
-    else if (account.status?.finished) status = GameStatus.Finished;
-    else throw new Error("Unknown game status");
+    try {
+      const account = await this.program.account.gameRound.fetch(gameRound);
 
-    console.log("Fetched game round account:", account);
+      // Add null checks for account fields
+      if (!account) {
+        throw new Error("Failed to fetch game round account");
+      }
 
-    return {
-      roundId: account.roundId?.toNumber() ?? 0,
-      status,
-      startTimestamp: account.startTimestamp?.toNumber() ?? 0,
-      bets: (account.bets || []).map((p: any) => ({
-        wallet: p.wallet?.toBase58() ?? "", // Convert PublicKey to string
-        betAmount: p.totalBet?.toNumber() ?? 0, // Convert total_bet from IDL to betAmount for our interface
-        timestamp: p.timestamp?.toNumber() ?? 0,
-      })),
-      initialPot: account.initialPot?.toNumber() ?? 0,
-      winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
-      // ORAO VRF integration
-      vrfRequestPubkey: account.vrfRequestPubkey ? account.vrfRequestPubkey.toBase58() : null, // Convert PublicKey to string or null
-      vrfSeed: Array.from(account.vrfSeed),
-      randomnessFulfilled: account.randomnessFulfilled,
-    };
+      // Convert status from Anchor enum to our enum (simplified for small games MVP)
+      let status: GameStatus;
+      if (account.status?.idle) status = GameStatus.Idle;
+      else if (account.status?.waiting) status = GameStatus.Waiting;
+      else if (account.status?.awaitingWinnerRandomness) status = GameStatus.AwaitingWinnerRandomness;
+      else if (account.status?.finished) status = GameStatus.Finished;
+      else throw new Error("Unknown game status");
+
+      console.log("Fetched game round account:", account);
+
+      const initialPot = account.initialPot?.toNumber() ?? 0;
+
+      return {
+        roundId: account.roundId?.toNumber() ?? 0,
+        status,
+        startTimestamp: account.startTimestamp?.toNumber() ?? 0,
+        endTimestamp: account.endTimestamp?.toNumber() ?? 0,
+        bets: (account.bets || []).map((p: any) => ({
+          wallet: p.wallet?.toBase58() ?? "", // Convert PublicKey to string
+          betAmount: p.totalBet?.toNumber() ?? 0, // Convert total_bet from IDL to betAmount for our interface
+          timestamp: p.timestamp?.toNumber() ?? 0,
+        })),
+        initialPot,
+        entryPool: initialPot, // Alias for initialPot (used by gameManager)
+        winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
+        // ORAO VRF integration
+        vrfRequestPubkey: account.vrfRequestPubkey ? account.vrfRequestPubkey.toBase58() : null, // Convert PublicKey to string or null
+        vrfSeed: Array.from(account.vrfSeed),
+        randomnessFulfilled: account.randomnessFulfilled,
+      };
+    } catch (error) {
+      // Game round account doesn't exist yet (no bets placed)
+      console.log("No game round exists yet for round", currentRoundId);
+      return null;
+    }
   }
 
   // Get current Solana slot
@@ -172,15 +217,22 @@ export class SolanaClient {
 
   // UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF
   async unifiedProgressToResolution(): Promise<string> {
-    const { gameConfig, gameRound } = this.getPDAs();
+    // Get current round ID to derive correct game PDA
+    const currentRoundId = await this.getCurrentRoundId();
+    const { gameConfig, gameCounter, gameRound } = this.getPDAs(currentRoundId);
+
+    if (!gameRound) {
+      throw new Error("Failed to derive game round PDA");
+    }
 
     // Build VRF request PDA
-    const vrfRequestPda = this.getVrfRequestPDA();
+    const vrfRequestPda = this.getVrfRequestPDA(gameRound);
 
     const tx = await this.program.methods
       .unifiedProgressToResolution()
       .accounts({
-        gameRound: gameRound, // IDL shows this should be game_round but Anchor converts to camelCase
+        counter: gameCounter,
+        gameRound: gameRound,
         config: gameConfig,
         crank: this.authority.publicKey,
         vrfProgram: new PublicKey("VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"),
@@ -197,7 +249,14 @@ export class SolanaClient {
   // UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
   async unifiedResolveAndDistribute(vrfRequestPubkeyStr: string): Promise<string> {
     const vrfRequestPubkey = new PublicKey(vrfRequestPubkeyStr);
-    const { gameConfig, gameRound, vault } = this.getPDAs();
+
+    // Get current round ID to derive correct game PDA
+    const currentRoundId = await this.getCurrentRoundId();
+    const { gameConfig, gameCounter, gameRound, vault } = this.getPDAs(currentRoundId);
+
+    if (!gameRound) {
+      throw new Error("Failed to derive game round PDA");
+    }
 
     // Fetch current game round to get player accounts
     const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
@@ -215,7 +274,8 @@ export class SolanaClient {
     const tx = await this.program.methods
       .unifiedResolveAndDistribute()
       .accounts({
-        gameRound: gameRound, // IDL shows this should be game_round but Anchor converts to camelCase
+        counter: gameCounter,
+        gameRound: gameRound,
         config: gameConfig,
         vault,
         crank: this.authority.publicKey,
@@ -251,8 +311,7 @@ export class SolanaClient {
   }
 
   // Helper methods for ORAO VRF
-  private getVrfRequestPDA(): PublicKey {
-    const { gameRound } = this.getPDAs();
+  private getVrfRequestPDA(gameRound: PublicKey): PublicKey {
     return PublicKey.findProgramAddressSync(
       [Buffer.from("vrf_request"), gameRound.toBuffer()],
       DOMIN8_PROGRAM_ID
@@ -325,9 +384,11 @@ export class SolanaClient {
       }
 
       // Test if game accounts exist
-      const { gameConfig, gameRound } = this.getPDAs();
+      const { gameConfig, gameCounter } = this.getPDAs();
       await this.program.account.gameConfig.fetch(gameConfig);
-      await this.program.account.gameRound.fetch(gameRound);
+      await this.program.account.gameCounter.fetch(gameCounter);
+
+      // Note: We don't check gameRound here since it may not exist yet (no bets placed)
 
       return {
         healthy: true,

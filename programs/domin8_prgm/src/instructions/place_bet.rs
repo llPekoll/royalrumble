@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
-use anchor_lang::system_program;
-use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::constants::*;
 use crate::errors::Domin8Error;
 use crate::events::BetPlaced;
+use crate::state::{BetEntry, GameConfig, GameCounter, GameRound, GameStatus};
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 
 #[derive(Accounts)]
 pub struct PlaceBet<'info> {
@@ -45,10 +45,7 @@ pub struct PlaceBet<'info> {
 
 /// Place an additional bet in the current game round
 /// This instruction is called by players after the first bet has been placed
-pub fn place_bet(
-    ctx: Context<PlaceBet>,
-    amount: u64,
-) -> Result<()> {
+pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
     let config = &ctx.accounts.config;
     let counter = &ctx.accounts.counter;
     let game_round = &mut ctx.accounts.game_round;
@@ -65,10 +62,7 @@ pub fn place_bet(
     require!(!config.game_locked, Domin8Error::GameLocked);
 
     // Validate game state - must be Idle or Waiting
-    require!(
-        game_round.can_accept_bets(),
-        Domin8Error::InvalidGameStatus
-    );
+    require!(game_round.can_accept_bets(), Domin8Error::InvalidGameStatus);
 
     // ⭐ Validate betting window hasn't closed (for Waiting status)
     if game_round.status == GameStatus::Waiting {
@@ -79,10 +73,7 @@ pub fn place_bet(
     }
 
     // Validate bet amount meets minimum requirement
-    require!(
-        amount >= MIN_BET_LAMPORTS,
-        Domin8Error::BetTooSmall
-    );
+    require!(amount >= MIN_BET_LAMPORTS, Domin8Error::BetTooSmall);
 
     // Transfer SOL to vault
     system_program::transfer(
@@ -100,25 +91,21 @@ pub fn place_bet(
     game_round.initial_pot = game_round.initial_pot.saturating_add(amount);
 
     // Find existing bet or add new one
-    if let Some(existing_bet) = game_round.find_bet_mut(&player_key) {
-        // Player already exists - add to their bet
-        existing_bet.bet_amount = existing_bet.bet_amount.saturating_add(amount);
-        existing_bet.timestamp = clock.unix_timestamp;
+    // New bet - add to vector (account was already reallocated)
+    let bet_entry = BetEntry {
+        wallet: player_key,
+        bet_amount: amount,
+        timestamp: clock.unix_timestamp,
+    };
 
-        msg!("Updated bet for player: {}, new total: {}", player_key, existing_bet.bet_amount);
-    } else {
-        // New bet - add to vector (account was already reallocated)
-        let bet_entry = BetEntry {
-            wallet: player_key,
-            bet_amount: amount,
-            timestamp: clock.unix_timestamp,
-        };
+    game_round.bets.push(bet_entry);
 
-        game_round.bets.push(bet_entry);
-
-        msg!("New bet placed: {}, amount: {}, total bets: {}",
-             player_key, amount, game_round.bets.len());
-    }
+    msg!(
+        "New bet placed: {}, amount: {}, total bets: {}",
+        player_key,
+        amount,
+        game_round.bets.len()
+    );
 
     msg!("Total pot: {} lamports", game_round.initial_pot);
 

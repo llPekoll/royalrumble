@@ -348,3 +348,88 @@ export const deleteGame = internalMutation({
     await ctx.db.delete(gameId);
   },
 });
+
+// ============================================================================
+// Event Listener Helpers
+// ============================================================================
+
+/**
+ * Get last processed event slot
+ */
+export const getLastProcessedEventSlot = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const metadata = await ctx.db
+      .query("systemHealth")
+      .withIndex("by_component", (q) => q.eq("component", "event_listener"))
+      .first();
+
+    return metadata?.metadata?.lastProcessedSlot || null;
+  },
+});
+
+/**
+ * Update last processed event slot
+ */
+export const updateLastProcessedEventSlot = internalMutation({
+  args: { slot: v.number() },
+  handler: async (ctx, { slot }) => {
+    const metadata = await ctx.db
+      .query("systemHealth")
+      .withIndex("by_component", (q) => q.eq("component", "event_listener"))
+      .first();
+
+    if (metadata) {
+      await ctx.db.patch(metadata._id, {
+        metadata: { ...metadata.metadata, lastProcessedSlot: slot },
+      });
+    } else {
+      await ctx.db.insert("systemHealth", {
+        component: "event_listener",
+        status: "healthy",
+        lastCheck: Date.now(),
+        metadata: { lastProcessedSlot: slot },
+        errorCount: 0,
+      });
+    }
+  },
+});
+
+/**
+ * Create or update bet record from event
+ */
+export const createOrUpdateBet = internalMutation({
+  args: {
+    gameId: v.id("games"),
+    playerWallet: v.string(),
+    amount: v.number(),
+    txSignature: v.string(),
+    onChainConfirmed: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    // Check if bet already exists
+    const existingBet = await ctx.db
+      .query("bets")
+      .withIndex("by_tx_signature", (q) => q.eq("txSignature", args.txSignature))
+      .first();
+
+    if (existingBet) {
+      // Update existing bet
+      await ctx.db.patch(existingBet._id, {
+        onChainConfirmed: args.onChainConfirmed,
+      });
+      return existingBet._id;
+    } else {
+      // Create new bet record
+      return await ctx.db.insert("bets", {
+        gameId: args.gameId,
+        walletAddress: args.playerWallet,
+        amount: args.amount,
+        txSignature: args.txSignature,
+        onChainConfirmed: args.onChainConfirmed,
+        betType: "self", // Entry bets are self bets
+        timestamp: Date.now(),
+      });
+    }
+  },
+});
