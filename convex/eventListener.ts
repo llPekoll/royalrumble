@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 import { SolanaClient } from "./lib/solana";
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { DOMIN8_PROGRAM_ID, PDA_SEEDS } from "./lib/types";
+import { DOMIN8_PROGRAM_ID } from "./lib/types";
 import { Buffer } from "buffer";
 
 /**
@@ -276,19 +276,19 @@ async function processEvent(
       break;
 
     case "GameLocked":
-      await handleGameLockedEvent(ctx, event.data, signature, now);
+      await handleGameLockedEvent(ctx, event.data, now);
       break;
 
     case "WinnerSelected":
-      await handleWinnerSelectedEvent(ctx, event.data, signature, now);
+      await handleWinnerSelectedEvent(ctx, event.data, now);
       break;
 
     case "GameReset":
-      await handleGameResetEvent(ctx, event.data, signature, now);
+      await handleGameResetEvent(ctx, event.data, now);
       break;
 
     case "GameInitialized":
-      await handleGameInitializedEvent(ctx, event.data, signature, now);
+      await handleGameInitializedEvent(event.data);
       break;
 
     default:
@@ -330,8 +330,7 @@ async function handleBetPlacedEvent(ctx: any, data: any, signature: string, now:
           startTimestamp: now / 1000,
           endTimestamp: Number(data.endTimestamp),
           bets: [],
-          initialPot: Number(data.totalPot),
-          entryPool: Number(data.totalPot),
+          totalPot: Number(data.totalPot),
           winner: null,
           vrfRequestPubkey: null,
           vrfSeed: [],
@@ -348,7 +347,7 @@ async function handleBetPlacedEvent(ctx: any, data: any, signature: string, now:
     await ctx.runMutation(internal.gameManagerDb.updateGame, {
       gameId: game._id,
       playersCount: data.betCount,
-      entryPool: Number(data.totalPot),
+      totalPot: Number(data.totalPot),
       lastUpdated: now,
     });
 
@@ -366,7 +365,7 @@ async function handleBetPlacedEvent(ctx: any, data: any, signature: string, now:
 /**
  * Handle GameLocked event
  */
-async function handleGameLockedEvent(ctx: any, data: any, signature: string, now: number) {
+async function handleGameLockedEvent(ctx: any, data: any, now: number) {
   const roundId = Number(data.roundId);
 
   const game = await ctx.runQuery(internal.gameManagerDb.getGameByRoundId, { roundId });
@@ -376,7 +375,7 @@ async function handleGameLockedEvent(ctx: any, data: any, signature: string, now
       gameId: game._id,
       status: "awaitingWinnerRandomness",
       playersCount: data.finalBetCount,
-      entryPool: Number(data.totalPot),
+      totalPot: Number(data.totalPot),
       lastUpdated: now,
     });
   }
@@ -385,7 +384,7 @@ async function handleGameLockedEvent(ctx: any, data: any, signature: string, now
 /**
  * Handle WinnerSelected event
  */
-async function handleWinnerSelectedEvent(ctx: any, data: any, signature: string, now: number) {
+async function handleWinnerSelectedEvent(ctx: any, data: any, now: number) {
   const roundId = Number(data.roundId);
 
   const game = await ctx.runQuery(internal.gameManagerDb.getGameByRoundId, { roundId });
@@ -416,7 +415,7 @@ async function handleWinnerSelectedEvent(ctx: any, data: any, signature: string,
 /**
  * Handle GameReset event
  */
-async function handleGameResetEvent(ctx: any, data: any, signature: string, now: number) {
+async function handleGameResetEvent(ctx: any, data: any, now: number) {
   const oldRoundId = Number(data.oldRoundId);
   const newRoundId = Number(data.newRoundId);
 
@@ -440,7 +439,7 @@ async function handleGameResetEvent(ctx: any, data: any, signature: string, now:
 /**
  * Handle GameInitialized event
  */
-async function handleGameInitializedEvent(ctx: any, data: any, signature: string, now: number) {
+async function handleGameInitializedEvent(data: any) {
   const roundId = Number(data.roundId);
 
   console.log(`Game initialized: round ${roundId}`);

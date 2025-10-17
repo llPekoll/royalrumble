@@ -146,10 +146,7 @@ export class SolanaClient {
       smallGameDurationConfig: {
         waitingPhaseDuration: account.smallGameDurationConfig?.waitingPhaseDuration?.toNumber() ?? 0,
       },
-      // ORAO VRF configuration
-      vrfFeeLamports: account.vrfFeeLamports?.toNumber() ?? 0,
-      vrfNetworkState: account.vrfNetworkState?.toBase58() ?? "", // Convert PublicKey to string
-      vrfTreasury: account.vrfTreasury?.toBase58() ?? "", // Convert PublicKey to string
+      betsLocked: account.betsLocked ?? false,
     };
   }
 
@@ -183,8 +180,6 @@ export class SolanaClient {
 
       console.log("Fetched game round account:", account);
 
-      const initialPot = account.initialPot?.toNumber() ?? 0;
-
       return {
         roundId: account.roundId?.toNumber() ?? 0,
         status,
@@ -192,11 +187,10 @@ export class SolanaClient {
         endTimestamp: account.endTimestamp?.toNumber() ?? 0,
         bets: (account.bets || []).map((p: any) => ({
           wallet: p.wallet?.toBase58() ?? "", // Convert PublicKey to string
-          betAmount: p.totalBet?.toNumber() ?? 0, // Convert total_bet from IDL to betAmount for our interface
+          betAmount: p.betAmount?.toNumber() ?? 0,
           timestamp: p.timestamp?.toNumber() ?? 0,
         })),
-        initialPot,
-        entryPool: initialPot, // Alias for initialPot (used by gameManager)
+        totalPot: account.totalPot?.toNumber() ?? 0,
         winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
         // ORAO VRF integration
         vrfRequestPubkey: account.vrfRequestPubkey ? account.vrfRequestPubkey.toBase58() : null, // Convert PublicKey to string or null
@@ -215,8 +209,8 @@ export class SolanaClient {
     return await this.connection.getSlot("confirmed");
   }
 
-  // UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF
-  async unifiedProgressToResolution(): Promise<string> {
+  // Close betting window and lock game for resolution
+  async closeBettingWindow(): Promise<string> {
     // Get current round ID to derive correct game PDA
     const currentRoundId = await this.getCurrentRoundId();
     const { gameConfig, gameCounter, gameRound } = this.getPDAs(currentRoundId);
@@ -225,29 +219,21 @@ export class SolanaClient {
       throw new Error("Failed to derive game round PDA");
     }
 
-    // Build VRF request PDA
-    const vrfRequestPda = this.getVrfRequestPDA(gameRound);
-
     const tx = await this.program.methods
-      .unifiedProgressToResolution()
+      .closeBettingWindow()
       .accounts({
         counter: gameCounter,
         gameRound: gameRound,
         config: gameConfig,
         crank: this.authority.publicKey,
-        vrfProgram: new PublicKey("VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"),
-        networkState: await this.getOraoNetworkState(),
-        treasury: await this.getOraoTreasury(),
-        vrfRequest: vrfRequestPda,
-        systemProgram: anchor.web3.SystemProgram.programId,
       } as any) // Temporary until TypeScript types are properly generated
       .rpc();
 
     return tx;
   }
 
-  // UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
-  async unifiedResolveAndDistribute(vrfRequestPubkeyStr: string): Promise<string> {
+  // Select winner using VRF and distribute payouts
+  async selectWinnerAndPayout(vrfRequestPubkeyStr: string): Promise<string> {
     const vrfRequestPubkey = new PublicKey(vrfRequestPubkeyStr);
 
     // Get current round ID to derive correct game PDA
@@ -272,7 +258,7 @@ export class SolanaClient {
     }));
 
     const tx = await this.program.methods
-      .unifiedResolveAndDistribute()
+      .selectWinnerAndPayout()
       .accounts({
         counter: gameCounter,
         gameRound: gameRound,
@@ -310,25 +296,8 @@ export class SolanaClient {
     }
   }
 
-  // Helper methods for ORAO VRF
-  private getVrfRequestPDA(gameRound: PublicKey): PublicKey {
-    return PublicKey.findProgramAddressSync(
-      [Buffer.from("vrf_request"), gameRound.toBuffer()],
-      DOMIN8_PROGRAM_ID
-    )[0];
-  }
-
-  private async getOraoNetworkState(): Promise<PublicKey> {
-    // Get from game config
-    const gameConfig = await this.getGameConfig();
-    return new PublicKey(gameConfig.vrfNetworkState);
-  }
-
-  private async getOraoTreasury(): Promise<PublicKey> {
-    // Get from game config
-    const gameConfig = await this.getGameConfig();
-    return new PublicKey(gameConfig.vrfTreasury);
-  }
+  // Note: VRF helper methods removed - VRF is now handled directly by the smart contract
+  // via ORAO VRF integration in create_game instruction
 
   // Confirm transaction with retry logic
   async confirmTransaction(signature: string, maxRetries: number = 3): Promise<boolean> {

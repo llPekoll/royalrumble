@@ -9,19 +9,8 @@
   "instructions": [
     {
       "name": "cleanup_old_game",
-      "docs": [
-        "Cleanup old game round (backend-triggered after 1 week)"
-      ],
-      "discriminator": [
-        108,
-        187,
-        63,
-        87,
-        253,
-        127,
-        241,
-        166
-      ],
+      "docs": ["Cleanup old game round (backend-triggered after 1 week)"],
+      "discriminator": [108, 187, 63, 87, 253, 127, 241, 166],
       "accounts": [
         {
           "name": "config",
@@ -29,19 +18,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -52,20 +29,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 117, 110, 116, 101, 114]
               }
             ]
           }
@@ -77,18 +41,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
+                "value": [103, 97, 109, 101, 95, 114, 111, 117, 110, 100]
               },
               {
                 "kind": "arg",
@@ -99,9 +52,7 @@
         },
         {
           "name": "crank",
-          "docs": [
-            "The crank authority (backend wallet)"
-          ],
+          "docs": ["The crank authority (backend wallet)"],
           "writable": true,
           "signer": true
         },
@@ -119,19 +70,8 @@
     },
     {
       "name": "close_betting_window",
-      "docs": [
-        "Close betting window and lock game for winner selection"
-      ],
-      "discriminator": [
-        145,
-        48,
-        50,
-        174,
-        220,
-        228,
-        120,
-        9
-      ],
+      "docs": ["Close betting window and lock game for winner selection"],
+      "discriminator": [145, 48, 50, 174, 220, 228, 120, 9],
       "accounts": [
         {
           "name": "counter",
@@ -139,20 +79,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 117, 110, 116, 101, 114]
               }
             ]
           }
@@ -164,18 +91,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
+                "value": [103, 97, 109, 101, 95, 114, 111, 117, 110, 100]
               },
               {
                 "kind": "account",
@@ -192,28 +108,14 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 110, 102, 105, 103]
               }
             ]
           }
         },
         {
           "name": "crank",
-          "docs": [
-            "The crank authority"
-          ],
+          "docs": ["The crank authority"],
           "signer": true
         }
       ],
@@ -221,19 +123,8 @@
     },
     {
       "name": "create_game",
-      "docs": [
-        "Create a new game round with the first bet (called by first player)"
-      ],
-      "discriminator": [
-        124,
-        69,
-        75,
-        66,
-        184,
-        220,
-        72,
-        206
-      ],
+      "docs": ["Create a new game round with the first bet (called by first player)"],
+      "discriminator": [124, 69, 75, 66, 184, 220, 72, 206],
       "accounts": [
         {
           "name": "config",
@@ -241,19 +132,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -265,20 +144,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 117, 110, 116, 101, 114]
               }
             ]
           }
@@ -290,18 +156,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
+                "value": [103, 97, 109, 101, 95, 114, 111, 117, 110, 100]
               },
               {
                 "kind": "account",
@@ -318,13 +173,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               }
             ]
           }
@@ -336,30 +185,22 @@
         },
         {
           "name": "vrf_program",
-          "docs": [
-            "ORAO VRF Program"
-          ],
+          "docs": ["ORAO VRF Program"],
           "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
         },
         {
           "name": "network_state",
-          "docs": [
-            "ORAO Network State"
-          ],
+          "docs": ["ORAO Network State"],
           "writable": true
         },
         {
           "name": "treasury",
-          "docs": [
-            "ORAO Treasury"
-          ],
+          "docs": ["ORAO Treasury"],
           "writable": true
         },
         {
           "name": "vrf_request",
-          "docs": [
-            "VRF Request Account (PDA derived from game_round + seed)"
-          ],
+          "docs": ["VRF Request Account (PDA derived from game_round + seed)"],
           "writable": true
         },
         {
@@ -376,19 +217,8 @@
     },
     {
       "name": "initialize",
-      "docs": [
-        "Initialize the game with configuration"
-      ],
-      "discriminator": [
-        175,
-        175,
-        109,
-        31,
-        13,
-        152,
-        155,
-        237
-      ],
+      "docs": ["Initialize the game with configuration"],
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
       "accounts": [
         {
           "name": "config",
@@ -397,19 +227,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -421,20 +239,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 117, 110, 116, 101, 114]
               }
             ]
           }
@@ -445,13 +250,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               }
             ]
           }
@@ -475,19 +274,8 @@
     },
     {
       "name": "place_bet",
-      "docs": [
-        "Place an additional bet in the current game round (called by subsequent players)"
-      ],
-      "discriminator": [
-        222,
-        62,
-        67,
-        220,
-        63,
-        166,
-        126,
-        33
-      ],
+      "docs": ["Place an additional bet in the current game round (called by subsequent players)"],
+      "discriminator": [222, 62, 67, 220, 63, 166, 126, 33],
       "accounts": [
         {
           "name": "config",
@@ -495,19 +283,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -518,20 +294,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 117, 110, 116, 101, 114]
               }
             ]
           }
@@ -543,18 +306,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
+                "value": [103, 97, 109, 101, 95, 114, 111, 117, 110, 100]
               },
               {
                 "kind": "account",
@@ -571,13 +323,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               }
             ]
           }
@@ -601,19 +347,8 @@
     },
     {
       "name": "select_winner_and_payout",
-      "docs": [
-        "Select winner using VRF and distribute payouts"
-      ],
-      "discriminator": [
-        84,
-        212,
-        130,
-        51,
-        181,
-        63,
-        89,
-        24
-      ],
+      "docs": ["Select winner using VRF and distribute payouts"],
+      "discriminator": [84, 212, 130, 51, 181, 63, 89, 24],
       "accounts": [
         {
           "name": "counter",
@@ -622,20 +357,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 117, 110, 116, 101, 114]
               }
             ]
           }
@@ -647,18 +369,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
+                "value": [103, 97, 109, 101, 95, 114, 111, 117, 110, 100]
               },
               {
                 "kind": "account",
@@ -675,62 +386,36 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [103, 97, 109, 101, 95, 99, 111, 110, 102, 105, 103]
               }
             ]
           }
         },
         {
           "name": "vault",
-          "docs": [
-            "The vault PDA that holds game funds"
-          ],
+          "docs": ["The vault PDA that holds game funds"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               }
             ]
           }
         },
         {
           "name": "crank",
-          "docs": [
-            "The crank authority"
-          ],
+          "docs": ["The crank authority"],
           "signer": true
         },
         {
           "name": "vrf_request",
-          "docs": [
-            "VRF Request Account containing fulfilled randomness"
-          ]
+          "docs": ["VRF Request Account containing fulfilled randomness"]
         },
         {
           "name": "treasury",
-          "docs": [
-            "Treasury account for receiving house fees"
-          ],
+          "docs": ["Treasury account for receiving house fees"],
           "writable": true
         },
         {
@@ -744,109 +429,37 @@
   "accounts": [
     {
       "name": "GameConfig",
-      "discriminator": [
-        45,
-        146,
-        146,
-        33,
-        170,
-        69,
-        96,
-        133
-      ]
+      "discriminator": [45, 146, 146, 33, 170, 69, 96, 133]
     },
     {
       "name": "GameCounter",
-      "discriminator": [
-        117,
-        67,
-        148,
-        185,
-        138,
-        194,
-        249,
-        87
-      ]
+      "discriminator": [117, 67, 148, 185, 138, 194, 249, 87]
     },
     {
       "name": "GameRound",
-      "discriminator": [
-        69,
-        45,
-        252,
-        31,
-        254,
-        31,
-        101,
-        146
-      ]
+      "discriminator": [69, 45, 252, 31, 254, 31, 101, 146]
     }
   ],
   "events": [
     {
       "name": "BetPlaced",
-      "discriminator": [
-        88,
-        88,
-        145,
-        226,
-        126,
-        206,
-        32,
-        0
-      ]
+      "discriminator": [88, 88, 145, 226, 126, 206, 32, 0]
     },
     {
       "name": "GameInitialized",
-      "discriminator": [
-        82,
-        221,
-        11,
-        2,
-        244,
-        52,
-        240,
-        250
-      ]
+      "discriminator": [82, 221, 11, 2, 244, 52, 240, 250]
     },
     {
       "name": "GameLocked",
-      "discriminator": [
-        137,
-        134,
-        142,
-        42,
-        168,
-        51,
-        224,
-        76
-      ]
+      "discriminator": [137, 134, 142, 42, 168, 51, 224, 76]
     },
     {
       "name": "GameReset",
-      "discriminator": [
-        171,
-        230,
-        62,
-        202,
-        158,
-        128,
-        127,
-        240
-      ]
+      "discriminator": [171, 230, 62, 202, 158, 128, 127, 240]
     },
     {
       "name": "WinnerSelected",
-      "discriminator": [
-        245,
-        110,
-        152,
-        173,
-        193,
-        48,
-        133,
-        5
-      ]
+      "discriminator": [245, 110, 152, 173, 193, 48, 133, 5]
     }
   ],
   "errors": [
@@ -1044,9 +657,7 @@
   "types": [
     {
       "name": "BetEntry",
-      "docs": [
-        "Individual bet entry in a game round"
-      ],
+      "docs": ["Individual bet entry in a game round"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1067,9 +678,7 @@
     },
     {
       "name": "BetPlaced",
-      "docs": [
-        "Event emitted when a bet is placed"
-      ],
+      "docs": ["Event emitted when a bet is placed"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1106,10 +715,7 @@
     },
     {
       "name": "GameConfig",
-      "docs": [
-        "Global game configuration stored as singleton PDA",
-        "Seeds: [b\"game_config\"]"
-      ],
+      "docs": ["Global game configuration stored as singleton PDA", "Seeds: [b\"game_config\"]"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1146,10 +752,7 @@
     },
     {
       "name": "GameCounter",
-      "docs": [
-        "Global counter tracking current game round",
-        "Seeds: [b\"game_counter\"]"
-      ],
+      "docs": ["Global counter tracking current game round", "Seeds: [b\"game_counter\"]"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1162,9 +765,7 @@
     },
     {
       "name": "GameDurationConfig",
-      "docs": [
-        "Configuration for game durations"
-      ],
+      "docs": ["Configuration for game durations"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1177,9 +778,7 @@
     },
     {
       "name": "GameInitialized",
-      "docs": [
-        "Event emitted when a new game round is initialized"
-      ],
+      "docs": ["Event emitted when a new game round is initialized"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1200,9 +799,7 @@
     },
     {
       "name": "GameLocked",
-      "docs": [
-        "Event emitted when game is locked (betting window closes)"
-      ],
+      "docs": ["Event emitted when game is locked (betting window closes)"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1227,9 +824,7 @@
     },
     {
       "name": "GameReset",
-      "docs": [
-        "Event emitted when game is reset for next round"
-      ],
+      "docs": ["Event emitted when game is reset for next round"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1246,10 +841,7 @@
     },
     {
       "name": "GameRound",
-      "docs": [
-        "Current game round state stored as singleton PDA",
-        "Seeds: [b\"game_round\"]"
-      ],
+      "docs": ["Current game round state stored as singleton PDA", "Seeds: [b\"game_round\"]"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1298,10 +890,7 @@
           {
             "name": "vrf_seed",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -1313,9 +902,7 @@
     },
     {
       "name": "GameStatus",
-      "docs": [
-        "Game status enumeration"
-      ],
+      "docs": ["Game status enumeration"],
       "type": {
         "kind": "enum",
         "variants": [
@@ -1336,9 +923,7 @@
     },
     {
       "name": "WinnerSelected",
-      "docs": [
-        "Event emitted when winner is determined"
-      ],
+      "docs": ["Event emitted when winner is determined"],
       "type": {
         "kind": "struct",
         "fields": [

@@ -89,7 +89,7 @@ export const placeBet = mutation({
       status: "pending",
       placedAt: Date.now(),
       settledAt: undefined,
-      
+
       // No positioning data for spectator bets
       position: undefined,
 
@@ -233,7 +233,9 @@ export const settleBets = mutation({
     });
 
     // Log settlement completion
-    console.log(`Game ${args.gameId} settled: Winner ${args.winnerWallet}, TX: ${args.txSignature}`);
+    console.log(
+      `Game ${args.gameId} settled: Winner ${args.winnerWallet}, TX: ${args.txSignature}`
+    );
   },
 });
 
@@ -254,21 +256,21 @@ export const getBettingStats = query({
     const participantStats = bets.map((bet) => {
       // For now, each participant bet is standalone (no spectator betting implemented yet)
       const totalBetAmount = bet.amount || 0;
-      
+
       return {
         participantId: bet._id, // Use bet ID as participant identifier
         walletAddress: bet.walletAddress,
         characterId: bet.characterId,
         totalBetAmount,
         betCount: 1, // Each participant has one self bet
-        odds: totalBetAmount > 0 ? game.entryPool / totalBetAmount : 0,
+        odds: totalBetAmount > 0 ? game.totalPot / totalBetAmount : 0,
       };
     });
 
     return {
       totalBets: bets.length,
       totalBetAmount: bets.reduce((sum, b) => sum + (b.amount || 0), 0),
-      entryPool: game.entryPool,
+      totalPot: game.totalPot,
       participantStats,
     };
   },
@@ -302,12 +304,7 @@ export const placeEntryBet = mutation({
       .query("games")
       .withIndex("by_last_checked")
       .order("desc")
-      .filter((q) =>
-        q.or(
-          q.eq(q.field("status"), "waiting"),
-          q.eq(q.field("status"), "idle")
-        )
-      )
+      .filter((q) => q.or(q.eq(q.field("status"), "waiting"), q.eq(q.field("status"), "idle")))
       .first();
 
     // If no active game exists, create one
@@ -330,7 +327,7 @@ export const placeEntryBet = mutation({
         roundId: Date.now(), // Temporary until synced with Solana
         status: "waiting",
         startTimestamp: now,
-        entryPool: 0,
+        totalPot: 0,
         winner: undefined,
         playersCount: 0,
         vrfRequestPubkey: undefined,
@@ -374,16 +371,12 @@ export const placeEntryBet = mutation({
 
     const spawnIndex = existingParticipants.length;
 
-    // Calculate size based on bet amount
-    // 0.1 SOL (100M lamports) = 1.01x, 10 SOL (10B lamports) = 1.5x
-    const size = 1 + (args.betAmount / 10_000_000_000) * 0.5;
-
     // Create unified bet record with participant positioning data
     const betId = await ctx.db.insert("bets", {
       gameId: game._id,
       playerId: player._id,
       walletAddress: args.walletAddress,
-      
+
       // Betting core data
       amount: args.betAmount,
       betType: "self",
@@ -392,22 +385,22 @@ export const placeEntryBet = mutation({
       placedAt: Date.now(),
       settledAt: undefined,
       payout: undefined,
-      
+
       // Settlement tracking
       onChainConfirmed: false,
       txSignature: args.txSignature,
-      
+
       // UI positioning (moved from gameParticipants)
       position: { x: 0, y: 0 },
       spawnIndex,
-      
+
       // Game state (moved from gameParticipants)
       eliminated: false,
       eliminatedAt: undefined,
       eliminatedBy: undefined,
       finalPosition: undefined,
       isWinner: undefined,
-      
+
       // Display enhancements
       characterId: args.characterId,
     });
@@ -418,7 +411,7 @@ export const placeEntryBet = mutation({
 
     await ctx.db.patch(game._id, {
       playersCount: uniquePlayers.size,
-      entryPool: game.entryPool + args.betAmount,
+      totalPot: game.totalPot + args.betAmount,
       status: "waiting", // Move to waiting if was idle
       phaseStartTime: game.status === "idle" ? Date.now() : game.phaseStartTime, // Reset countdown on first bet
       lastUpdated: Date.now(),
@@ -428,7 +421,7 @@ export const placeEntryBet = mutation({
       gameId: game._id,
       betId, // Return betId instead of participantId
       playersCount: uniquePlayers.size,
-      entryPool: game.entryPool + args.betAmount,
+      totalPot: game.totalPot + args.betAmount,
     };
   },
 });
@@ -491,7 +484,7 @@ export const getGameParticipants = query({
         // Calculate additional betting stats using the schema fields
         const totalSpectatorBets = bet.totalBetAmount ? bet.totalBetAmount - bet.amount : 0;
         const totalBetAmount = bet.totalBetAmount || bet.amount;
-        
+
         return {
           ...bet,
           character,

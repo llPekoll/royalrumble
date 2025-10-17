@@ -16,6 +16,7 @@ import type {
 import type * as bets from "../bets.js";
 import type * as characters from "../characters.js";
 import type * as crons from "../crons.js";
+import type * as eventListener from "../eventListener.js";
 import type * as gameManager from "../gameManager.js";
 import type * as gameManagerDb from "../gameManagerDb.js";
 import type * as lib_solana from "../lib/solana.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   bets: typeof bets;
   characters: typeof characters;
   crons: typeof crons;
+  eventListener: typeof eventListener;
   gameManager: typeof gameManager;
   gameManagerDb: typeof gameManagerDb;
   "lib/solana": typeof lib_solana;

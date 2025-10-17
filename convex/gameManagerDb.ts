@@ -25,8 +25,8 @@ export const createGameRecord = internalMutation({
       roundId,
       status: gameRound.status,
       startTimestamp: gameRound.startTimestamp ? gameRound.startTimestamp * 1000 : undefined,
-      endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined, // ⭐ NEW: Betting window end time
-      entryPool: gameRound.entryPool || 0,
+      endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined, // Betting window end time
+      totalPot: gameRound.totalPot || 0,
       winner: gameRound.winner,
       playersCount: gameRound.bets?.length || 0,
 
@@ -60,8 +60,8 @@ export const updateGame = internalMutation({
     lastChecked: v.optional(v.number()),
     lastUpdated: v.optional(v.number()),
     status: v.optional(v.string()),
-    endTimestamp: v.optional(v.number()), // ⭐ NEW: Allow updating betting window end time
-    entryPool: v.optional(v.number()),
+    endTimestamp: v.optional(v.number()), // Allow updating betting window end time
+    totalPot: v.optional(v.number()),
     winner: v.optional(v.string()),
     winnerId: v.optional(v.id("bets")), // Updated to reference bets table
     playersCount: v.optional(v.number()),
@@ -428,7 +428,9 @@ export const createOrUpdateBet = internalMutation({
         txSignature: args.txSignature,
         onChainConfirmed: args.onChainConfirmed,
         betType: "self", // Entry bets are self bets
-        timestamp: Date.now(),
+        status: "pending", // Required field
+        placedAt: Date.now(), // Required field
+        timestamp: Date.now(), // Optional field for event listener tracking
       });
     }
   },

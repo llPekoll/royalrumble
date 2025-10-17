@@ -1,10 +1,8 @@
-"use node";
 // Core game management functions for the Convex crank service
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { SolanaClient } from "./lib/solana";
 import { GameStatus, TRANSACTION_TYPES } from "./lib/types";
-import { Buffer } from "buffer";
 /**
  * Main cron job handler - checks and progresses games as needed
  * Called every 15 seconds by the cron job
@@ -97,7 +95,7 @@ export const checkAndProgressGames = internalAction({
         lastChecked: now,
         endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined, // ⭐ Sync betting window end time
         playersCount: gameRound.bets?.length || 0,
-        entryPool: gameRound.entryPool || 0,
+        totalPot: gameRound.totalPot || 0,
       });
 
       // Log current state
@@ -112,7 +110,7 @@ export const checkAndProgressGames = internalAction({
       });
 
       // Process based on current game status (simplified for small games MVP)
-      await processGameStatus(ctx, solanaClient, gameRound, game, gameConfig, now);
+      await processGameStatus(ctx, solanaClient, gameRound, game, now);
     } catch (error) {
       console.error("Cron job error:", error);
 
@@ -149,7 +147,6 @@ async function processGameStatus(
   solanaClient: SolanaClient,
   gameRound: any,
   game: any,
-  gameConfig: any,
   now: number
 ) {
   switch (gameRound.status) {
@@ -158,7 +155,7 @@ async function processGameStatus(
       break;
 
     case GameStatus.Waiting:
-      await handleWaitingPhase(ctx, solanaClient, gameRound, game, gameConfig, now);
+      await handleWaitingPhase(ctx, solanaClient, gameRound, game, now);
       break;
 
     // Large game phases removed for small games MVP:
@@ -183,18 +180,19 @@ async function handleWaitingPhase(
   solanaClient: SolanaClient,
   gameRound: any,
   game: any,
-  gameConfig: any,
   now: number
 ) {
   // ⭐ Use end_timestamp from smart contract (already in seconds)
   const waitingEndTime = gameRound.endTimestamp * 1000; // Convert to milliseconds
 
   if (now >= waitingEndTime) {
-    console.log(`Betting window closed for round ${game.roundId} (end_timestamp: ${gameRound.endTimestamp}), progressing with unified ORAO VRF`);
+    console.log(
+      `Betting window closed for round ${game.roundId} (end_timestamp: ${gameRound.endTimestamp}), progressing with unified ORAO VRF`
+    );
 
     try {
-      // UNIFIED CALL: Progress to resolution + ORAO VRF request in one transaction
-      const txHash = await solanaClient.unifiedProgressToResolution();
+      // Close betting window and transition to winner selection
+      const txHash = await solanaClient.closeBettingWindow();
 
       await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         roundId: game.roundId,
@@ -202,7 +200,7 @@ async function handleWaitingPhase(
         details: {
           success: true,
           transactionHash: txHash,
-          transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
+          transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
           fromStatus: GameStatus.Waiting,
           toStatus: GameStatus.AwaitingWinnerRandomness,
           playersCount: gameRound.bets.length,
@@ -217,7 +215,7 @@ async function handleWaitingPhase(
           details: {
             success: true,
             transactionHash: txHash,
-            transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
+            transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
           },
         });
 
@@ -236,7 +234,7 @@ async function handleWaitingPhase(
         details: {
           success: false,
           errorMessage: error instanceof Error ? error.message : String(error),
-          transactionType: TRANSACTION_TYPES.UNIFIED_PROGRESS_TO_RESOLUTION,
+          transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
         },
       });
     }
@@ -264,8 +262,8 @@ async function handleWinnerRandomness(
     console.log(`ORAO VRF fulfilled for round ${game.roundId}, completing game`);
 
     try {
-      // UNIFIED CALL: Resolve winner + distribute winnings + reset game in one transaction
-      const txHash = await solanaClient.unifiedResolveAndDistribute(gameRound.vrfRequestPubkey);
+      // Select winner and distribute payouts
+      const txHash = await solanaClient.selectWinnerAndPayout(gameRound.vrfRequestPubkey);
 
       await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
         roundId: game.roundId,
@@ -273,7 +271,7 @@ async function handleWinnerRandomness(
         details: {
           success: true,
           transactionHash: txHash,
-          transactionType: TRANSACTION_TYPES.UNIFIED_RESOLVE_AND_DISTRIBUTE,
+          transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
           fromStatus: GameStatus.AwaitingWinnerRandomness,
           toStatus: GameStatus.Idle,
         },
@@ -287,7 +285,7 @@ async function handleWinnerRandomness(
           details: {
             success: true,
             transactionHash: txHash,
-            transactionType: TRANSACTION_TYPES.UNIFIED_RESOLVE_AND_DISTRIBUTE,
+            transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
           },
         });
 
@@ -308,7 +306,7 @@ async function handleWinnerRandomness(
         details: {
           success: false,
           errorMessage: error instanceof Error ? error.message : String(error),
-          transactionType: TRANSACTION_TYPES.UNIFIED_RESOLVE_AND_DISTRIBUTE,
+          transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
         },
       });
     }

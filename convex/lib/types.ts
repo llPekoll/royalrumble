@@ -22,10 +22,7 @@ export interface GameConfig {
   houseFeeBasisPoints: number;
   minBetLamports: number;
   smallGameDurationConfig: GameDurationConfig;
-  // ORAO VRF configuration
-  vrfFeeLamports: number;
-  vrfNetworkState: string; // PublicKey as base58 string
-  vrfTreasury: string; // PublicKey as base58 string
+  betsLocked: boolean; // Whether new bets are currently locked
 }
 
 // Game duration configuration (simplified for small games MVP)
@@ -50,8 +47,7 @@ export interface GameRound {
   startTimestamp: number;
   endTimestamp: number; // When betting window closes
   bets: BetEntry[];
-  initialPot: number;
-  entryPool: number; // Alias for initialPot (used by gameManager)
+  totalPot: number; // Total accumulated pot from all bets
   winner: string | null; // PublicKey as base58 string, or null if no winner yet
   // ORAO VRF integration
   vrfRequestPubkey: string | null; // PublicKey as base58 string, or null if not requested
@@ -67,23 +63,19 @@ export const PDA_SEEDS = {
   VAULT: Buffer.from("vault"),
 } as const;
 
-// Transaction types for logging (simplified for small games MVP)
+// Transaction types for logging
 export const TRANSACTION_TYPES = {
-  PROGRESS_TO_RESOLUTION: "progress_to_resolution",
-  RESOLVE_WINNER: "resolve_winner",
-  DISTRIBUTE_WINNINGS: "distribute_winnings_and_reset",
-  CLAIM_WINNINGS: "claim_winnings",
-
-  // ORAO VRF unified transaction types
-  UNIFIED_PROGRESS_TO_RESOLUTION: "unified_progress_to_resolution",
-  UNIFIED_RESOLVE_AND_DISTRIBUTE: "unified_resolve_and_distribute",
+  CLOSE_BETTING_WINDOW: "close_betting_window",
+  SELECT_WINNER_AND_PAYOUT: "select_winner_and_payout",
+  CLEANUP_OLD_GAME: "cleanup_old_game",
 } as const;
 
-// Instruction names (simplified for small games MVP)
+// Instruction names
 export const INSTRUCTION_NAMES = {
   INITIALIZE: "initialize",
   CREATE_GAME: "create_game",
   PLACE_BET: "place_bet",
-  UNIFIED_PROGRESS_TO_RESOLUTION: "unified_progress_to_resolution",
-  UNIFIED_RESOLVE_AND_DISTRIBUTE: "unified_resolve_and_distribute",
+  CLOSE_BETTING_WINDOW: "close_betting_window",
+  SELECT_WINNER_AND_PAYOUT: "select_winner_and_payout",
+  CLEANUP_OLD_GAME: "cleanup_old_game",
 } as const;
