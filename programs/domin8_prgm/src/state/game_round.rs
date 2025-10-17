@@ -1,13 +1,13 @@
-use anchor_lang::prelude::*;
 use crate::state::BetEntry;
+use anchor_lang::prelude::*;
 
 /// Game status enumeration
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Debug)]
 pub enum GameStatus {
-    Idle,                        // Waiting for first player
-    Waiting,                     // Accepting bets
-    AwaitingWinnerRandomness,   // Waiting for Switchboard VRF for winner selection
-    Finished,                    // Game concluded, winner selected
+    Idle,                     // Waiting for first player
+    Waiting,                  // Accepting bets
+    AwaitingWinnerRandomness, // Waiting for Switchboard VRF for winner selection
+    Finished,                 // Game concluded, winner selected
 }
 
 impl GameStatus {
@@ -21,29 +21,28 @@ pub struct GameRound {
     pub round_id: u64,
     pub status: GameStatus,
     pub start_timestamp: i64,
-    pub end_timestamp: i64,        // When betting window closes
+    pub end_timestamp: i64, // When betting window closes
 
     // Individual bets (unlimited - dynamically grows via realloc)
     pub bets: Vec<BetEntry>,
-    
-    
+
     // Pot tracking
-    pub initial_pot: u64,
-    
+    pub total_pot: u64,
+
     // Winner
     pub winner: Pubkey,
-    
+
     // ORAO VRF integration
-    pub vrf_request_pubkey: Pubkey,    // ORAO VRF request account
-    pub vrf_seed: [u8; 32],           // Seed used for VRF request
-    pub randomness_fulfilled: bool,    // Track if randomness is ready
+    pub vrf_request_pubkey: Pubkey, // ORAO VRF request account
+    pub vrf_seed: [u8; 32],         // Seed used for VRF request
+    pub randomness_fulfilled: bool, // Track if randomness is ready
 }
 
 impl GameRound {
     /// Base account space calculation (no bets):
     /// 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start_timestamp) + 8 (end_timestamp)
     /// + 4 (bets vec len) + 0 (dynamic bets - grows with realloc)
-    /// + 8 (initial_pot) + 32 (winner)
+    /// + 8 (total_pot) + 32 (winner)
     /// + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
     /// = 8 + 8 + 1 + 8 + 8 + 4 + 0 + 8 + 32 + 32 + 32 + 1 = 142 bytes (base)
     /// Each bet adds 48 bytes dynamically via realloc
@@ -69,8 +68,8 @@ impl GameRound {
         self.bets.iter_mut().find(|b| b.wallet == *wallet)
     }
 
-    /// Calculate total pot value (just initial pot in small games MVP)
-    pub fn total_pot(&self) -> u64 {
-        self.initial_pot
+    /// Calculate total pot value
+    pub fn get_total_pot(&self) -> u64 {
+        self.total_pot
     }
 }

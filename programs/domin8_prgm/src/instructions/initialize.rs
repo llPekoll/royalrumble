@@ -55,7 +55,7 @@ pub fn initialize(
     };
 
     // Initialize game control flags
-    config.game_locked = false;  // Start unlocked
+    config.bets_locked = false;  // Start unlocked
 
     // Initialize counter at 0
     counter.current_round_id = 0;

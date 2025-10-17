@@ -5,7 +5,7 @@ use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED, VAU
 use crate::events::{WinnerSelected, GameReset};
 
 #[derive(Accounts)]
-pub struct UnifiedResolveAndDistribute<'info> {
+pub struct SelectWinnerAndPayout<'info> {
     #[account(
         mut,
         seeds = [GAME_COUNTER_SEED],
@@ -56,9 +56,8 @@ pub struct UnifiedResolveAndDistribute<'info> {
     pub system_program: Program<'info, System>,
 }
 
-/// UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
-/// This replaces the old resolve_winner + distribute_winnings flow
-pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>) -> Result<()> {
+/// Select winner using VRF randomness and distribute payouts
+pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<()> {
     let game_round = &mut ctx.accounts.game_round;
     
     require!(
@@ -88,7 +87,7 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     msg!("Winner selected: {}", winner_wallet);
     
     // 3. CALCULATE WINNINGS
-    let total_pot = game_round.initial_pot;
+    let total_pot = game_round.total_pot;
     let house_fee = (total_pot as u128)
         .checked_mul(ctx.accounts.config.house_fee_basis_points as u128)
         .ok_or(Domin8Error::ArithmeticOverflow)?
@@ -158,12 +157,12 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
         new_round_id,
     });
 
-    // 7. UNLOCK CONFIG FOR NEXT GAME
+    // 7. UNLOCK BETS FOR NEXT GAME
     let config = &mut ctx.accounts.config;
-    config.game_locked = false;
+    config.bets_locked = false;
 
     msg!("Game {} completed - counter incremented to {}", old_round_id, new_round_id);
-    msg!("Game unlocked - accepting bets for next round");
+    msg!("Bets unlocked - accepting bets for next round");
     msg!("Game account closed - rent reclaimed to crank authority");
     msg!("New game account will be created on next bet with round_id {}", new_round_id);
 

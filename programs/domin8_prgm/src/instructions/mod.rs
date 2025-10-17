@@ -1,36 +1,21 @@
 // Instructions module - contains all instruction handlers
-pub mod create_game;
+
+// Core instructions
 pub mod initialize;
+pub mod create_game;
 pub mod place_bet;
-// pub mod place_spectator_bet;  // Removed for small games MVP
-// pub mod progress_to_resolution;  // Removed - replaced by unified
-// pub mod progress_to_final_battle;  // Removed for small games MVP
-// pub mod resolve_finalists;  // Removed for small games MVP
-// pub mod resolve_winner;  // Removed - replaced by unified
-// pub mod distribute_winnings;  // Removed - replaced by unified
-// pub mod claim_winnings;  // Removed for small games MVP
 
-// ORAO VRF unified instructions
-pub mod progress_to_resolution;
-pub mod resolve_and_distribute;
+// Resolution instructions (ORAO VRF)
+pub mod close_betting_window;
+pub mod select_winner_and_payout;
 
-// Cleanup instruction
+// Maintenance instructions
 pub mod cleanup_old_game;
 
-pub use create_game::*;
+// Re-exports
 pub use initialize::*;
+pub use create_game::*;
 pub use place_bet::*;
-// pub use place_spectator_bet::*;  // Removed for small games MVP
-// pub use progress_to_resolution::*;  // Removed - replaced by unified
-// pub use progress_to_final_battle::*;  // Removed for small games MVP
-// pub use resolve_finalists::*;  // Removed for small games MVP
-// pub use resolve_winner::*;  // Removed - replaced by unified
-// pub use distribute_winnings::*;  // Removed - replaced by unified
-// pub use claim_winnings::*;  // Removed for small games MVP
-
-// ORAO VRF unified exports
-pub use progress_to_resolution::*;
-pub use resolve_and_distribute::*;
-
-// Cleanup export
+pub use close_betting_window::*;
+pub use select_winner_and_payout::*;
 pub use cleanup_old_game::*;

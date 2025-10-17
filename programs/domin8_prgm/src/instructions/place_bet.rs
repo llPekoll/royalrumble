@@ -58,16 +58,17 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         Domin8Error::InvalidGameStatus
     );
 
-    // ⭐ Check if game is locked (prevents bets during resolution)
-    require!(!config.game_locked, Domin8Error::GameLocked);
+    // ⭐ Check if bets are locked (prevents bets during resolution)
+    require!(!config.bets_locked, Domin8Error::BetsLocked);
 
     // Validate game state - must be Idle or Waiting
     require!(game_round.can_accept_bets(), Domin8Error::InvalidGameStatus);
 
     // ⭐ Validate betting window hasn't closed (for Waiting status)
+    // Betting is allowed while: current_time < end_timestamp
     if game_round.status == GameStatus::Waiting {
         require!(
-            clock.unix_timestamp <= game_round.end_timestamp,
+            clock.unix_timestamp < game_round.end_timestamp,
             Domin8Error::BettingWindowClosed
         );
     }
@@ -88,7 +89,7 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
     )?;
 
     // Add to existing pot
-    game_round.initial_pot = game_round.initial_pot.saturating_add(amount);
+    game_round.total_pot = game_round.total_pot.saturating_add(amount);
 
     // Find existing bet or add new one
     // New bet - add to vector (account was already reallocated)
@@ -107,7 +108,7 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         game_round.bets.len()
     );
 
-    msg!("Total pot: {} lamports", game_round.initial_pot);
+    msg!("Total pot: {} lamports", game_round.total_pot);
 
     // ⭐ Emit bet placed event
     emit!(BetPlaced {
@@ -115,7 +116,7 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         player: player_key,
         amount,
         bet_count: game_round.bets.len() as u8,
-        total_pot: game_round.initial_pot,
+        total_pot: game_round.total_pot,
         end_timestamp: game_round.end_timestamp,
         is_first_bet: false,
     });

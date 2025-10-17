@@ -32,15 +32,35 @@ export class GamePhaseManager {
     }
 
     // Check if blockchain call completed for small games during arena phase
-    const blockchainCallJustCompleted = gameState.blockchainCallStatus === 'completed' && !this.hasWinner;
-    if (blockchainCallJustCompleted && this.isSmallGame && gameState.status === 'arena') {
-      console.log('Blockchain call completed for small game, winner:', gameState.winnerId);
+    // ⭐ SECURITY: Only show winner animation if:
+    // 1. Betting window has closed (now > endTimestamp)
+    // 2. Winner has been determined (winnerId exists)
+    // 3. Blockchain call is completed
+    const now = Date.now();
+    const bettingWindowClosed = gameState.endTimestamp ? now > gameState.endTimestamp : false;
+    const hasWinner = !!gameState.winnerId;
+    const blockchainCallCompleted = gameState.blockchainCallStatus === 'completed';
+
+    const blockchainCallJustCompleted = blockchainCallCompleted && !this.hasWinner;
+    const canShowWinnerAnimation = bettingWindowClosed && hasWinner && blockchainCallCompleted;
+
+    if (blockchainCallJustCompleted && this.isSmallGame && gameState.status === 'arena' && canShowWinnerAnimation) {
+      console.log('✅ Conditions met for winner animation:');
+      console.log('  - Betting window closed:', bettingWindowClosed, `(now: ${now}, end: ${gameState.endTimestamp})`);
+      console.log('  - Winner determined:', gameState.winnerId);
+      console.log('  - Blockchain call completed');
+
       this.hasWinner = true;
       // Trigger explosion after a short delay
       this.scene.time.delayedCall(500, () => {
         const participants = this.playerManager.getParticipants();
         this.animationManager.explodeParticipantsOutward(participants);
       });
+    } else if (blockchainCallJustCompleted && (!bettingWindowClosed || !hasWinner)) {
+      // Log why animation is blocked
+      console.log('⏳ Winner animation blocked - waiting for:');
+      if (!bettingWindowClosed) console.log('  - Betting window to close (remaining:', (gameState.endTimestamp - now) / 1000, 'seconds)');
+      if (!hasWinner) console.log('  - Winner to be determined');
     }
 
     // Update hasWinner flag
@@ -176,6 +196,18 @@ export class GamePhaseManager {
 
   private handleResultsPhase(gameState: any, phaseChanged: boolean) {
     if (phaseChanged) {
+      // ⭐ SECURITY: Verify betting window closed and winner exists before showing results
+      const now = Date.now();
+      const bettingWindowClosed = gameState.endTimestamp ? now > gameState.endTimestamp : false;
+      const hasWinner = !!gameState.winnerId;
+
+      if (!bettingWindowClosed || !hasWinner) {
+        console.log('⚠️ Cannot show results - conditions not met:');
+        if (!bettingWindowClosed) console.log('  - Betting window still open');
+        if (!hasWinner) console.log('  - No winner determined yet');
+        return;
+      }
+
       // Show the winner and celebration
       const winnerParticipant = this.playerManager.showResults(gameState);
 

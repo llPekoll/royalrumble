@@ -37,14 +37,14 @@ pub mod domin8_prgm {
         instructions::place_bet(ctx, amount)
     }
 
-    /// UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF
-    pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>) -> Result<()> {
-        instructions::unified_progress_to_resolution(ctx)
+    /// Close betting window and lock game for winner selection
+    pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
+        instructions::close_betting_window(ctx)
     }
 
-    /// UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings
-    pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>) -> Result<()> {
-        instructions::unified_resolve_and_distribute(ctx)
+    /// Select winner using VRF and distribute payouts
+    pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<()> {
+        instructions::select_winner_and_payout(ctx)
     }
 
     /// Cleanup old game round (backend-triggered after 1 week)

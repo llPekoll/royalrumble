@@ -76,8 +76,8 @@ pub fn create_game(
     let player_key = ctx.accounts.player.key();
     let clock = Clock::get()?;
 
-    // ⭐ Check if game is locked (prevents bets during resolution)
-    require!(!config.game_locked, Domin8Error::GameLocked);
+    // ⭐ Check if bets are locked (prevents bets during resolution)
+    require!(!config.bets_locked, Domin8Error::BetsLocked);
 
     // Validate bet amount meets minimum requirement
     require!(
@@ -105,7 +105,7 @@ pub fn create_game(
     game_round.end_timestamp = clock.unix_timestamp
         .checked_add(DEFAULT_SMALL_GAME_WAITING_DURATION as i64)
         .ok_or(Domin8Error::ArithmeticOverflow)?;
-    game_round.initial_pot = amount;
+    game_round.total_pot = amount;
     game_round.winner = Pubkey::default();
     game_round.randomness_fulfilled = false;
 
@@ -131,6 +131,8 @@ pub fn create_game(
     msg!("New game round created: {}", counter.current_round_id);
     msg!("Game started by first bet - betting window closes at {}", game_round.end_timestamp);
     msg!("ORAO VRF requested immediately - will fulfill during waiting period");
+    msg!("VRF seed (first 16 bytes): {:?}", &seed[0..16]);
+    msg!("VRF request account: {}", ctx.accounts.vrf_request.key());
 
     // Reallocate account to fit first bet
     let new_size = game_round.to_account_info().data_len() + std::mem::size_of::<BetEntry>();
@@ -146,7 +148,7 @@ pub fn create_game(
 
     msg!("First bet placed: {}, amount: {}, total bets: {}",
          player_key, amount, game_round.bets.len());
-    msg!("Total pot: {} lamports", game_round.initial_pot);
+    msg!("Total pot: {} lamports", game_round.total_pot);
 
     // ⭐ Emit bet placed event
     emit!(BetPlaced {
@@ -154,7 +156,7 @@ pub fn create_game(
         player: player_key,
         amount,
         bet_count: game_round.bets.len() as u8,
-        total_pot: game_round.initial_pot,
+        total_pot: game_round.total_pot,
         end_timestamp: game_round.end_timestamp,
         is_first_bet: true,
     });

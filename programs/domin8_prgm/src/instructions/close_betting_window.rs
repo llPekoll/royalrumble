@@ -5,7 +5,7 @@ use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED};
 use crate::events::GameLocked;
 
 #[derive(Accounts)]
-pub struct UnifiedProgressToResolution<'info> {
+pub struct CloseBettingWindow<'info> {
     #[account(
         seeds = [GAME_COUNTER_SEED],
         bump
@@ -33,9 +33,8 @@ pub struct UnifiedProgressToResolution<'info> {
     pub crank: Signer<'info>,
 }
 
-/// UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness
-/// This replaces the old progress_to_resolution + separate VRF request
-pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>) -> Result<()> {
+/// Close betting window and transition game to winner selection phase
+pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     let game_round = &mut ctx.accounts.game_round;
     let clock = Clock::get()?;
@@ -52,12 +51,12 @@ pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>)
         Domin8Error::BettingWindowStillOpen
     );
 
-    // ⭐ Lock the game to prevent new bets during resolution
-    config.game_locked = true;
+    // ⭐ Lock bets to prevent new bets during resolution
+    config.bets_locked = true;
 
     let bet_count = game_round.bets.len();
-    msg!("Unified progress: transitioning game {} with {} bets", game_round.round_id, bet_count);
-    msg!("Game locked - no new bets allowed during resolution");
+    msg!("Closing betting window: game {} with {} bets", game_round.round_id, bet_count);
+    msg!("Bets locked - no new bets allowed during resolution");
 
     // Validate minimum bets
     require!(
@@ -93,7 +92,7 @@ pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>)
     emit!(GameLocked {
         round_id: game_round.round_id,
         final_bet_count: game_round.bets.len() as u8,
-        total_pot: game_round.initial_pot,
+        total_pot: game_round.total_pot,
         vrf_request_pubkey: game_round.vrf_request_pubkey,
     });
 

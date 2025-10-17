@@ -21,14 +21,14 @@ pub struct GameConfig {
     pub small_game_duration_config: GameDurationConfig,
 
     // Game control flags
-    pub game_locked: bool, // Prevents new bets during game resolution
+    pub bets_locked: bool, // Prevents new bets during game resolution
 }
 
 impl GameConfig {
     /// Account space calculation:
     /// 8 (discriminator) + 32 (authority) + 32 (treasury) + 2 (house_fee) + 8 (min_bet)
     /// + 32 (small_game_config) + 32 (large_game_config)
-    /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (game_locked) = 219 bytes
+    /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (bets_locked) = 219 bytes
     pub const LEN: usize =
         8 + 32 + 32 + 2 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1;
 

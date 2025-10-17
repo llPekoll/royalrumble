@@ -109,8 +109,8 @@ pub enum Domin8Error {
     #[msg("Betting window is still open")]
     BettingWindowStillOpen,
 
-    #[msg("Game is locked during resolution")]
-    GameLocked,
+    #[msg("Bets are locked during resolution")]
+    BetsLocked,
 
     #[msg("Cannot cleanup active or current game")]
     CannotCleanupActiveGame,
