@@ -83,10 +83,11 @@ export function useGameState() {
         );
 
         // Fetch game round account
-        const gameRoundAccount = await program.account.gameRound.fetch(gameRoundPda);
+        // Note: Anchor generates PascalCase account names in TypeScript
+        const gameRoundAccount = await (program.account as any).gameRound.fetch(gameRoundPda);
 
         // Fetch game config account
-        const gameConfigAccount = await program.account.gameConfig.fetch(configPda);
+        const gameConfigAccount = await (program.account as any).gameConfig.fetch(configPda);
 
         // Fetch vault balance
         const vaultAccountInfo = await connection.getAccountInfo(vaultPda);
