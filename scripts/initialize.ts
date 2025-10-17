@@ -7,9 +7,12 @@ import { PublicKey, Keypair } from "@solana/web3.js";
  * Script to initialize the Domin8 game program
  *
  * This will:
- * 1. Derive the necessary PDAs (config, game_round, vault)
+ * 1. Derive the necessary PDAs (config, counter, vault)
  * 2. Call the initialize instruction
  * 3. Set up the game configuration with a treasury wallet
+ * 4. Initialize the GameCounter at round 0
+ *
+ * Note: Individual game rounds will be created automatically on first bet
  *
  * Usage:
  *   ts-node scripts/initialize.ts
@@ -35,8 +38,8 @@ async function main() {
     program.programId
   );
 
-  const [gameRoundPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from("game_round")],
+  const [counterPDA] = PublicKey.findProgramAddressSync(
+    [Buffer.from("game_counter")],
     program.programId
   );
 
@@ -44,8 +47,10 @@ async function main() {
 
   console.log("📍 PDAs:");
   console.log(`  Config PDA: ${configPDA.toString()}`);
-  console.log(`  GameRound PDA: ${gameRoundPDA.toString()}`);
+  console.log(`  Counter PDA: ${counterPDA.toString()}`);
   console.log(`  Vault PDA: ${vaultPDA.toString()}`);
+  console.log("");
+  console.log("ℹ️  Game round PDAs will be derived dynamically: [game_round, round_id]");
   console.log("");
 
   // Check if already initialized
@@ -93,7 +98,7 @@ async function main() {
 
     // Fetch and display the configuration
     const gameConfig = await program.account.gameConfig.fetch(configPDA);
-    const gameRound = await program.account.gameRound.fetch(gameRoundPDA);
+    const gameCounter = await program.account.gameCounter.fetch(counterPDA);
 
     console.log("📋 Game Configuration:");
     console.log(`  Authority: ${gameConfig.authority.toString()}`);
@@ -107,18 +112,13 @@ async function main() {
     console.log(
       `  Waiting Phase Duration: ${gameConfig.smallGameDurationConfig.waitingPhaseDuration} seconds`
     );
-    console.log(`  Game Locked: ${gameConfig.gameLocked} ⭐ NEW`);
+    console.log(`  Game Locked: ${gameConfig.gameLocked}`);
     console.log("");
 
-    console.log("📋 Initial Game Round State:");
-    console.log(`  Round ID: ${gameRound.roundId.toString()}`);
-    console.log(`  Status: ${Object.keys(gameRound.status)[0]}`);
-    console.log(`  Start Timestamp: ${gameRound.startTimestamp.toString()}`);
-    console.log(`  End Timestamp: ${gameRound.endTimestamp.toString()} ⭐ NEW`);
-    console.log(`  Players: ${gameRound.bets.length}`);
-    console.log(
-      `  Initial Pot: ${gameRound.initialPot.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`
-    );
+    console.log("📋 Game Counter State:");
+    console.log(`  Current Round ID: ${gameCounter.currentRoundId.toString()}`);
+    console.log("");
+    console.log("ℹ️  No game round exists yet - will be created on first bet");
     console.log("");
 
     console.log("🎉 Initialization complete! Your game is ready to accept bets.");
@@ -126,7 +126,8 @@ async function main() {
     console.log("Next steps:");
     console.log("  1. Run the tests: anchor test");
     console.log("  2. Start your frontend: bun run dev");
-    console.log("  3. Players can now deposit bets and play!");
+    console.log("  3. First player calls create_game instruction");
+    console.log("  4. Subsequent players call place_bet instruction");
   } catch (error: any) {
     console.error("❌ Initialization failed:");
     console.error(error);

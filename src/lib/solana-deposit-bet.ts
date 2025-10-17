@@ -32,7 +32,7 @@ export async function sendDepositBetTransaction(
   const {
     walletPublicKey,
     betAmountSol,
-    programId = "8KTP4omvYrCqK1paqMcXmhktszqJvMSPSkBb3QH1urM8",
+    programId = "AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4",
   } = params;
 
   // Dynamic imports to reduce bundle size

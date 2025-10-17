@@ -1,18 +1,28 @@
 use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameConfig, GameStatus, BetEntry};
+use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, VAULT_SEED};
+use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED, VAULT_SEED};
+use crate::events::{WinnerSelected, GameReset};
 
 #[derive(Accounts)]
 pub struct UnifiedResolveAndDistribute<'info> {
     #[account(
         mut,
-        seeds = [GAME_ROUND_SEED],
+        seeds = [GAME_COUNTER_SEED],
         bump
     )]
-    pub game_round: Account<'info, GameRound>,
-    
+    pub counter: Account<'info, GameCounter>,
+
     #[account(
+        mut,
+        seeds = [GAME_ROUND_SEED, counter.current_round_id.to_le_bytes().as_ref()],
+        bump,
+        close = crank
+    )]
+    pub game_round: Account<'info, GameRound>,
+
+    #[account(
+        mut,
         seeds = [GAME_CONFIG_SEED],
         bump
     )]
@@ -123,27 +133,44 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
         **ctx.accounts.treasury.try_borrow_mut_lamports()? += house_fee;
     }
     
-    // 5. RESET GAME STATE FOR NEXT ROUND
-    let config = &mut ctx.accounts.config;
+    // 5. EMIT EVENTS BEFORE RESETTING STATE
+    let old_round_id = game_round.round_id;
 
-    game_round.status = GameStatus::Idle;
-    game_round.randomness_fulfilled = true;
-    game_round.round_id = game_round.round_id
+    // ⭐ Emit winner selected event
+    emit!(WinnerSelected {
+        round_id: old_round_id,
+        winner: winner_wallet,
+        total_pot,
+        house_fee,
+        winner_payout,
+    });
+
+    // 6. INCREMENT COUNTER FOR NEXT GAME
+    let counter = &mut ctx.accounts.counter;
+    let new_round_id = counter.current_round_id
         .checked_add(1)
-        .ok_or(Domin8Error::ArithmeticOverflow)?; // Increment for next game
-    game_round.bets.clear();
-    game_round.initial_pot = 0;
-    game_round.start_timestamp = 0;
-    game_round.end_timestamp = 0;  // Reset betting window end time
+        .ok_or(Domin8Error::ArithmeticOverflow)?;
+    counter.current_round_id = new_round_id;
 
-    // ⭐ Unlock game for next round
+    // ⭐ Emit game reset event
+    emit!(GameReset {
+        old_round_id,
+        new_round_id,
+    });
+
+    // 7. UNLOCK CONFIG FOR NEXT GAME
+    let config = &mut ctx.accounts.config;
     config.game_locked = false;
 
-    msg!("Game {} completed and reset - ready for round {}",
-         game_round.round_id.saturating_sub(1),
-         game_round.round_id);
+    msg!("Game {} completed - counter incremented to {}", old_round_id, new_round_id);
     msg!("Game unlocked - accepting bets for next round");
-    
+    msg!("Game account closed - rent reclaimed to crank authority");
+    msg!("New game account will be created on next bet with round_id {}", new_round_id);
+
+    // The game_round account is automatically closed via the close constraint
+    // Rent is returned to the crank authority
+    // Next bet will create a fresh account with the new round_id
+
     Ok(())
 }
 

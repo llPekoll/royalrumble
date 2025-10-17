@@ -9,6 +9,7 @@ pub const HOUSE_FEE_BASIS_POINTS: u16 = 500; // 5%
 
 /// PDA seeds for deterministic account derivation
 pub const GAME_CONFIG_SEED: &[u8] = b"game_config";
+pub const GAME_COUNTER_SEED: &[u8] = b"game_counter";
 pub const GAME_ROUND_SEED: &[u8] = b"game_round";
 pub const VAULT_SEED: &[u8] = b"vault";
 

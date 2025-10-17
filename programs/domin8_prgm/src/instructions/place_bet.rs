@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
-use crate::state::{GameRound, GameConfig, GameStatus, BetEntry};
+use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::constants::*;
 use crate::errors::Domin8Error;
+use crate::events::BetPlaced;
 
 #[derive(Accounts)]
-pub struct DepositBet<'info> {
+pub struct PlaceBet<'info> {
     #[account(
         seeds = [GAME_CONFIG_SEED],
         bump
@@ -13,8 +14,14 @@ pub struct DepositBet<'info> {
     pub config: Account<'info, GameConfig>,
 
     #[account(
+        seeds = [GAME_COUNTER_SEED],
+        bump
+    )]
+    pub counter: Account<'info, GameCounter>,
+
+    #[account(
         mut,
-        seeds = [GAME_ROUND_SEED],
+        seeds = [GAME_ROUND_SEED, counter.current_round_id.to_le_bytes().as_ref()],
         bump,
         realloc = game_round.to_account_info().data_len() + std::mem::size_of::<BetEntry>(),
         realloc::payer = player,
@@ -36,14 +43,23 @@ pub struct DepositBet<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn deposit_bet(
-    ctx: Context<DepositBet>,
+/// Place an additional bet in the current game round
+/// This instruction is called by players after the first bet has been placed
+pub fn place_bet(
+    ctx: Context<PlaceBet>,
     amount: u64,
 ) -> Result<()> {
     let config = &ctx.accounts.config;
+    let counter = &ctx.accounts.counter;
     let game_round = &mut ctx.accounts.game_round;
     let player_key = ctx.accounts.player.key();
     let clock = Clock::get()?;
+
+    // Security: ensure bets only on current round (prevent betting on old games)
+    require!(
+        game_round.round_id == counter.current_round_id,
+        Domin8Error::InvalidGameStatus
+    );
 
     // ⭐ Check if game is locked (prevents bets during resolution)
     require!(!config.game_locked, Domin8Error::GameLocked);
@@ -68,8 +84,6 @@ pub fn deposit_bet(
         Domin8Error::BetTooSmall
     );
 
-    // No max player limit - account dynamically reallocates!
-    
     // Transfer SOL to vault
     system_program::transfer(
         CpiContext::new(
@@ -81,46 +95,43 @@ pub fn deposit_bet(
         ),
         amount,
     )?;
-    
-    // Update game state based on current status
-    if game_round.status == GameStatus::Idle {
-        // First bet - transition to Waiting
-        game_round.status = GameStatus::Waiting;
-        game_round.start_timestamp = clock.unix_timestamp;
-        // ⭐ NEW: Set betting window end time (30 seconds from now)
-        game_round.end_timestamp = clock.unix_timestamp
-            .checked_add(DEFAULT_SMALL_GAME_WAITING_DURATION as i64)
-            .ok_or(Domin8Error::ArithmeticOverflow)?;
-        game_round.initial_pot = amount;
 
-        msg!("Game started by first bet - betting window closes at {}", game_round.end_timestamp);
-    } else {
-        // Add to existing pot
-        game_round.initial_pot = game_round.initial_pot.saturating_add(amount);
-    }
-    
+    // Add to existing pot
+    game_round.initial_pot = game_round.initial_pot.saturating_add(amount);
+
     // Find existing bet or add new one
     if let Some(existing_bet) = game_round.find_bet_mut(&player_key) {
         // Player already exists - add to their bet
         existing_bet.bet_amount = existing_bet.bet_amount.saturating_add(amount);
-        existing_bet.timestamp = clock.unix_timestamp; // Update timestamp
-        
+        existing_bet.timestamp = clock.unix_timestamp;
+
         msg!("Updated bet for player: {}, new total: {}", player_key, existing_bet.bet_amount);
     } else {
-        // New bet
+        // New bet - add to vector (account was already reallocated)
         let bet_entry = BetEntry {
             wallet: player_key,
             bet_amount: amount,
             timestamp: clock.unix_timestamp,
         };
-        
+
         game_round.bets.push(bet_entry);
-        
-        msg!("New bet placed: {}, amount: {}, total bets: {}", 
+
+        msg!("New bet placed: {}, amount: {}, total bets: {}",
              player_key, amount, game_round.bets.len());
     }
-    
+
     msg!("Total pot: {} lamports", game_round.initial_pot);
-    
+
+    // ⭐ Emit bet placed event
+    emit!(BetPlaced {
+        round_id: game_round.round_id,
+        player: player_key,
+        amount,
+        bet_count: game_round.bets.len() as u8,
+        total_pot: game_round.initial_pot,
+        end_timestamp: game_round.end_timestamp,
+        is_first_bet: false,
+    });
+
     Ok(())
 }

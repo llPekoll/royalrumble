@@ -125,15 +125,18 @@ export class UIManager {
 
   private updatePhaseDisplay(gameState: any) {
     const phaseNames: { [key: string]: string } = {
+      'idle': 'WAITING FOR PLAYERS',
       'waiting': 'WAITING FOR PLAYERS',
       'arena': 'RUNNING TO CENTER',
       'betting': 'PLACE YOUR BETS',
       'battle': 'FINAL BATTLE',
+      'awaitingWinnerRandomness': 'DRAWING WINNER',
+      'finished': 'WINNER DECLARED',
       'results': 'WINNER DECLARED'
     };
 
     const phaseName = phaseNames[gameState.status] || 'Game Phase';
-    const isSmallGame = gameState.isSmallGame || gameState.participants?.length < 8;
+    const isSmallGame = gameState.isSmallGame || (gameState.playersCount !== undefined && gameState.playersCount < 8);
     const maxPhases = isSmallGame ? 3 : 5;
 
     // Map internal phase to display phase based on game type
@@ -153,10 +156,18 @@ export class UIManager {
       // Phase 3: Betting
       // Phase 4: Battle
       // Phase 5: Results
-      displayPhase = gameState.phase;
+      displayPhase = gameState.phase || 1;
     }
 
-    this.phaseText.setText(`${phaseName} (${displayPhase}/${maxPhases})`);
+    // Add player count for waiting phase
+    let displayText = `${phaseName}`;
+    if (gameState.status === 'waiting' && gameState.playersCount !== undefined) {
+      displayText = `${phaseName} (${gameState.playersCount}/5)`;
+    } else if (displayPhase) {
+      displayText = `${phaseName} (${displayPhase}/${maxPhases})`;
+    }
+
+    this.phaseText.setText(displayText);
   }
 
   private createDigitText(char: string, color: string): Phaser.GameObjects.Text {
@@ -236,10 +247,20 @@ export class UIManager {
   }
 
   updateTimer() {
-    if (!this.gameState || !this.gameState.nextPhaseTime) return;
+    if (!this.gameState) return;
+
+    // Calculate nextPhaseTime from blockchain endTimestamp
+    const nextPhaseTime = this.gameState.endTimestamp; // Already in milliseconds from Convex
+
+    if (!nextPhaseTime || nextPhaseTime === 0) {
+      // No countdown to show yet
+      this.timerContainer.setVisible(false);
+      this.timerBackground.setVisible(false);
+      return;
+    }
 
     // Determine if it's a quick game
-    const isSmallGame = this.gameState.isSmallGame || this.gameState.participants?.length < 8;
+    const isSmallGame = this.gameState.isSmallGame || this.gameState.playersCount < 8;
     
     // Show timer only in specific phases
     if (isSmallGame) {
@@ -263,7 +284,7 @@ export class UIManager {
     this.timerBackground.setVisible(true);
 
     const currentTime = Date.now();
-    const timeRemaining = Math.max(0, this.gameState.nextPhaseTime - currentTime);
+    const timeRemaining = Math.max(0, nextPhaseTime - currentTime);
     const seconds = Math.ceil(timeRemaining / 1000);
 
     // Format time as M:SS

@@ -57,6 +57,7 @@ export default defineSchema({
     roundId: v.number(), // PRIMARY KEY - matches blockchain
     status: v.string(), // "idle", "waiting", "awaitingWinnerRandomness", "finished"
     startTimestamp: v.optional(v.number()), // From blockchain
+    endTimestamp: v.optional(v.number()), // ⭐ NEW: When betting window closes (from blockchain)
     entryPool: v.number(), // From blockchain GamePool.entry_pool (phase 1 bets)
     winner: v.optional(v.string()), // Winner wallet address
     playersCount: v.number(), // From blockchain bets.length

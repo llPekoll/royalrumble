@@ -1,5 +1,5 @@
 {
-  "address": "8KTP4omvYrCqK1paqMcXmhktszqJvMSPSkBb3QH1urM8",
+  "address": "AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4",
   "metadata": {
     "name": "domin8_prgm",
     "version": "0.1.0",
@@ -8,19 +8,19 @@
   },
   "instructions": [
     {
-      "name": "deposit_bet",
+      "name": "create_game",
       "docs": [
-        "Deposit a bet to join the current game round"
+        "Create a new game round with the first bet (called by first player)"
       ],
       "discriminator": [
-        82,
-        23,
-        26,
-        58,
-        40,
-        4,
-        106,
-        159
+        124,
+        69,
+        75,
+        66,
+        184,
+        220,
+        72,
+        206
       ],
       "accounts": [
         {
@@ -47,6 +47,31 @@
           }
         },
         {
+          "name": "counter",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "game_round",
           "writable": true,
           "pda": {
@@ -65,6 +90,11 @@
                   110,
                   100
                 ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
               }
             ]
           }
@@ -103,104 +133,6 @@
           "type": "u64"
         }
       ]
-    },
-    {
-      "name": "emergency_withdraw",
-      "docs": [
-        "EMERGENCY INSTRUCTION: Refund all players proportionally when game is stuck for >24 hours",
-        "Only callable by program authority as a last resort when VRF or other systems fail"
-      ],
-      "discriminator": [
-        239,
-        45,
-        203,
-        64,
-        150,
-        73,
-        218,
-        92
-      ],
-      "accounts": [
-        {
-          "name": "game_round",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "vault",
-          "docs": [
-            "The vault PDA that holds game funds"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "docs": [
-            "Must be the program authority"
-          ],
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
     },
     {
       "name": "initialize",
@@ -243,7 +175,7 @@
           }
         },
         {
-          "name": "game_round",
+          "name": "counter",
           "writable": true,
           "pda": {
             "seeds": [
@@ -255,11 +187,13 @@
                   109,
                   101,
                   95,
-                  114,
+                  99,
                   111,
                   117,
                   110,
-                  100
+                  116,
+                  101,
+                  114
                 ]
               }
             ]
@@ -300,21 +234,68 @@
       ]
     },
     {
-      "name": "unified_progress_to_resolution",
+      "name": "place_bet",
       "docs": [
-        "UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF"
+        "Place an additional bet in the current game round (called by subsequent players)"
       ],
       "discriminator": [
-        216,
-        239,
-        230,
-        78,
-        28,
-        36,
-        242,
-        118
+        222,
+        62,
+        67,
+        220,
+        63,
+        166,
+        126,
+        33
       ],
       "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "counter",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
         {
           "name": "game_round",
           "writable": true,
@@ -334,12 +315,121 @@
                   110,
                   100
                 ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unified_progress_to_resolution",
+      "docs": [
+        "UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF"
+      ],
+      "discriminator": [
+        216,
+        239,
+        230,
+        78,
+        28,
+        36,
+        242,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "counter",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
               }
             ]
           }
         },
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -421,6 +511,31 @@
       ],
       "accounts": [
         {
+          "name": "counter",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "game_round",
           "writable": true,
           "pda": {
@@ -439,12 +554,18 @@
                   110,
                   100
                 ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
               }
             ]
           }
         },
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -530,6 +651,19 @@
       ]
     },
     {
+      "name": "GameCounter",
+      "discriminator": [
+        117,
+        67,
+        148,
+        185,
+        138,
+        194,
+        249,
+        87
+      ]
+    },
+    {
       "name": "GameRound",
       "discriminator": [
         69,
@@ -540,6 +674,73 @@
         31,
         101,
         146
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BetPlaced",
+      "discriminator": [
+        88,
+        88,
+        145,
+        226,
+        126,
+        206,
+        32,
+        0
+      ]
+    },
+    {
+      "name": "GameInitialized",
+      "discriminator": [
+        82,
+        221,
+        11,
+        2,
+        244,
+        52,
+        240,
+        250
+      ]
+    },
+    {
+      "name": "GameLocked",
+      "discriminator": [
+        137,
+        134,
+        142,
+        42,
+        168,
+        51,
+        224,
+        76
+      ]
+    },
+    {
+      "name": "GameReset",
+      "discriminator": [
+        171,
+        230,
+        62,
+        202,
+        158,
+        128,
+        127,
+        240
+      ]
+    },
+    {
+      "name": "WinnerSelected",
+      "discriminator": [
+        245,
+        110,
+        152,
+        173,
+        193,
+        48,
+        133,
+        5
       ]
     }
   ],
@@ -750,6 +951,45 @@
       }
     },
     {
+      "name": "BetPlaced",
+      "docs": [
+        "Event emitted when a bet is placed"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "bet_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "end_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "is_first_bet",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "GameConfig",
       "docs": [
         "Global game configuration stored as singleton PDA",
@@ -802,6 +1042,22 @@
       }
     },
     {
+      "name": "GameCounter",
+      "docs": [
+        "Global counter tracking current game round",
+        "Seeds: [b\"game_counter\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "current_round_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "GameDurationConfig",
       "docs": [
         "Configuration for game durations"
@@ -811,6 +1067,75 @@
         "fields": [
           {
             "name": "waiting_phase_duration",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameInitialized",
+      "docs": [
+        "Event emitted when a new game round is initialized"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "start_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "end_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameLocked",
+      "docs": [
+        "Event emitted when game is locked (betting window closes)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "final_bet_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "vrf_request_pubkey",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameReset",
+      "docs": [
+        "Event emitted when game is reset for next round"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_round_id",
+            "type": "u64"
+          },
+          {
+            "name": "new_round_id",
             "type": "u64"
           }
         ]
@@ -902,6 +1227,37 @@
           },
           {
             "name": "Finished"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WinnerSelected",
+      "docs": [
+        "Event emitted when winner is determined"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "house_fee",
+            "type": "u64"
+          },
+          {
+            "name": "winner_payout",
+            "type": "u64"
           }
         ]
       }

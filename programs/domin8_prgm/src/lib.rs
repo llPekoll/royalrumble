@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 // Import modules
 pub mod constants;
 pub mod errors;
+pub mod events;
 pub mod instructions;
 pub mod state;
 
@@ -12,9 +13,10 @@ use instructions::*;
 // Re-export public types for external use
 pub use constants::*;
 pub use errors::*;
+pub use events::*;
 pub use state::*;
 
-declare_id!("8KTP4omvYrCqK1paqMcXmhktszqJvMSPSkBb3QH1urM8");
+declare_id!("AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4");
 
 #[program]
 pub mod domin8_prgm {
@@ -25,9 +27,14 @@ pub mod domin8_prgm {
         instructions::initialize(ctx, treasury)
     }
 
-    /// Deposit a bet to join the current game round
-    pub fn deposit_bet(ctx: Context<DepositBet>, amount: u64) -> Result<()> {
-        instructions::deposit_bet(ctx, amount)
+    /// Create a new game round with the first bet (called by first player)
+    pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
+        instructions::create_game(ctx, amount)
+    }
+
+    /// Place an additional bet in the current game round (called by subsequent players)
+    pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
+        instructions::place_bet(ctx, amount)
     }
 
     /// UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF
@@ -40,9 +47,5 @@ pub mod domin8_prgm {
         instructions::unified_resolve_and_distribute(ctx)
     }
 
-    /// EMERGENCY INSTRUCTION: Refund all players proportionally when game is stuck for >24 hours
-    /// Only callable by program authority as a last resort when VRF or other systems fail
-    pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>) -> Result<()> {
-        instructions::emergency_withdraw(ctx)
-    }
+    // TODO: Add emergency_withdraw instruction for stuck games (24+ hours)
 }

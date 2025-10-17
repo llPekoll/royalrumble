@@ -2,20 +2,28 @@ use anchor_lang::prelude::*;
 use orao_solana_vrf::cpi::accounts::RequestV2;
 use orao_solana_vrf::program::OraoVrf;
 use orao_solana_vrf::cpi::request_v2;
-use crate::state::{GameRound, GameConfig, GameStatus};
+use crate::state::{GameRound, GameConfig, GameCounter, GameStatus};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED};
+use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED};
+use crate::events::GameLocked;
 
 #[derive(Accounts)]
 pub struct UnifiedProgressToResolution<'info> {
     #[account(
+        seeds = [GAME_COUNTER_SEED],
+        bump
+    )]
+    pub counter: Account<'info, GameCounter>,
+
+    #[account(
         mut,
-        seeds = [GAME_ROUND_SEED],
+        seeds = [GAME_ROUND_SEED, counter.current_round_id.to_le_bytes().as_ref()],
         bump
     )]
     pub game_round: Account<'info, GameRound>,
-    
+
     #[account(
+        mut,
         seeds = [GAME_CONFIG_SEED],
         bump
     )]
@@ -115,7 +123,15 @@ pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>)
         },
         _ => return Err(Domin8Error::InvalidGameStatus.into()),
     }
-    
+
+    // ⭐ Emit game locked event
+    emit!(GameLocked {
+        round_id: game_round.round_id,
+        final_bet_count: game_round.bets.len() as u8,
+        total_pot: game_round.initial_pot,
+        vrf_request_pubkey: game_round.vrf_request_pubkey,
+    });
+
     Ok(())
 }
 

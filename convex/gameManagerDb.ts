@@ -25,6 +25,7 @@ export const createGameRecord = internalMutation({
       roundId,
       status: gameRound.status,
       startTimestamp: gameRound.startTimestamp ? gameRound.startTimestamp * 1000 : undefined,
+      endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined, // ⭐ NEW: Betting window end time
       entryPool: gameRound.entryPool || 0,
       winner: gameRound.winner,
       playersCount: gameRound.bets?.length || 0,
@@ -59,6 +60,7 @@ export const updateGame = internalMutation({
     lastChecked: v.optional(v.number()),
     lastUpdated: v.optional(v.number()),
     status: v.optional(v.string()),
+    endTimestamp: v.optional(v.number()), // ⭐ NEW: Allow updating betting window end time
     entryPool: v.optional(v.number()),
     winner: v.optional(v.string()),
     winnerId: v.optional(v.id("bets")), // Updated to reference bets table

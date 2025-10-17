@@ -1,6 +1,7 @@
 // Instructions module - contains all instruction handlers
+pub mod create_game;
+pub mod place_bet;
 pub mod initialize;
-pub mod deposit_bet;
 // pub mod place_spectator_bet;  // Removed for small games MVP
 // pub mod progress_to_resolution;  // Removed - replaced by unified
 // pub mod progress_to_final_battle;  // Removed for small games MVP
@@ -13,11 +14,9 @@ pub mod deposit_bet;
 pub mod unified_progress_to_resolution;
 pub mod unified_resolve_and_distribute;
 
-// Emergency instruction
-pub mod emergency_withdraw;
-
+pub use create_game::*;
+pub use place_bet::*;
 pub use initialize::*;
-pub use deposit_bet::*;
 // pub use place_spectator_bet::*;  // Removed for small games MVP
 // pub use progress_to_resolution::*;  // Removed - replaced by unified
 // pub use progress_to_final_battle::*;  // Removed for small games MVP
@@ -29,6 +28,3 @@ pub use deposit_bet::*;
 // ORAO VRF unified exports
 pub use unified_progress_to_resolution::*;
 pub use unified_resolve_and_distribute::*;
-
-// Emergency export
-pub use emergency_withdraw::*;

@@ -91,10 +91,13 @@ export const checkAndProgressGames = internalAction({
         throw new Error("Failed to get or create game");
       }
 
-      // Update last checked time
+      // Update game state from blockchain
       await ctx.runMutation(internal.gameManagerDb.updateGame, {
         gameId: game._id,
         lastChecked: now,
+        endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined, // ⭐ Sync betting window end time
+        playersCount: gameRound.bets?.length || 0,
+        entryPool: gameRound.entryPool || 0,
       });
 
       // Log current state
