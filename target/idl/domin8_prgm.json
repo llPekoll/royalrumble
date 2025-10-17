@@ -8,6 +8,218 @@
   },
   "instructions": [
     {
+      "name": "cleanup_old_game",
+      "docs": [
+        "Cleanup old game round (backend-triggered after 1 week)"
+      ],
+      "discriminator": [
+        108,
+        187,
+        63,
+        87,
+        253,
+        127,
+        241,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "counter",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "crank",
+          "docs": [
+            "The crank authority (backend wallet)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "close_betting_window",
+      "docs": [
+        "Close betting window and lock game for winner selection"
+      ],
+      "discriminator": [
+        145,
+        48,
+        50,
+        174,
+        220,
+        228,
+        120,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "counter",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "crank",
+          "docs": [
+            "The crank authority"
+          ],
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_game",
       "docs": [
         "Create a new game round with the first bet (called by first player)"
@@ -121,6 +333,34 @@
           "name": "player",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "vrf_program",
+          "docs": [
+            "ORAO VRF Program"
+          ],
+          "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
+        },
+        {
+          "name": "network_state",
+          "docs": [
+            "ORAO Network State"
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "docs": [
+            "ORAO Treasury"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vrf_request",
+          "docs": [
+            "VRF Request Account (PDA derived from game_round + seed)"
+          ],
+          "writable": true
         },
         {
           "name": "system_program",
@@ -360,154 +600,19 @@
       ]
     },
     {
-      "name": "unified_progress_to_resolution",
+      "name": "select_winner_and_payout",
       "docs": [
-        "UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness with ORAO VRF"
+        "Select winner using VRF and distribute payouts"
       ],
       "discriminator": [
-        216,
-        239,
-        230,
-        78,
-        28,
-        36,
-        242,
-        118
-      ],
-      "accounts": [
-        {
-          "name": "counter",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  117,
-                  110,
-                  116,
-                  101,
-                  114
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "game_round",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  114,
-                  111,
-                  117,
-                  110,
-                  100
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "counter.current_round_id",
-                "account": "GameCounter"
-              }
-            ]
-          }
-        },
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "crank",
-          "docs": [
-            "The crank authority"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "vrf_program",
-          "docs": [
-            "ORAO VRF Program"
-          ],
-          "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
-        },
-        {
-          "name": "network_state",
-          "docs": [
-            "ORAO Network State"
-          ],
-          "writable": true
-        },
-        {
-          "name": "treasury",
-          "docs": [
-            "ORAO Treasury"
-          ],
-          "writable": true
-        },
-        {
-          "name": "vrf_request",
-          "docs": [
-            "VRF Request Account (PDA derived from game_round + seed)"
-          ],
-          "writable": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "unified_resolve_and_distribute",
-      "docs": [
-        "UNIFIED INSTRUCTION: Resolve winner using ORAO VRF and immediately distribute winnings"
-      ],
-      "discriminator": [
-        43,
-        193,
-        22,
-        243,
-        205,
-        126,
-        13,
-        144
+        84,
+        212,
+        130,
+        51,
+        181,
+        63,
+        89,
+        24
       ],
       "accounts": [
         {
@@ -922,8 +1027,18 @@
     },
     {
       "code": 6035,
-      "name": "GameLocked",
-      "msg": "Game is locked during resolution"
+      "name": "BetsLocked",
+      "msg": "Bets are locked during resolution"
+    },
+    {
+      "code": 6036,
+      "name": "CannotCleanupActiveGame",
+      "msg": "Cannot cleanup active or current game"
+    },
+    {
+      "code": 6037,
+      "name": "GameTooRecentToCleanup",
+      "msg": "Game is too recent to cleanup (must be older than 1 week)"
     }
   ],
   "types": [
@@ -1023,19 +1138,7 @@
             }
           },
           {
-            "name": "vrf_fee_lamports",
-            "type": "u64"
-          },
-          {
-            "name": "vrf_network_state",
-            "type": "pubkey"
-          },
-          {
-            "name": "vrf_treasury",
-            "type": "pubkey"
-          },
-          {
-            "name": "game_locked",
+            "name": "bets_locked",
             "type": "bool"
           }
         ]
@@ -1181,7 +1284,7 @@
             }
           },
           {
-            "name": "initial_pot",
+            "name": "total_pot",
             "type": "u64"
           },
           {
