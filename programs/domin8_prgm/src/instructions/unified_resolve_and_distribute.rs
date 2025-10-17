@@ -124,6 +124,8 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     }
     
     // 5. RESET GAME STATE FOR NEXT ROUND
+    let config = &mut ctx.accounts.config;
+
     game_round.status = GameStatus::Idle;
     game_round.randomness_fulfilled = true;
     game_round.round_id = game_round.round_id
@@ -132,10 +134,15 @@ pub fn unified_resolve_and_distribute(ctx: Context<UnifiedResolveAndDistribute>)
     game_round.bets.clear();
     game_round.initial_pot = 0;
     game_round.start_timestamp = 0;
-    
-    msg!("Game {} completed and reset - ready for round {}", 
-         game_round.round_id.saturating_sub(1), 
+    game_round.end_timestamp = 0;  // Reset betting window end time
+
+    // ⭐ Unlock game for next round
+    config.game_locked = false;
+
+    msg!("Game {} completed and reset - ready for round {}",
+         game_round.round_id.saturating_sub(1),
          game_round.round_id);
+    msg!("Game unlocked - accepting bets for next round");
     
     Ok(())
 }

@@ -102,4 +102,13 @@ pub enum Domin8Error {
 
     #[msg("No funds available to refund")]
     NoFundsToRefund,
+
+    #[msg("Betting window has closed")]
+    BettingWindowClosed,
+
+    #[msg("Betting window is still open")]
+    BettingWindowStillOpen,
+
+    #[msg("Game is locked during resolution")]
+    GameLocked,
 }

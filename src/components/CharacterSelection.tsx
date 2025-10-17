@@ -9,11 +9,7 @@ import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
 import { validateBetAmount } from "../lib/solana-deposit-bet";
 import { useWallets } from "@privy-io/react-auth/solana";
-import {
-  SystemProgram,
-  PublicKey,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
+import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import {
   createSolanaRpc,
@@ -154,16 +150,21 @@ const CharacterSelection = memo(function CharacterSelection({
       }
 
       // Create the deposit bet instruction manually
-      const programId = new PublicKey('35ooYhrDLzTz3U7BH9bYivSsLJYm4vtwzoPNFfsQhcof');
-      
-      // Derive PDAs for game_round and vault (matching Rust constants)
-      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode('game_round')],
+      const programId = new PublicKey("8KTP4omvYrCqK1paqMcXmhktszqJvMSPSkBb3QH1urM8");
+
+      // Derive PDAs for config, game_round and vault (matching Rust constants)
+      const [configPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode("game_config")],
         programId
       );
-      
+
+      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode("game_round")],
+        programId
+      );
+
       const [vaultPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode('vault')],
+        [new TextEncoder().encode("vault")],
         programId
       );
 
@@ -172,17 +173,18 @@ const CharacterSelection = memo(function CharacterSelection({
 
       // Configure RPC connection to point to devnet
       const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-      const rpcUrl = network === "mainnet" 
-        ? "https://api.mainnet-beta.solana.com"
-        : "https://api.devnet.solana.com";
+      const rpcUrl =
+        network === "mainnet"
+          ? "https://api.mainnet-beta.solana.com"
+          : "https://api.devnet.solana.com";
 
       // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
       const instructionData = new Uint8Array(16);
-      
+
       // Use actual discriminator from built program IDL
       const discriminator = new Uint8Array([82, 23, 26, 58, 40, 4, 106, 159]);
       instructionData.set(discriminator, 0);
-      
+
       // Write amount as little-endian u64
       const view = new DataView(instructionData.buffer);
       view.setBigUint64(8, BigInt(amountLamports), true);
@@ -198,19 +200,22 @@ const CharacterSelection = memo(function CharacterSelection({
       }
 
       console.log("Vault exists:", vaultExists);
-      console.log("Vault PDA:", vaultPDA.toString());
+      console.log("Config PDA:", configPDA.toString());
       console.log("Game Round PDA:", gameRoundPDA.toString());
+      console.log("Vault PDA:", vaultPDA.toString());
 
       // Create deposit_bet instruction in @solana/kit format
+      // Account order must match the Rust instruction: config, game_round, vault, player, system_program
       const depositBetInstruction = {
         programAddress: address(programId.toString()),
         accounts: [
-          { address: address(gameRoundPDA.toString()), role: 1 }, // writable 
-          { address: address(vaultPDA.toString()), role: 1 }, // writable  
-          { address: address(selectedWallet.address), role: 3 }, // signer + writable 
-          { address: address(SystemProgram.programId.toString()), role: 0 } // readonly 
+          { address: address(configPDA.toString()), role: 0 }, // readonly
+          { address: address(gameRoundPDA.toString()), role: 1 }, // writable
+          { address: address(vaultPDA.toString()), role: 1 }, // writable
+          { address: address(selectedWallet.address), role: 3 }, // signer + writable
+          { address: address(SystemProgram.programId.toString()), role: 0 }, // readonly
         ],
-        data: instructionData
+        data: instructionData,
       };
 
       console.log("Created deposit bet instruction:", depositBetInstruction);
@@ -234,8 +239,8 @@ const CharacterSelection = memo(function CharacterSelection({
       const receipts = await selectedWallet.signAndSendAllTransactions([
         {
           chain: chainId,
-          transaction
-        }
+          transaction,
+        },
       ]);
 
       console.log("Transaction successful:", receipts);
@@ -243,8 +248,8 @@ const CharacterSelection = memo(function CharacterSelection({
       // Convert signature to hex string for display
       const signature = receipts[0].signature;
       const signatureHex = Array.from(signature as Uint8Array)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
       console.log("[CharacterSelection] Registering bet in Convex...");
 

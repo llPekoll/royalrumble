@@ -1,7 +1,7 @@
 /// Program constants and configuration
 
 /// Game constraints
-pub const MAX_PLAYERS: usize = 64;
+// Note: No MAX_PLAYERS limit - account dynamically reallocates!
 
 /// Financial constants
 pub const MIN_BET_LAMPORTS: u64 = 10_000_000; // 0.01 SOL

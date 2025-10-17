@@ -3,7 +3,6 @@
 
 
 
-
 convex/_generated
 
 
@@ -11,8 +10,11 @@ convex/_generated
 solana
 
 Cargo.lock
-/target
-
+/target/debug
+/target/deploy
+/target/release
+/target/types
+/target/sbpf-solana-solana
 /coverage
 /dist
 

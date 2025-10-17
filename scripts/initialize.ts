@@ -107,11 +107,14 @@ async function main() {
     console.log(
       `  Waiting Phase Duration: ${gameConfig.smallGameDurationConfig.waitingPhaseDuration} seconds`
     );
+    console.log(`  Game Locked: ${gameConfig.gameLocked} ⭐ NEW`);
     console.log("");
 
     console.log("📋 Initial Game Round State:");
     console.log(`  Round ID: ${gameRound.roundId.toString()}`);
     console.log(`  Status: ${Object.keys(gameRound.status)[0]}`);
+    console.log(`  Start Timestamp: ${gameRound.startTimestamp.toString()}`);
+    console.log(`  End Timestamp: ${gameRound.endTimestamp.toString()} ⭐ NEW`);
     console.log(`  Players: ${gameRound.bets.length}`);
     console.log(
       `  Initial Pot: ${gameRound.initialPot.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`

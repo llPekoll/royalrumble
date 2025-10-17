@@ -52,12 +52,16 @@ pub fn initialize(
     config.small_game_duration_config = GameDurationConfig {
         waiting_phase_duration: DEFAULT_SMALL_GAME_WAITING_DURATION,
     };
-    
-    
+
+    // Initialize game control flags
+    config.game_locked = false;  // Start unlocked
+
+
     // Initialize game round in idle state
     game_round.round_id = 0;
     game_round.status = GameStatus::Idle;
     game_round.start_timestamp = 0;
+    game_round.end_timestamp = 0;
     game_round.bets = Vec::new();
     // game_round.finalists = Vec::new(); // Removed for small games MVP
     // game_round.spectator_bets = Vec::new(); // Removed for small games MVP

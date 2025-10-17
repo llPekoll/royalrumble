@@ -4,7 +4,7 @@ import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { SolanaClient } from "./lib/solana";
 import { GameStatus, TRANSACTION_TYPES } from "./lib/types";
-
+import { Buffer } from "buffer";
 /**
  * Main cron job handler - checks and progresses games as needed
  * Called every 15 seconds by the cron job
@@ -173,6 +173,7 @@ async function processGameStatus(
 
 /**
  * Handle waiting phase - UNIFIED: progress directly to resolution with ORAO VRF request
+ * Uses end_timestamp from smart contract for trustless time enforcement
  */
 async function handleWaitingPhase(
   ctx: any,
@@ -182,14 +183,11 @@ async function handleWaitingPhase(
   gameConfig: any,
   now: number
 ) {
-  // Calculate when waiting phase should end
-  const waitingDuration = gameConfig.smallGameDurationConfig.waitingPhaseDuration;
-  const waitingEndTime = gameRound.startTimestamp * 1000 + waitingDuration * 1000;
+  // ⭐ Use end_timestamp from smart contract (already in seconds)
+  const waitingEndTime = gameRound.endTimestamp * 1000; // Convert to milliseconds
 
   if (now >= waitingEndTime) {
-    console.log(
-      `Waiting phase ended for round ${game.roundId}, progressing with unified ORAO VRF`
-    );
+    console.log(`Betting window closed for round ${game.roundId} (end_timestamp: ${gameRound.endTimestamp}), progressing with unified ORAO VRF`);
 
     try {
       // UNIFIED CALL: Progress to resolution + ORAO VRF request in one transaction

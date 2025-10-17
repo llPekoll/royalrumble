@@ -142,13 +142,19 @@ pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>) -> Result<()> {
     }
     
     // Reset game state
+    let config = &mut ctx.accounts.config;
+
     game_round.status = GameStatus::Idle;
     game_round.bets.clear();
     game_round.initial_pot = 0;
     game_round.start_timestamp = 0;
+    game_round.end_timestamp = 0;  // Reset betting window end time
     game_round.winner = Pubkey::default();
     game_round.vrf_request_pubkey = Pubkey::default();
     game_round.randomness_fulfilled = false;
+
+    // ⭐ Unlock game after emergency refund
+    config.game_locked = false;
     
     msg!("EMERGENCY WITHDRAWAL COMPLETED");
     msg!("Total refunded: {} lamports", total_refunded);

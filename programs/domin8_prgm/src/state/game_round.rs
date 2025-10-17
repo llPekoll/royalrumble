@@ -21,8 +21,9 @@ pub struct GameRound {
     pub round_id: u64,
     pub status: GameStatus,
     pub start_timestamp: i64,
-    
-    // Individual bets (max 64)
+    pub end_timestamp: i64,        // When betting window closes
+
+    // Individual bets (unlimited - dynamically grows via realloc)
     pub bets: Vec<BetEntry>,
     
     
@@ -39,13 +40,14 @@ pub struct GameRound {
 }
 
 impl GameRound {
-    /// Account space calculation for small games MVP with ORAO VRF:
-    /// 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start_timestamp)
-    /// + 4 (bets vec len) + (64 * 48) (max bets)
-    /// + 8 (initial_pot) + 32 (winner) 
+    /// Base account space calculation (no bets):
+    /// 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start_timestamp) + 8 (end_timestamp)
+    /// + 4 (bets vec len) + 0 (dynamic bets - grows with realloc)
+    /// + 8 (initial_pot) + 32 (winner)
     /// + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
-    /// = 8 + 8 + 1 + 8 + 4 + 3072 + 8 + 32 + 32 + 32 + 1 = 3206 bytes (~3.1KB)
-    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 4 + (64 * BetEntry::LEN) + 8 + 32 + 32 + 32 + 1;
+    /// = 8 + 8 + 1 + 8 + 8 + 4 + 0 + 8 + 32 + 32 + 32 + 1 = 142 bytes (base)
+    /// Each bet adds 48 bytes dynamically via realloc
+    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 8 + 4 + 8 + 32 + 32 + 32 + 1;
 
     /// Check if the game is in a state where bets can be placed
     pub fn can_accept_bets(&self) -> bool {

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { Toaster } from "sonner";
 import "./index.css";
-import App from "./App.tsx";
+import { Root } from "./Root.tsx";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
 import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
@@ -67,7 +67,7 @@ createRoot(document.getElementById("root")!).render(
           // },
         }}
       >
-        <App />
+        <Root />
       </PrivyProvider>
       <Toaster />
     </ConvexProvider>

@@ -52,16 +52,28 @@ pub struct UnifiedProgressToResolution<'info> {
 /// UNIFIED INSTRUCTION: Progress game from Waiting directly to AwaitingWinnerRandomness
 /// This replaces the old progress_to_resolution + separate VRF request
 pub fn unified_progress_to_resolution(ctx: Context<UnifiedProgressToResolution>) -> Result<()> {
+    let config = &mut ctx.accounts.config;
     let game_round = &mut ctx.accounts.game_round;
-    
+    let clock = Clock::get()?;
+
     // Validate game state
     require!(
         game_round.status == GameStatus::Waiting,
         Domin8Error::InvalidGameStatus
     );
-    
+
+    // ⭐ Validate betting window has closed (prevents early progression)
+    require!(
+        clock.unix_timestamp >= game_round.end_timestamp,
+        Domin8Error::BettingWindowStillOpen
+    );
+
+    // ⭐ Lock the game to prevent new bets during resolution
+    config.game_locked = true;
+
     let bet_count = game_round.bets.len();
     msg!("Unified progress: transitioning game {} with {} bets", game_round.round_id, bet_count);
+    msg!("Game locked - no new bets allowed during resolution");
     
     match bet_count {
         0 => {
