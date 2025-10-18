@@ -1,0 +1,673 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address payable",
+				"name": "_treasury",
+				"type": "address"
+			},
+			{
+				"internalType": "uint16",
+				"name": "_houseFeeBasisPoints",
+				"type": "uint16"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_minBet",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint64",
+				"name": "_waitingPhaseDuration",
+				"type": "uint64"
+			},
+			{
+				"internalType": "address",
+				"name": "_vrfCoordinator",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_subscriptionId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "_keyHash",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "ArithmeticOverflow",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "BetTooSmall",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "BetsLocked",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "BettingWindowClosed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "BettingWindowStillOpen",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidGameStatus",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NoPlayers",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "have",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "want",
+				"type": "address"
+			}
+		],
+		"name": "OnlyCoordinatorCanFulfill",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "have",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "coordinator",
+				"type": "address"
+			}
+		],
+		"name": "OnlyOwnerOrCoordinator",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "RandomnessNotFulfilled",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "TransferFailed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "Unauthorized",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "ZeroAddress",
+		"type": "error"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "betCount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "totalPot",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "endTimestamp",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "isFirstBet",
+				"type": "bool"
+			}
+		],
+		"name": "BetPlaced",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "vrfCoordinator",
+				"type": "address"
+			}
+		],
+		"name": "CoordinatorSet",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "startTimestamp",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "endTimestamp",
+				"type": "uint64"
+			}
+		],
+		"name": "GameInitialized",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "finalBetCount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "totalPot",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "vrfRequestId",
+				"type": "bytes32"
+			}
+		],
+		"name": "GameLocked",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "oldRoundId",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "newRoundId",
+				"type": "uint64"
+			}
+		],
+		"name": "GameReset",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferRequested",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "requestId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			}
+		],
+		"name": "RandomnessFulfilled",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "requestId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			}
+		],
+		"name": "RandomnessRequested",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "winner",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "totalPot",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "houseFee",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "winnerPayout",
+				"type": "uint256"
+			}
+		],
+		"name": "WinnerSelected",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "acceptOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "authority",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "betsLocked",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "closeBettingWindow",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "createGame",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "currentRoundId",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "gameDurationConfig",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "waitingPhaseDuration",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"name": "gameRounds",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "roundId",
+				"type": "uint64"
+			},
+			{
+				"internalType": "enum Domin8.GameStatus",
+				"name": "status",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint64",
+				"name": "startTimestamp",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "endTimestamp",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint256",
+				"name": "totalPot",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "winner",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "randomnessFulfilled",
+				"type": "bool"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "vrfRequestId",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "houseFeeBasisPoints",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "minBet",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "placeBet",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "requestId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "randomWords",
+				"type": "uint256[]"
+			}
+		],
+		"name": "rawFulfillRandomWords",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"name": "s_roundToRandomWord",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "s_vrfCoordinator",
+		"outputs": [
+			{
+				"internalType": "contract IVRFCoordinatorV2Plus",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "s_vrfRequestIdToRoundId",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "selectWinnerAndPayout",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_vrfCoordinator",
+				"type": "address"
+			}
+		],
+		"name": "setCoordinator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "treasury",
+		"outputs": [
+			{
+				"internalType": "address payable",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
