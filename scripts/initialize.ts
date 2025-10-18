@@ -56,10 +56,14 @@ async function main() {
   // Check if already initialized
   try {
     const existingConfig = await program.account.gameConfig.fetch(configPDA);
+    
+    const existingCounter = await program.account.gameCounter.fetch(counterPDA);
     console.log("⚠️  Program is already initialized!");
     console.log(`  Treasury: ${existingConfig.treasury.toString()}`);
     console.log(`  Authority: ${existingConfig.authority.toString()}`);
     console.log(`  House Fee: ${existingConfig.houseFeeBasisPoints} basis points`);
+    console.log(`  Min Bet: ${existingConfig.minBetLamports.toNumber()} lamports`);
+    console.log(`  Current Round ID: ${existingCounter.currentRoundId.toString()}`);
     console.log("");
     console.log("If you want to reinitialize, you need to:");
     console.log("  1. Close the existing accounts");
@@ -112,7 +116,7 @@ async function main() {
     console.log(
       `  Waiting Phase Duration: ${gameConfig.smallGameDurationConfig.waitingPhaseDuration} seconds`
     );
-    console.log(`  Game Locked: ${gameConfig.gameLocked}`);
+    console.log(`  Game Locked: ${gameConfig.betsLocked}`);
     console.log("");
 
     console.log("📋 Game Counter State:");

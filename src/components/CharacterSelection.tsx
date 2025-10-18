@@ -154,17 +154,17 @@ const CharacterSelection = memo(function CharacterSelection({
 
       // Derive PDAs for config, game_counter and vault (matching Rust constants)
       const [configPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("game_config")],
+        [Buffer.from("game_config", "utf-8")],
         programId
       );
 
       const [gameCounterPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("game_counter")],
+        [Buffer.from("game_counter", "utf-8")],
         programId
       );
 
       const [vaultPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("vault")],
+        [Buffer.from("vault", "utf-8")],
         programId
       );
 
@@ -180,25 +180,99 @@ const CharacterSelection = memo(function CharacterSelection({
 
       // Get current round ID to determine game round PDA
       const { getAccountInfo } = createSolanaRpc(rpcUrl);
-      const gameCounterInfo = await getAccountInfo(address(gameCounterPDA.toString())).send();
+      
+      // First check if config.bets_locked is false
+      const configInfo = await getAccountInfo(address(configPDA.toString()), {
+        encoding: 'base64'
+      }).send();
+      
+      if (!configInfo.value) {
+        throw new Error("Game config account not found. Has the program been initialized?");
+      }
+      
+      const configData = Array.isArray(configInfo.value.data) 
+        ? Buffer.from(configInfo.value.data[0], 'base64')
+        : Buffer.from(configInfo.value.data as string, 'base64');
+      
+      // GameConfig layout (after 8-byte discriminator):
+      // authority (32 bytes) + treasury (32 bytes) + house_fee_basis_points (2 bytes) + 
+      // min_bet_lamports (8 bytes) + small_game_duration_config (8 bytes) + bets_locked (1 byte)
+      const betsLockedOffset = 8 + 32 + 32 + 2 + 8 + 8; // = 90
+      const betsLocked = configData[betsLockedOffset] !== 0;
+      
+      console.log("🎮 Game Config Status:", {
+        betsLocked,
+        configDataLength: configData.length,
+      });
+      
+      if (betsLocked) {
+        throw new Error("Bets are currently locked. The game is in resolution phase. Please wait for the current game to finish.");
+      }
+      
+      const gameCounterInfo = await getAccountInfo(address(gameCounterPDA.toString()), {
+        encoding: 'base64'
+      }).send();
       
       if (!gameCounterInfo.value) {
         throw new Error("Game counter account not found. Has the program been initialized?");
       }
 
-      // Parse current round ID from account data (assuming it's stored at offset 8 as u64 little-endian)
-      const data = gameCounterInfo.value.data;
-      // Decode base58 string to Uint8Array
-      const dataBytes = Buffer.from(data as string, 'base64');
-      const currentRoundId = Number(new DataView(dataBytes.buffer).getBigUint64(8, true));
+      console.log("🔍 Raw RPC response:", {
+        dataType: typeof gameCounterInfo.value.data,
+        isArray: Array.isArray(gameCounterInfo.value.data),
+        data: gameCounterInfo.value.data,
+      });
 
-      // Derive game round PDA for current round
+      // Parse current round ID from account data (stored at offset 8 as u64 little-endian)
+      const data = gameCounterInfo.value.data;
+      
+      // The RPC returns data in different formats depending on encoding
+      // It could be: [number, 'base64'] tuple or just a base64 string
+      let dataBytes: Buffer;
+      
+      if (Array.isArray(data)) {
+        // Format: [base64String, 'base64']
+        dataBytes = Buffer.from(data[0], 'base64');
+      } else if (typeof data === 'string') {
+        // Format: base64 string directly
+        dataBytes = Buffer.from(data, 'base64');
+      } else {
+        throw new Error(`Unexpected data format: ${typeof data}`);
+      }
+      
+      console.log("📊 Account data:", {
+        dataLength: dataBytes.length,
+        firstBytes: Array.from(dataBytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' '),
+      });
+      
+      // Anchor account layout: 8 bytes discriminator + account fields
+      // GameCounter has: current_round_id (u64 at offset 8)
+      const currentRoundIdBigInt = dataBytes.readBigUInt64LE(8);
+      
+      // Convert to number, but check for overflow (JS Number.MAX_SAFE_INTEGER = 2^53-1)
+      if (currentRoundIdBigInt > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error(`Round ID ${currentRoundIdBigInt} exceeds safe integer range`);
+      }
+      const currentRoundId = Number(currentRoundIdBigInt);
+      
+      console.log("✅ Current Round ID from blockchain:", currentRoundId);
+
+      // Derive game round PDA for current round using same logic as Rust program
       const roundIdBuffer = Buffer.alloc(8);
       roundIdBuffer.writeBigUInt64LE(BigInt(currentRoundId));
-      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("game_round"), roundIdBuffer],
+      const [gameRoundPDA, gameRoundBump] = PublicKey.findProgramAddressSync(
+        [Buffer.from("game_round", "utf-8"), roundIdBuffer],
         programId
       );
+
+      console.log("🔑 Game Round PDA Derivation:", {
+        seed1: "game_round",
+        seed1Bytes: Array.from(Buffer.from("game_round", "utf-8")).map(b => b.toString(16).padStart(2, '0')).join(' '),
+        seed2RoundId: currentRoundId,
+        seed2Bytes: Array.from(roundIdBuffer).map(b => b.toString(16).padStart(2, '0')).join(' '),
+        derivedPDA: gameRoundPDA.toString(),
+        bump: gameRoundBump,
+      });
 
       // Check if game round already exists
       let gameRoundExists = false;
@@ -209,12 +283,21 @@ const CharacterSelection = memo(function CharacterSelection({
         gameRoundExists = false;
       }
 
-      console.log("Game round exists:", gameRoundExists);
-      console.log("Config PDA:", configPDA.toString());
-      console.log("Game Counter PDA:", gameCounterPDA.toString());
-      console.log("Game Round PDA:", gameRoundPDA.toString());
-      console.log("Vault PDA:", vaultPDA.toString());
-      console.log("Current Round ID:", currentRoundId);
+      console.log("🎮 Game State:", {
+        roundId: currentRoundId,
+        gameRoundExists,
+        gameRoundPDA: gameRoundPDA.toString(),
+        gameRoundBump,
+        roundIdBufferHex: roundIdBuffer.toString('hex'),
+      });
+      
+      console.log("📍 All PDAs:", {
+        program: programId.toString(),
+        config: configPDA.toString(),
+        gameCounter: gameCounterPDA.toString(),
+        gameRound: gameRoundPDA.toString(),
+        vault: vaultPDA.toString(),
+      });
 
       let instruction;
       
@@ -225,24 +308,83 @@ const CharacterSelection = memo(function CharacterSelection({
         // VRF related accounts (required for create_game)
         const vrfProgramId = new PublicKey("VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"); // ORAO VRF Program ID from IDL
         
-        // ORAO Network State PDA
+        // ORAO Network State PDA (from ORAO VRF IDL)
         const [networkStatePDA] = PublicKey.findProgramAddressSync(
-          [new TextEncoder().encode("orao-vrf-network-state")],
+          [Buffer.from("orao-vrf-network-configuration", "utf-8")],
           vrfProgramId
         );
         
-        // ORAO Treasury PDA  
-        const [treasuryPDA] = PublicKey.findProgramAddressSync(
-          [new TextEncoder().encode("orao-vrf-treasury")],
-          vrfProgramId
-        );
+        // ORAO Treasury PDA (from NetworkState account)
+        // Note: The treasury is stored in the network state account, not derived as a PDA
+        // We need to fetch it from the network state account
+        const networkStateInfo = await getAccountInfo(address(networkStatePDA.toString()), {
+          encoding: 'base64'
+        }).send();
         
-        // VRF Request PDA (derived from game round + seed)
-        const seed = Array.from({ length: 32 }, (_, i) => i % 256); // Simple deterministic seed
+        if (!networkStateInfo.value) {
+          throw new Error("ORAO VRF network state account not found. ORAO VRF might not be deployed on this network.");
+        }
+        
+        // Parse treasury from NetworkState account
+        // NetworkState layout: discriminator (8) + authority (32) + treasury (32) + ...
+        const networkStateData = Array.isArray(networkStateInfo.value.data)
+          ? Buffer.from(networkStateInfo.value.data[0], 'base64')
+          : Buffer.from(networkStateInfo.value.data as string, 'base64');
+        
+        const treasuryBytes = networkStateData.slice(8 + 32, 8 + 32 + 32);
+        const treasuryPDA = new PublicKey(treasuryBytes);
+        
+        console.log("🔐 ORAO VRF Accounts:", {
+          vrfProgram: vrfProgramId.toString(),
+          networkState: networkStatePDA.toString(),
+          treasury: treasuryPDA.toString(),
+        });
+        
+        // Verify treasury account exists
+        const treasuryInfo = await getAccountInfo(address(treasuryPDA.toString())).send();
+        if (!treasuryInfo.value) {
+          throw new Error("ORAO VRF treasury account not found. ORAO VRF might not be configured correctly.");
+        }
+        
+        console.log("✅ ORAO VRF accounts validated successfully");
+        
+        // Generate VRF seed matching Rust: generate_vrf_seed(round_id, timestamp)
+        // seed[0..8] = round_id.to_le_bytes()
+        // seed[8..16] = timestamp.to_le_bytes()
+        const vrfSeed = new Uint8Array(32);
+        const timestamp = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+        
+        // Write round_id as little-endian u64 at offset 0
+        const roundIdView = new DataView(vrfSeed.buffer);
+        roundIdView.setBigUint64(0, BigInt(currentRoundId), true);
+        
+        // Write timestamp as little-endian i64 at offset 8
+        roundIdView.setBigInt64(8, BigInt(timestamp), true);
+        
+        // ORAO VRF Request PDA derivation: [b"orao-vrf-randomness-request", seed.as_ref()]
         const [vrfRequestPDA] = PublicKey.findProgramAddressSync(
-          [new TextEncoder().encode("orao-vrf-request"), Uint8Array.from(seed)],
+          [Buffer.from("orao-vrf-randomness-request", "utf-8"), vrfSeed],
           vrfProgramId
         );
+        
+        console.log("🎲 VRF Seed generated:", {
+          roundId: currentRoundId,
+          timestamp,
+          seedHex: Buffer.from(vrfSeed).toString('hex').slice(0, 32),
+          vrfRequestPDA: vrfRequestPDA.toString(),
+        });
+        
+        // Verify VRF request account doesn't exist yet (ORAO will create it)
+        try {
+          const vrfRequestInfo = await getAccountInfo(address(vrfRequestPDA.toString())).send();
+          if (vrfRequestInfo.value) {
+            console.warn("⚠️ VRF request account already exists! This might cause issues.");
+          } else {
+            console.log("✅ VRF request account doesn't exist yet (ORAO will create it)");
+          }
+        } catch (error) {
+          console.log("✅ VRF request account doesn't exist yet (good)");
+        }
 
         // Create instruction discriminator for create_game (8 bytes)
         const createGameDiscriminator = new Uint8Array([124, 69, 75, 66, 184, 220, 72, 206]); // From IDL
@@ -271,6 +413,24 @@ const CharacterSelection = memo(function CharacterSelection({
           ],
           data: instructionData,
         };
+        
+        console.log("📋 create_game instruction details:", {
+          programId: programId.toString(),
+          accountsCount: 10,
+          instructionDataHex: Array.from(instructionData).map(b => b.toString(16).padStart(2, '0')).join(' '),
+          accounts: [
+            `0: config (R) - ${configPDA.toString()}`,
+            `1: counter (W) - ${gameCounterPDA.toString()}`,
+            `2: game_round (W+Init) - ${gameRoundPDA.toString()}`,
+            `3: vault (W) - ${vaultPDA.toString()}`,
+            `4: player (S+W) - ${selectedWallet.address}`,
+            `5: vrf_program (R) - ${vrfProgramId.toString()}`,
+            `6: network_state (W) - ${networkStatePDA.toString()}`,
+            `7: treasury (W) - ${treasuryPDA.toString()}`,
+            `8: vrf_request (W) - ${vrfRequestPDA.toString()}`,
+            `9: system_program (R) - ${SystemProgram.programId.toString()}`,
+          ],
+        });
       } else {
         // This is a subsequent bet - call place_bet instruction
         // Create instruction discriminator for place_bet (8 bytes)  
