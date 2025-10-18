@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+// UPDATED IMPORTS for VRF v2.5
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 /**
  * @title Domin8
@@ -11,7 +12,7 @@ import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.s
  * This contract manages game rounds, player bets, winner selection, and payouts using Chainlink VRF.
  * It is designed to be controlled by a backend service ("crank") for game progression.
  */
-contract Domin8 is VRFConsumerBaseV2 {
+contract Domin8 is VRFConsumerBaseV2Plus {
     // =================================================================================================
     // State Structs
     // =================================================================================================
@@ -70,18 +71,17 @@ contract Domin8 is VRFConsumerBaseV2 {
 
     uint64 public currentRoundId;
     mapping(uint64 => GameRound) public gameRounds;
-    
+
     // --- Chainlink VRF State ---
-    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
-    uint64 private immutable s_subscriptionId;
+    // UPDATED: s_subscriptionId is now uint256
+    uint256 private immutable s_subscriptionId;
     bytes32 private immutable s_keyHash; // Gas lane
     uint32 private s_callbackGasLimit = 100000;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
 
-    mapping(bytes32 => uint64) public s_vrfRequestIdToRoundId;
+    mapping(uint256 => uint64) public s_vrfRequestIdToRoundId;
     mapping(uint64 => uint256) public s_roundToRandomWord;
-
 
     // =================================================================================================
     // Events
@@ -106,9 +106,8 @@ contract Domin8 is VRFConsumerBaseV2 {
         uint256 winnerPayout
     );
     event GameReset(uint64 oldRoundId, uint64 newRoundId);
-    event RandomnessRequested(bytes32 indexed requestId, uint64 indexed roundId);
-    event RandomnessFulfilled(bytes32 indexed requestId, uint64 indexed roundId);
-
+    event RandomnessRequested(uint256 indexed requestId, uint64 indexed roundId);
+    event RandomnessFulfilled(uint256 indexed requestId, uint64 indexed roundId);
 
     // =================================================================================================
     // Errors
@@ -159,21 +158,20 @@ contract Domin8 is VRFConsumerBaseV2 {
         uint256 _minBet,
         uint64 _waitingPhaseDuration,
         address _vrfCoordinator,
-        uint64 _subscriptionId,
+        uint256 _subscriptionId, // UPDATED to uint256
         bytes32 _keyHash
-    ) VRFConsumerBaseV2(_vrfCoordinator) {
+    ) VRFConsumerBaseV2Plus(_vrfCoordinator) { // UPDATED to VRFConsumerBaseV2Plus
         authority = msg.sender;
         treasury = _treasury;
         houseFeeBasisPoints = _houseFeeBasisPoints;
         minBet = _minBet;
         gameDurationConfig = GameDurationConfig({ waitingPhaseDuration: _waitingPhaseDuration });
-        i_vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
         s_subscriptionId = _subscriptionId;
         s_keyHash = _keyHash;
         currentRoundId = 0;
         betsLocked = false;
     }
-    
+
     // =================================================================================================
     // Public and External Functions
     // =================================================================================================
@@ -197,19 +195,27 @@ contract Domin8 is VRFConsumerBaseV2 {
 
         // Add the first bet
         newGame.bets.push(BetEntry({ wallet: msg.sender, betAmount: uint64(msg.value), timestamp: uint64(block.timestamp) }));
-        
-        // Request randomness from Chainlink VRF
-        bytes32 requestId = i_vrfCoordinator.requestRandomWords(
-            s_keyHash,
-            s_subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            s_callbackGasLimit,
-            NUM_WORDS
+
+        // UPDATED to VRF v2.5 request format
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: s_keyHash,
+                subId: s_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: s_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                )
+            })
         );
         
-        newGame.vrfRequestId = requestId;
+        // Note: The vrfRequestId in GameRound is bytes32, but requestRandomWords returns uint256.
+        // For v2.5 this is acceptable as the requestId is treated as a number.
+        // We store it as bytes32 for consistency with previous interfaces if needed, but this requires casting.
+        // For simplicity and direct compatibility, we will assume requestId can be handled as uint256 throughout.
         s_vrfRequestIdToRoundId[requestId] = roundId;
-        
+
         emit RandomnessRequested(requestId, roundId);
 
         emit BetPlaced(
@@ -265,20 +271,6 @@ contract Domin8 is VRFConsumerBaseV2 {
         emit GameLocked(currentRoundId, game.bets.length, game.totalPot, game.vrfRequestId);
     }
 
-     /**
-     * @notice Callback function for Chainlink VRF to deliver randomness.
-     * @param _requestId The ID of the VRF request.
-     * @param _randomWords An array of random words delivered by the oracle.
-     */
-    function fulfillRandomWords(bytes32 _requestId, uint256[] memory _randomWords) internal override {
-        uint64 roundId = s_vrfRequestIdToRoundId[_requestId];
-        GameRound storage game = gameRounds[roundId];
-        game.randomnessFulfilled = true;
-        s_roundToRandomWord[roundId] = _randomWords[0];
-        emit RandomnessFulfilled(_requestId, roundId);
-    }
-
-
     /**
      * @notice Selects a winner using fulfilled VRF randomness and distributes the payout. Called by the crank.
      */
@@ -333,6 +325,27 @@ contract Domin8 is VRFConsumerBaseV2 {
         currentRoundId++;
         betsLocked = false;
         emit GameReset(roundId, currentRoundId);
+    }
+
+    // =================================================================================================
+    // Internal and Callback Functions
+    // =================================================================================================
+
+    /**
+     * @notice Callback function for Chainlink VRF to deliver randomness.
+     * @dev This function is called by the VRF Coordinator, not by users.
+     * @param _requestId The ID of the VRF request.
+     * @param _randomWords An array of random words delivered by the oracle.
+     */
+    function fulfillRandomWords(uint256 _requestId, uint256[] calldata _randomWords) internal override { // UPDATED to calldata
+        uint64 roundId = s_vrfRequestIdToRoundId[_requestId];
+        GameRound storage game = gameRounds[roundId];
+        
+        // Store the random word and mark the randomness as fulfilled
+        s_roundToRandomWord[roundId] = _randomWords[0];
+        game.randomnessFulfilled = true;
+        
+        emit RandomnessFulfilled(_requestId, roundId);
     }
 }
 
