@@ -1,0 +1,10 @@
+/mnt/d/dev/royalrumble/target/sbf-solana-solana/release/deps/spl_token_group_interface-be2531c6f6eee094.so: /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/lib.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/error.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/instruction.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/state.rs
+
+/mnt/d/dev/royalrumble/target/sbf-solana-solana/release/deps/libspl_token_group_interface-be2531c6f6eee094.rlib: /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/lib.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/error.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/instruction.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/state.rs
+
+/mnt/d/dev/royalrumble/target/sbf-solana-solana/release/deps/spl_token_group_interface-be2531c6f6eee094.d: /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/lib.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/error.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/instruction.rs /home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/state.rs
+
+/home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/lib.rs:
+/home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/error.rs:
+/home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/instruction.rs:
+/home/metadev3/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spl-token-group-interface-0.5.0/src/state.rs:

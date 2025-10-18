@@ -28,8 +28,9 @@ pub mod domin8_prgm {
     }
 
     /// Create a new game round with the first bet (called by first player)
-    pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
-        instructions::create_game(ctx, amount)
+    /// `seed` must be provided by the client and used to derive the ORAO request PDA
+    pub fn create_game(ctx: Context<CreateGame>, amount: u64, seed: [u8; 32]) -> Result<()> {
+        instructions::create_game(ctx, amount, seed)
     }
 
     /// Place an additional bet in the current game round (called by subsequent players)

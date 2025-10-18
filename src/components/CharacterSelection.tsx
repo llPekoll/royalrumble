@@ -387,14 +387,28 @@ const CharacterSelection = memo(function CharacterSelection({
         }
 
         // Create instruction discriminator for create_game (8 bytes)
-        const createGameDiscriminator = new Uint8Array([124, 69, 75, 66, 184, 220, 72, 206]); // From IDL
-        
-        const instructionData = new Uint8Array(16);
-        instructionData.set(createGameDiscriminator, 0);
-        
-        // Write amount as little-endian u64
-        const view = new DataView(instructionData.buffer);
-        view.setBigUint64(8, BigInt(amountLamports), true);
+  const createGameDiscriminator = new Uint8Array([124, 69, 75, 66, 184, 220, 72, 206]); // From IDL
+
+  // Instruction data layout for create_game: [discriminator:8][amount:u64:8][seed:[u8;32]] = 48 bytes
+  const instructionData = new Uint8Array(48);
+  instructionData.set(createGameDiscriminator, 0);
+
+  // Write amount as little-endian u64 at offset 8
+  const view = new DataView(instructionData.buffer);
+  view.setBigUint64(8, BigInt(amountLamports), true);
+
+  // Generate VRF seed matching Rust generate_vrf_seed(round_id, timestamp)
+  // seed[0..8] = round_id.to_le_bytes(); seed[8..16] = timestamp.to_le_bytes(); rest zero
+  const vrfSeed = new Uint8Array(32);
+  // round id as little-endian u64 at offset 0
+  const roundIdView = new DataView(vrfSeed.buffer);
+  roundIdView.setBigUint64(0, BigInt(currentRoundId), true);
+  // timestamp as little-endian i64 at offset 8
+  const timestamp = Math.floor(Date.now() / 1000);
+  roundIdView.setBigInt64(8, BigInt(timestamp), true);
+
+  // Copy seed into instruction data at offset 16
+  instructionData.set(vrfSeed, 16);
 
         // Create create_game instruction
         instruction = {

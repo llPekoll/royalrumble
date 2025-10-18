@@ -3,12 +3,15 @@ use anchor_lang::system_program;
 use orao_solana_vrf::cpi::accounts::RequestV2;
 use orao_solana_vrf::program::OraoVrf;
 use orao_solana_vrf::cpi::request_v2;
+use orao_solana_vrf::state::NetworkState;
+use orao_solana_vrf::{CONFIG_ACCOUNT_SEED, RANDOMNESS_ACCOUNT_SEED, ID as ORAO_VRF_ID};
 use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::constants::*;
 use crate::errors::Domin8Error;
 use crate::events::BetPlaced;
 
 #[derive(Accounts)]
+#[instruction(seed: [u8; 32])]
 pub struct CreateGame<'info> {
     #[account(
         seeds = [GAME_CONFIG_SEED],
@@ -46,19 +49,29 @@ pub struct CreateGame<'info> {
     /// ORAO VRF Program
     pub vrf_program: Program<'info, OraoVrf>,
 
-    /// ORAO Network State
-    /// CHECK: ORAO VRF program validates this
-    #[account(mut)]
-    pub network_state: AccountInfo<'info>,
+    /// ORAO Network State (PDA owned by ORAO VRF program)
+    #[account(
+        mut,
+        seeds = [CONFIG_ACCOUNT_SEED],
+        bump,
+        seeds::program = ORAO_VRF_ID
+    )]
+    pub network_state: Account<'info, NetworkState>,
 
     /// ORAO Treasury
     /// CHECK: ORAO VRF program validates this
     #[account(mut)]
     pub treasury: AccountInfo<'info>,
 
-    /// VRF Request Account (PDA derived from game_round + seed)
-    /// CHECK: Will be created by ORAO VRF program
-    #[account(mut)]
+    /// VRF Request Account (PDA derived from ORAO randomness seed)
+    /// The PDA uses RANDOMNESS_ACCOUNT_SEED and the provided `seed` arg
+    /// CHECK: Will be created/validated by ORAO VRF program
+    #[account(
+        mut,
+        seeds = [RANDOMNESS_ACCOUNT_SEED, seed.as_ref()],
+        bump,
+        seeds::program = ORAO_VRF_ID
+    )]
     pub vrf_request: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
@@ -69,6 +82,7 @@ pub struct CreateGame<'info> {
 pub fn create_game(
     ctx: Context<CreateGame>,
     amount: u64,
+    seed: [u8; 32],
 ) -> Result<()> {
     let config = &ctx.accounts.config;
     let counter = &ctx.accounts.counter;
@@ -110,8 +124,7 @@ pub fn create_game(
     game_round.randomness_fulfilled = false;
 
     // ⭐ REQUEST VRF IMMEDIATELY - gives ORAO 30 seconds to fulfill during waiting period
-    // Generate deterministic seed for this game round
-    let seed: [u8; 32] = generate_vrf_seed(game_round.round_id, clock.unix_timestamp);
+    // Use provided seed (derived off-chain/client-side) and store it
     game_round.vrf_seed = seed;
     game_round.vrf_request_pubkey = ctx.accounts.vrf_request.key();
 
