@@ -397,15 +397,6 @@ const CharacterSelection = memo(function CharacterSelection({
   const view = new DataView(instructionData.buffer);
   view.setBigUint64(8, BigInt(amountLamports), true);
 
-  // Generate VRF seed matching Rust generate_vrf_seed(round_id, timestamp)
-  // seed[0..8] = round_id.to_le_bytes(); seed[8..16] = timestamp.to_le_bytes(); rest zero
-  const vrfSeed = new Uint8Array(32);
-  // round id as little-endian u64 at offset 0
-  const roundIdView = new DataView(vrfSeed.buffer);
-  roundIdView.setBigUint64(0, BigInt(currentRoundId), true);
-  // timestamp as little-endian i64 at offset 8
-  const timestamp = Math.floor(Date.now() / 1000);
-  roundIdView.setBigInt64(8, BigInt(timestamp), true);
 
   // Copy seed into instruction data at offset 16
   instructionData.set(vrfSeed, 16);
