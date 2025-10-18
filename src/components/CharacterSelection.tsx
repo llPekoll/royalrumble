@@ -150,7 +150,7 @@ const CharacterSelection = memo(function CharacterSelection({
       }
 
       // Create the appropriate instruction based on whether this is the first bet or not
-      const programId = new PublicKey("AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4");
+      const programId = new PublicKey("9Did6kAH9Mkteyi4xCrrq5x8bjBPQ1o9zZEoGC2hSYnk");
 
       // Derive PDAs for config, game_counter and vault (matching Rust constants)
       const [configPDA] = PublicKey.findProgramAddressSync(

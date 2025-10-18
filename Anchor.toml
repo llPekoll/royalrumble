@@ -6,18 +6,18 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-domin8_prgm = "AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4"
+domin8_prgm = "9Did6kAH9Mkteyi4xCrrq5x8bjBPQ1o9zZEoGC2hSYnk"
 orao_vrf = "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
 
 [programs.devnet]
-domin8_prgm = "AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4"
+domin8_prgm = "9Did6kAH9Mkteyi4xCrrq5x8bjBPQ1o9zZEoGC2hSYnk"
 orao_vrf = "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/mnt/d/dev/royalrumble/seed/id.json"
 
 [scripts]
