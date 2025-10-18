@@ -105,7 +105,7 @@ export const checkAndProgressGames = internalAction({
         details: {
           success: true,
           fromStatus: gameRound.status,
-          playersCount: gameRound.bets.length,
+          playersCount: gameRound.bets?.length || 0,
         },
       });
 

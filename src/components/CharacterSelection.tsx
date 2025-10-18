@@ -149,17 +149,17 @@ const CharacterSelection = memo(function CharacterSelection({
         throw new Error(validation.error);
       }
 
-      // Create the deposit bet instruction manually
+      // Create the appropriate instruction based on whether this is the first bet or not
       const programId = new PublicKey("AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4");
 
-      // Derive PDAs for config, game_round and vault (matching Rust constants)
+      // Derive PDAs for config, game_counter and vault (matching Rust constants)
       const [configPDA] = PublicKey.findProgramAddressSync(
         [new TextEncoder().encode("game_config")],
         programId
       );
 
-      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("game_round")],
+      const [gameCounterPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode("game_counter")],
         programId
       );
 
@@ -178,48 +178,128 @@ const CharacterSelection = memo(function CharacterSelection({
           ? "https://api.mainnet-beta.solana.com"
           : "https://api.devnet.solana.com";
 
-      // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
-      const instructionData = new Uint8Array(16);
-
-      // Use actual discriminator from built program IDL
-      const discriminator = new Uint8Array([82, 23, 26, 58, 40, 4, 106, 159]);
-      instructionData.set(discriminator, 0);
-
-      // Write amount as little-endian u64
-      const view = new DataView(instructionData.buffer);
-      view.setBigUint64(8, BigInt(amountLamports), true);
-
-      // First, let's try creating the vault account explicitly if it doesn't exist
+      // Get current round ID to determine game round PDA
       const { getAccountInfo } = createSolanaRpc(rpcUrl);
-      let vaultExists = false;
-      try {
-        const vaultInfo = await getAccountInfo(address(vaultPDA.toString())).send();
-        vaultExists = vaultInfo.value !== null;
-      } catch (error) {
-        vaultExists = false;
+      const gameCounterInfo = await getAccountInfo(address(gameCounterPDA.toString())).send();
+      
+      if (!gameCounterInfo.value) {
+        throw new Error("Game counter account not found. Has the program been initialized?");
       }
 
-      console.log("Vault exists:", vaultExists);
+      // Parse current round ID from account data (assuming it's stored at offset 8 as u64 little-endian)
+      const data = gameCounterInfo.value.data;
+      // Decode base58 string to Uint8Array
+      const dataBytes = Buffer.from(data as string, 'base64');
+      const currentRoundId = Number(new DataView(dataBytes.buffer).getBigUint64(8, true));
+
+      // Derive game round PDA for current round
+      const roundIdBuffer = Buffer.alloc(8);
+      roundIdBuffer.writeBigUInt64LE(BigInt(currentRoundId));
+      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode("game_round"), roundIdBuffer],
+        programId
+      );
+
+      // Check if game round already exists
+      let gameRoundExists = false;
+      try {
+        const gameRoundInfo = await getAccountInfo(address(gameRoundPDA.toString())).send();
+        gameRoundExists = gameRoundInfo.value !== null;
+      } catch (error) {
+        gameRoundExists = false;
+      }
+
+      console.log("Game round exists:", gameRoundExists);
       console.log("Config PDA:", configPDA.toString());
+      console.log("Game Counter PDA:", gameCounterPDA.toString());
       console.log("Game Round PDA:", gameRoundPDA.toString());
       console.log("Vault PDA:", vaultPDA.toString());
+      console.log("Current Round ID:", currentRoundId);
 
-      // Create deposit_bet instruction in @solana/kit format
-      // Account order must match the Rust instruction: config, game_round, vault, player, system_program
-      const depositBetInstruction = {
-        programAddress: address(programId.toString()),
-        accounts: [
-          { address: address(configPDA.toString()), role: 0 }, // readonly
-          { address: address(gameRoundPDA.toString()), role: 1 }, // writable
-          { address: address(vaultPDA.toString()), role: 1 }, // writable
-          { address: address(selectedWallet.address), role: 3 }, // signer + writable
-          { address: address(SystemProgram.programId.toString()), role: 0 }, // readonly
-        ],
-        data: instructionData,
-      };
+      let instruction;
+      
+      if (!gameRoundExists) {
+        // This is the first bet - need to call create_game instruction
+        // For create_game, we need additional VRF accounts
+        
+        // VRF related accounts (required for create_game)
+        const vrfProgramId = new PublicKey("VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"); // ORAO VRF Program ID from IDL
+        
+        // ORAO Network State PDA
+        const [networkStatePDA] = PublicKey.findProgramAddressSync(
+          [new TextEncoder().encode("orao-vrf-network-state")],
+          vrfProgramId
+        );
+        
+        // ORAO Treasury PDA  
+        const [treasuryPDA] = PublicKey.findProgramAddressSync(
+          [new TextEncoder().encode("orao-vrf-treasury")],
+          vrfProgramId
+        );
+        
+        // VRF Request PDA (derived from game round + seed)
+        const seed = Array.from({ length: 32 }, (_, i) => i % 256); // Simple deterministic seed
+        const [vrfRequestPDA] = PublicKey.findProgramAddressSync(
+          [new TextEncoder().encode("orao-vrf-request"), Uint8Array.from(seed)],
+          vrfProgramId
+        );
 
-      console.log("Created deposit bet instruction:", depositBetInstruction);
+        // Create instruction discriminator for create_game (8 bytes)
+        const createGameDiscriminator = new Uint8Array([124, 69, 75, 66, 184, 220, 72, 206]); // From IDL
+        
+        const instructionData = new Uint8Array(16);
+        instructionData.set(createGameDiscriminator, 0);
+        
+        // Write amount as little-endian u64
+        const view = new DataView(instructionData.buffer);
+        view.setBigUint64(8, BigInt(amountLamports), true);
+
+        // Create create_game instruction
+        instruction = {
+          programAddress: address(programId.toString()),
+          accounts: [
+            { address: address(configPDA.toString()), role: 0 }, // config - readonly
+            { address: address(gameCounterPDA.toString()), role: 1 }, // counter - writable
+            { address: address(gameRoundPDA.toString()), role: 1 }, // game_round - writable (will be created)
+            { address: address(vaultPDA.toString()), role: 1 }, // vault - writable
+            { address: address(selectedWallet.address), role: 3 }, // player - signer + writable
+            { address: address(vrfProgramId.toString()), role: 0 }, // vrf_program - readonly
+            { address: address(networkStatePDA.toString()), role: 1 }, // network_state - writable
+            { address: address(treasuryPDA.toString()), role: 1 }, // treasury - writable  
+            { address: address(vrfRequestPDA.toString()), role: 1 }, // vrf_request - writable
+            { address: address(SystemProgram.programId.toString()), role: 0 }, // system_program - readonly
+          ],
+          data: instructionData,
+        };
+      } else {
+        // This is a subsequent bet - call place_bet instruction
+        // Create instruction discriminator for place_bet (8 bytes)  
+        const placeBetDiscriminator = new Uint8Array([222, 62, 67, 220, 63, 166, 126, 33]); // From IDL
+        
+        const instructionData = new Uint8Array(16);
+        instructionData.set(placeBetDiscriminator, 0);
+        
+        // Write amount as little-endian u64
+        const view = new DataView(instructionData.buffer);
+        view.setBigUint64(8, BigInt(amountLamports), true);
+
+        // Create place_bet instruction
+        instruction = {
+          programAddress: address(programId.toString()),
+          accounts: [
+            { address: address(configPDA.toString()), role: 0 }, // config - readonly
+            { address: address(gameCounterPDA.toString()), role: 0 }, // counter - readonly
+            { address: address(gameRoundPDA.toString()), role: 1 }, // game_round - writable
+            { address: address(vaultPDA.toString()), role: 1 }, // vault - writable
+            { address: address(selectedWallet.address), role: 3 }, // player - signer + writable
+            { address: address(SystemProgram.programId.toString()), role: 0 }, // system_program - readonly
+          ],
+          data: instructionData,
+        };
+      }
+      
       console.log("Using wallet:", selectedWallet);
+      console.log("Instruction type:", gameRoundExists ? "place_bet" : "create_game");
 
       const { getLatestBlockhash } = createSolanaRpc(rpcUrl);
       const { value: latestBlockhash } = await getLatestBlockhash().send();
@@ -229,7 +309,7 @@ const CharacterSelection = memo(function CharacterSelection({
         createTransactionMessage({ version: 0 }),
         (tx) => setTransactionMessageFeePayer(address(selectedWallet.address), tx),
         (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-        (tx) => appendTransactionMessageInstructions([depositBetInstruction], tx),
+        (tx) => appendTransactionMessageInstructions([instruction], tx),
         (tx) => compileTransaction(tx),
         (tx) => new Uint8Array(getTransactionEncoder().encode(tx))
       );
