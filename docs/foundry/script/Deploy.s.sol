@@ -20,15 +20,15 @@ contract DeployDomin8 is Script {
     */
 
     address public constant VRF_COORDINATOR =
-        0x6168499c0cFfCaCD319c818142124B7A15E857ab; // Goerli VRF Coordinator
+        0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE; // Base Sepolia VRF Coordinator
     address public constant AUTHORITY =
-        0xYourAuthorityAddressHere; // Replace with your authority address
+        address(0x893806663C6673b96f61914E17e002E4F303b62f); // Replace with your authority address
     address payable public constant TREASURY =
-        payable(0xYourTreasuryAddressHere); // Replace with your treasury address
+        payable(0x893806663C6673b96f61914E17e002E4F303b62f); // Replace with your treasury address
     uint16 public constant HOUSE_FEE_BASIS_POINTS = 500; // 5%
     uint256 public constant MIN_BET = 10000000000000000; // 0.01 ETH
     uint64 public constant WAITING_PHASE_DURATION = 30; // 30 seconds
-    uint256 public constant SUBSCRIPTION_ID = 0; // Replace with your subscription ID
+    uint256 public constant SUBSCRIPTION_ID = 0; // Replace with your subscription ID, created on https://vrf.chain.link/base-sepolia/new
     bytes32 public constant KEY_HASH =
         0x0; // Replace with your desired gas lane key hash
 
