@@ -1,3 +1,9 @@
 [submodule "docs/foundry/lib/forge-std"]
 	path = docs/foundry/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "docs/foundry/lib/chainlink"]
+	path = docs/foundry/lib/chainlink
+	url = https://github.com/smartcontractkit/chainlink
+[submodule "docs/foundry/lib/chainlink-evm"]
+	path = docs/foundry/lib/chainlink-evm
+	url = https://github.com/smartcontractkit/chainlink-evm
