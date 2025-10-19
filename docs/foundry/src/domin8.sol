@@ -144,6 +144,7 @@ contract Domin8 is VRFConsumerBaseV2Plus {
 
     /**
      * @notice Initializes the contract with its core configuration and Chainlink VRF parameters.
+     * @param _authority The address authorized to control game progression.
      * @param _treasury The address where house fees will be sent.
      * @param _houseFeeBasisPoints The house's cut of the pot, in basis points.
      * @param _minBet The minimum bet amount in wei.
@@ -153,6 +154,7 @@ contract Domin8 is VRFConsumerBaseV2Plus {
      * @param _keyHash The gas lane key hash for the desired gas price.
      */
     constructor(
+        address _authority,
         address payable _treasury,
         uint16 _houseFeeBasisPoints,
         uint256 _minBet,
@@ -161,7 +163,7 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         uint256 _subscriptionId, // UPDATED to uint256
         bytes32 _keyHash
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) { // UPDATED to VRFConsumerBaseV2Plus
-        authority = msg.sender;
+        authority = _authority;
         treasury = _treasury;
         houseFeeBasisPoints = _houseFeeBasisPoints;
         minBet = _minBet;
