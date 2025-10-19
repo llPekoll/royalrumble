@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import {Script, console} from "forge-std/Script.sol";
+import {Domin8} from "../src/domin8.sol";
+
+contract DeployDomin8 is Script {
+    Domin8 public domin8;
+
+
+    /** Domin8 constructor params
+    * _authority The address authorized to control game progression.
+    * _treasury The address where house fees will be sent.
+    * _houseFeeBasisPoints The house's cut of the pot, in basis points.
+    * _minBet The minimum bet amount in wei.
+    * _waitingPhaseDuration The duration of the betting window in seconds.
+    * _vrfCoordinator The address of the Chainlink VRF Coordinator contract.
+    * _subscriptionId The ID of the Chainlink VRF subscription.
+    * _keyHash The gas lane key hash for the desired gas price.
+    */
+
+    address public constant VRF_COORDINATOR =
+        0x6168499c0cFfCaCD319c818142124B7A15E857ab; // Goerli VRF Coordinator
+    address public constant AUTHORITY =
+        0xYourAuthorityAddressHere; // Replace with your authority address
+    address payable public constant TREASURY =
+        payable(0xYourTreasuryAddressHere); // Replace with your treasury address
+    uint16 public constant HOUSE_FEE_BASIS_POINTS = 500; // 5%
+    uint256 public constant MIN_BET = 10000000000000000; // 0.01 ETH
+    uint64 public constant WAITING_PHASE_DURATION = 30; // 30 seconds
+    uint256 public constant SUBSCRIPTION_ID = 0; // Replace with your subscription ID
+    bytes32 public constant KEY_HASH =
+        0x0; // Replace with your desired gas lane key hash
+
+    function run() public {
+        vm.startBroadcast();
+
+        domin8 = new Domin8(
+            AUTHORITY,
+            TREASURY,
+            HOUSE_FEE_BASIS_POINTS,
+            MIN_BET,
+            WAITING_PHASE_DURATION,
+            VRF_COORDINATOR,
+            SUBSCRIPTION_ID,
+            KEY_HASH
+        );
+        console.log("Domin8 deployed at:", address(domin8));
+        vm.stopBroadcast();
+    }
+}

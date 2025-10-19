@@ -47,8 +47,20 @@ $ anvil
 
 ### Deploy
 
+Before deploying, fill the constructor params (in script/Deploy.s.sol) :
+* _authority The address authorized to control game progression.
+* _treasury The address where house fees will be sent.
+* _houseFeeBasisPoints The house's cut of the pot, in basis points.
+* _minBet The minimum bet amount in wei.
+* _waitingPhaseDuration The duration of the betting window in seconds.
+* _vrfCoordinator The address of the Chainlink VRF Coordinator contract.
+* _subscriptionId The ID of the Chainlink VRF subscription.
+* _keyHash The gas lane key hash for the desired gas price.
+
+Then, run this command: 
+
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/Deploy.s.sol --rpc-url <your_rpc_url> --private-key <your_private_key>
 ```
 
 ### Cast
