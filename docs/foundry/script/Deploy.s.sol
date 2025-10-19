@@ -4,6 +4,8 @@ pragma solidity ^0.8.13;
 import {Script, console} from "forge-std/Script.sol";
 import {Domin8} from "../src/domin8.sol";
 
+// FIXME: ADD A PROXY DEPLOYMENT SCRIPT HERE
+
 contract DeployDomin8 is Script {
     Domin8 public domin8;
 
@@ -28,9 +30,9 @@ contract DeployDomin8 is Script {
     uint16 public constant HOUSE_FEE_BASIS_POINTS = 500; // 5%
     uint256 public constant MIN_BET = 10000000000000000; // 0.01 ETH
     uint64 public constant WAITING_PHASE_DURATION = 30; // 30 seconds
-    uint256 public constant SUBSCRIPTION_ID = 0; // Replace with your subscription ID, created on https://vrf.chain.link/base-sepolia/new
+    uint256 public constant SUBSCRIPTION_ID = 8369097389651250853091038804433237964774285691251465610172074079640543109405; // Replace with your subscription ID, created on https://vrf.chain.link/base-sepolia/new
     bytes32 public constant KEY_HASH =
-        0x0; // Replace with your desired gas lane key hash
+        0x816bedba8a50b294e5cbd47842baf240c2385f2eaf719edbd4f250a137a8c899; // https://vrf.chain.link/polygon-amoy
 
     function run() public {
         vm.startBroadcast();

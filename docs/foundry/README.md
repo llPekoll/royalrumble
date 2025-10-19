@@ -60,7 +60,7 @@ Before deploying, fill the constructor params (in script/Deploy.s.sol) :
 Then, run this command: 
 
 ```shell
-$ forge script script/Deploy.s.sol --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/Deploy.s.sol --rpc-url <your_rpc_url> --private-key <your_private_key> --broadcast
 ```
 
 ### Cast
