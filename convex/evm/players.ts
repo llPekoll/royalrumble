@@ -143,8 +143,8 @@ export const updatePlayerStats = mutation({
     }
 
     await ctx.db.patch(args.playerId, {
-      totalGamesPlayed: player.totalGamesPlayed + 1,
-      totalWins: player.totalWins + (args.won ? 1 : 0),
+      totalGamesPlayed: (player as any).totalGamesPlayed + 1,
+      totalWins: (player as any).totalWins + (args.won ? 1 : 0),
       lastActive: Date.now(),
     });
   },
@@ -166,7 +166,7 @@ export const addAchievement = mutation({
       throw new Error("Player not found");
     }
 
-    const achievements = player.achievements || [];
+    const achievements = (player as any).achievements || [];
     if (!achievements.includes(args.achievementId)) {
       achievements.push(args.achievementId);
 

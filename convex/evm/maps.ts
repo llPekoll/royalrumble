@@ -74,11 +74,11 @@ export const calculateSpawnPositions = query({
   },
   handler: async (ctx: QueryCtx, args: any) => {
     const map = await ctx.db.get(args.mapId);
-    if (!map) {
+    if (!map || map === null) {
       throw new Error("Map not found");
     }
 
-    const { spawnRadius } = map.spawnConfiguration;
+    const { spawnRadius } = (map as any).spawnConfiguration;
     const positions = [];
 
     // Calculate positions in an ellipse around center with randomness

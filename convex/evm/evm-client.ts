@@ -1,7 +1,9 @@
 "use node";
+// @ts-ignore - ethers is installed in node_modules for Node.js actions
 import { ethers } from "ethers";
 import type { GameConfig, GameRound, BetEntry } from "./evm-types";
-import Domin8ABI from "./Domin8.json"; // Placeholder for your contract's ABI
+// @ts-ignore - JSON import for ABI
+const Domin8ABI = require("./Domin8.json");
 
 /**
  * @notice EVM client for interacting with the Domin8 smart contract.

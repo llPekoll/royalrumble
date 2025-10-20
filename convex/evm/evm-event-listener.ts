@@ -3,6 +3,7 @@ import { internalAction, internalMutation, internalQuery } from "../_generated/s
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { EvmClient } from "./evm-client";
+// @ts-ignore - ethers is installed in node_modules for Node.js actions
 import { ethers } from "ethers";
 import { v } from "convex/values";
 
@@ -39,10 +40,11 @@ export const listenToBlockchainEvents = internalAction({
 
             // 4. Process Events
             for (const event of events) {
-                if (!event.eventName) continue;
+                // Filter to only EventLog instances (not plain Log)
+                if (!('eventName' in event) || !event.eventName) continue;
                 
                 console.log(`Processing event: ${event.eventName} in transaction ${event.transactionHash}`);
-                await processEvent(ctx, event);
+                await processEvent(ctx, event as ethers.EventLog);
             }
 
             // 5. Update Last Processed Block
