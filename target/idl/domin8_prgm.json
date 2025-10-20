@@ -1,5 +1,5 @@
 {
-  "address": "AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4",
+  "address": "8BH1JMeZCohtUKcfGGTqpYjpwxMowZBi6HrnAhc6eJFz",
   "metadata": {
     "name": "domin8_prgm",
     "version": "0.1.0",
@@ -344,9 +344,85 @@
         {
           "name": "network_state",
           "docs": [
-            "ORAO Network State"
+            "ORAO Network State (validated as PDA from ORAO VRF program)"
           ],
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  111,
+                  45,
+                  118,
+                  114,
+                  102,
+                  45,
+                  110,
+                  101,
+                  116,
+                  119,
+                  111,
+                  114,
+                  107,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                7,
+                71,
+                177,
+                26,
+                250,
+                145,
+                180,
+                209,
+                249,
+                34,
+                242,
+                123,
+                14,
+                186,
+                193,
+                218,
+                178,
+                59,
+                33,
+                41,
+                164,
+                190,
+                243,
+                79,
+                50,
+                164,
+                123,
+                88,
+                245,
+                206,
+                252,
+                120
+              ]
+            }
+          }
         },
         {
           "name": "treasury",
@@ -358,7 +434,7 @@
         {
           "name": "vrf_request",
           "docs": [
-            "VRF Request Account (PDA derived from game_round + seed)"
+            "VRF Request Account (will be created by ORAO VRF program)"
           ],
           "writable": true
         },
@@ -780,6 +856,19 @@
         101,
         146
       ]
+    },
+    {
+      "name": "NetworkState",
+      "discriminator": [
+        212,
+        237,
+        148,
+        56,
+        97,
+        245,
+        51,
+        169
+      ]
     }
   ],
   "events": [
@@ -1044,9 +1133,6 @@
   "types": [
     {
       "name": "BetEntry",
-      "docs": [
-        "Individual bet entry in a game round"
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1140,6 +1226,15 @@
           {
             "name": "bets_locked",
             "type": "bool"
+          },
+          {
+            "name": "force",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         ]
       }
@@ -1274,22 +1369,16 @@
             "type": "i64"
           },
           {
-            "name": "bets",
-            "type": {
-              "vec": {
-                "defined": {
-                  "name": "BetEntry"
-                }
-              }
-            }
-          },
-          {
             "name": "total_pot",
             "type": "u64"
           },
           {
             "name": "winner",
             "type": "pubkey"
+          },
+          {
+            "name": "winning_bet_index",
+            "type": "u32"
           },
           {
             "name": "vrf_request_pubkey",
@@ -1307,6 +1396,23 @@
           {
             "name": "randomness_fulfilled",
             "type": "bool"
+          },
+          {
+            "name": "bet_index",
+            "type": "u8"
+          },
+          {
+            "name": "bets",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "BetEntry"
+                  }
+                },
+                8
+              ]
+            }
           }
         ]
       }
@@ -1316,6 +1422,9 @@
       "docs": [
         "Game status enumeration"
       ],
+      "repr": {
+        "kind": "rust"
+      },
       "type": {
         "kind": "enum",
         "variants": [
@@ -1335,6 +1444,94 @@
       }
     },
     {
+      "name": "NetworkConfiguration",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "request_fee",
+            "type": "u64"
+          },
+          {
+            "name": "fulfillment_authorities",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "token_fee_config",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "OraoTokenFeeConfig"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "NetworkState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": {
+              "defined": {
+                "name": "NetworkConfiguration"
+              }
+            }
+          },
+          {
+            "name": "num_received",
+            "docs": [
+              "Total number of received requests."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OraoTokenFeeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "docs": [
+              "ORAO token mint address."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "ORAO token treasury account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "Fee in ORAO SPL token smallest units."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "WinnerSelected",
       "docs": [
         "Event emitted when winner is determined"
@@ -1349,6 +1546,10 @@
           {
             "name": "winner",
             "type": "pubkey"
+          },
+          {
+            "name": "winning_bet_index",
+            "type": "u32"
           },
           {
             "name": "total_pot",

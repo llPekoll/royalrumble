@@ -79,12 +79,13 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
         game_round.bets.len() >= 2,
         Domin8Error::InvalidGameStatus
     );
-    
+
     let bet_refs: Vec<&BetEntry> = game_round.bets.iter().collect();
-    let winner_wallet = select_weighted_winner(&bet_refs, randomness)?;
-    
+    let (winning_bet_index, winner_wallet) = select_weighted_winner(&bet_refs, randomness)?;
+
     game_round.winner = winner_wallet;
-    msg!("Winner selected: {}", winner_wallet);
+    game_round.winning_bet_index = winning_bet_index as u32;
+    msg!("Winner selected: Bet #{} - Player {}", winning_bet_index, winner_wallet);
     
     // 3. CALCULATE WINNINGS
     let total_pot = game_round.total_pot;
@@ -139,6 +140,7 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
     emit!(WinnerSelected {
         round_id: old_round_id,
         winner: winner_wallet,
+        winning_bet_index: winning_bet_index as u32,
         total_pot,
         house_fee,
         winner_payout,
@@ -157,8 +159,26 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
         new_round_id,
     });
 
-    // 7. UNLOCK BETS FOR NEXT GAME
+    // 7. ROTATE FORCE FIELD FOR NEXT GAME (like riskdotfun)
+    // Generate new random force using randomness from VRF + clock
     let config = &mut ctx.accounts.config;
+    let clock = Clock::get()?;
+    let mut new_force = [0u8; 32];
+    let seed_data = [
+        &randomness.to_le_bytes()[..],
+        &clock.slot.to_le_bytes()[..],
+        &clock.unix_timestamp.to_le_bytes()[..],
+    ].concat();
+
+    // Hash to get new force
+    use anchor_lang::solana_program::keccak::hashv;
+    let hash = hashv(&[&seed_data]);
+    new_force.copy_from_slice(&hash.0);
+    config.force = new_force;
+
+    msg!("New VRF force for next game: {:?}", &new_force[0..16]);
+
+    // 8. UNLOCK BETS FOR NEXT GAME
     config.bets_locked = false;
 
     msg!("Game {} completed - counter incremented to {}", old_round_id, new_round_id);
@@ -192,30 +212,32 @@ fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
 }
 
 /// Select winner weighted by bet amounts
-fn select_weighted_winner(bets: &[&BetEntry], randomness: u64) -> Result<Pubkey> {
+/// Returns (winning_bet_index, winner_wallet)
+fn select_weighted_winner(bets: &[&BetEntry], randomness: u64) -> Result<(usize, Pubkey)> {
     if bets.is_empty() {
         return Err(Domin8Error::NoPlayers.into());
     }
-    
+
     // Calculate total weight
     let total_weight: u64 = bets.iter().map(|b| b.bet_amount).sum();
-    
+
     if total_weight == 0 {
         return Err(Domin8Error::InvalidBetAmount.into());
     }
-    
+
     // Use randomness to select a position in the weight range
     let selection = randomness % total_weight;
-    
+
     // Find winner based on cumulative weights
     let mut cumulative = 0u64;
-    for bet in bets {
+    for (index, bet) in bets.iter().enumerate() {
         cumulative = cumulative.saturating_add(bet.bet_amount);
         if selection < cumulative {
-            return Ok(bet.wallet);
+            return Ok((index, bet.wallet));
         }
     }
-    
+
     // Fallback to last bet (should never reach here)
-    Ok(bets.last().unwrap().wallet)
+    let last_index = bets.len() - 1;
+    Ok((last_index, bets.last().unwrap().wallet))
 }

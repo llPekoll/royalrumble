@@ -22,15 +22,20 @@ pub struct GameConfig {
 
     // Game control flags
     pub bets_locked: bool, // Prevents new bets during game resolution
+
+    // VRF Force Field (like riskdotfun)
+    // This is a random 32-byte value that gets updated after each game
+    // Used to derive unique VRF request PDAs, preventing account collisions
+    pub force: [u8; 32],
 }
 
 impl GameConfig {
     /// Account space calculation:
     /// 8 (discriminator) + 32 (authority) + 32 (treasury) + 2 (house_fee) + 8 (min_bet)
     /// + 32 (small_game_config) + 32 (large_game_config)
-    /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (bets_locked) = 219 bytes
+    /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (bets_locked) + 32 (force) = 251 bytes
     pub const LEN: usize =
-        8 + 32 + 32 + 2 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1;
+        8 + 32 + 32 + 2 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1 + 32;
 
     /// Calculate house fee from pot amount
     pub fn calculate_house_fee(&self, pot_amount: u64) -> u64 {

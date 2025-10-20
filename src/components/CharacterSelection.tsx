@@ -150,7 +150,7 @@ const CharacterSelection = memo(function CharacterSelection({
       }
 
       // Create the deposit bet instruction manually
-      const programId = new PublicKey("AgmSbCQZ98aYtqntEk8w7aLedYxfvQurNU4pLtKbtpk4");
+      const programId = new PublicKey("3HK2JxZBgv2zy8RnzLTYMCp55GV2xV7CyKqBhYFWV5Kq");
 
       // Derive PDAs for config, game_round and vault (matching Rust constants)
       const [configPDA] = PublicKey.findProgramAddressSync(

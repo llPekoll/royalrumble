@@ -34,6 +34,7 @@ pub struct GameLocked {
 pub struct WinnerSelected {
     pub round_id: u64,
     pub winner: Pubkey,
+    pub winning_bet_index: u32, // Index of the winning bet (for UI animations)
     pub total_pot: u64,
     pub house_fee: u64,
     pub winner_payout: u64,

@@ -1,12 +1,14 @@
-use anchor_lang::prelude::*;
-use anchor_lang::system_program;
-use orao_solana_vrf::cpi::accounts::RequestV2;
-use orao_solana_vrf::program::OraoVrf;
-use orao_solana_vrf::cpi::request_v2;
-use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::constants::*;
 use crate::errors::Domin8Error;
 use crate::events::BetPlaced;
+use crate::state::{BetEntry, GameConfig, GameCounter, GameRound, GameStatus};
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
+use orao_solana_vrf::cpi::accounts::RequestV2;
+use orao_solana_vrf::cpi::request_v2;
+use orao_solana_vrf::program::OraoVrf;
+use orao_solana_vrf::state::NetworkState;
+use orao_solana_vrf::{CONFIG_ACCOUNT_SEED, ID as ORAO_VRF_ID};
 
 #[derive(Accounts)]
 pub struct CreateGame<'info> {
@@ -46,18 +48,22 @@ pub struct CreateGame<'info> {
     /// ORAO VRF Program
     pub vrf_program: Program<'info, OraoVrf>,
 
-    /// ORAO Network State
-    /// CHECK: ORAO VRF program validates this
-    #[account(mut)]
-    pub network_state: AccountInfo<'info>,
+    /// ORAO Network State (validated as PDA from ORAO VRF program)
+    #[account(
+        mut,
+        seeds = [CONFIG_ACCOUNT_SEED],
+        bump,
+        seeds::program = ORAO_VRF_ID
+    )]
+    pub network_state: Account<'info, NetworkState>,
 
     /// ORAO Treasury
     /// CHECK: ORAO VRF program validates this
     #[account(mut)]
     pub treasury: AccountInfo<'info>,
 
-    /// VRF Request Account (PDA derived from game_round + seed)
-    /// CHECK: Will be created by ORAO VRF program
+    /// VRF Request Account (will be created by ORAO VRF program)
+    /// CHECK: Orao randomness account - derived from force field in instruction logic
     #[account(mut)]
     pub vrf_request: AccountInfo<'info>,
 
@@ -66,10 +72,8 @@ pub struct CreateGame<'info> {
 
 /// Create a new game round with the first bet
 /// This instruction is called by the first player to place a bet in a new round
-pub fn create_game(
-    ctx: Context<CreateGame>,
-    amount: u64,
-) -> Result<()> {
+pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
+    msg!("Initializing game round creation");
     let config = &ctx.accounts.config;
     let counter = &ctx.accounts.counter;
     let game_round = &mut ctx.accounts.game_round;
@@ -80,12 +84,46 @@ pub fn create_game(
     require!(!config.bets_locked, Domin8Error::BetsLocked);
 
     // Validate bet amount meets minimum requirement
-    require!(
-        amount >= MIN_BET_LAMPORTS,
-        Domin8Error::BetTooSmall
-    );
+    require!(amount >= MIN_BET_LAMPORTS, Domin8Error::BetTooSmall);
 
-    // Transfer SOL to vault
+    // Initialize new game round with current counter value
+    game_round.round_id = counter.current_round_id;
+    game_round.status = GameStatus::Waiting;
+    game_round.start_timestamp = clock.unix_timestamp;
+    // ⭐ Set betting window end time (30 seconds from now)
+    game_round.end_timestamp = clock
+        .unix_timestamp
+        .checked_add(DEFAULT_SMALL_GAME_WAITING_DURATION as i64)
+        .ok_or(Domin8Error::ArithmeticOverflow)?;
+    game_round.total_pot = amount;
+    game_round.winner = Pubkey::default();
+    game_round.winning_bet_index = 0; // Initialize to 0
+    game_round.randomness_fulfilled = false;
+    msg!("Basci set");
+
+    // ⭐ REQUEST VRF FIRST (before transferring bet) - gives ORAO 30 seconds to fulfill during waiting period
+    // Use force field from config for VRF seed (like riskdotfun)
+    // This ensures unique VRF request PDAs for each game
+    let seed: [u8; 32] = config.force;
+    game_round.vrf_seed = seed;
+    game_round.vrf_request_pubkey = ctx.accounts.vrf_request.key();
+
+    // Make CPI call to ORAO VRF (charges VRF fee from player)
+    let cpi_program = ctx.accounts.vrf_program.to_account_info();
+    let cpi_accounts = RequestV2 {
+        payer: ctx.accounts.player.to_account_info(),
+        network_state: ctx.accounts.network_state.to_account_info(),
+        treasury: ctx.accounts.treasury.to_account_info(),
+        request: ctx.accounts.vrf_request.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+    };
+    msg!("mamadou");
+
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    request_v2(cpi_ctx, seed)?;
+    msg!("req2 passed");
+
+    // Transfer SOL to vault (AFTER VRF request so player has enough for VRF fee)
     system_program::transfer(
         CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
@@ -97,43 +135,14 @@ pub fn create_game(
         amount,
     )?;
 
-    // Initialize new game round with current counter value
-    game_round.round_id = counter.current_round_id;
-    game_round.status = GameStatus::Waiting;
-    game_round.start_timestamp = clock.unix_timestamp;
-    // ⭐ Set betting window end time (30 seconds from now)
-    game_round.end_timestamp = clock.unix_timestamp
-        .checked_add(DEFAULT_SMALL_GAME_WAITING_DURATION as i64)
-        .ok_or(Domin8Error::ArithmeticOverflow)?;
-    game_round.total_pot = amount;
-    game_round.winner = Pubkey::default();
-    game_round.randomness_fulfilled = false;
-
-    // ⭐ REQUEST VRF IMMEDIATELY - gives ORAO 30 seconds to fulfill during waiting period
-    // Generate deterministic seed for this game round
-    let seed: [u8; 32] = generate_vrf_seed(game_round.round_id, clock.unix_timestamp);
-    game_round.vrf_seed = seed;
-    game_round.vrf_request_pubkey = ctx.accounts.vrf_request.key();
-
-    // Make CPI call to ORAO VRF
-    let cpi_program = ctx.accounts.vrf_program.to_account_info();
-    let cpi_accounts = RequestV2 {
-        payer: ctx.accounts.player.to_account_info(),
-        network_state: ctx.accounts.network_state.to_account_info(),
-        treasury: ctx.accounts.treasury.to_account_info(),
-        request: ctx.accounts.vrf_request.to_account_info(),
-        system_program: ctx.accounts.system_program.to_account_info(),
-    };
-
-    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    request_v2(cpi_ctx, seed)?;
-
     msg!("New game round created: {}", counter.current_round_id);
-    msg!("Game started by first bet - betting window closes at {}", game_round.end_timestamp);
+    msg!(
+        "Game started by first bet - betting window closes at {}",
+        game_round.end_timestamp
+    );
     msg!("ORAO VRF requested immediately - will fulfill during waiting period");
     msg!("VRF seed (first 16 bytes): {:?}", &seed[0..16]);
     msg!("VRF request account: {}", ctx.accounts.vrf_request.key());
-
     // Reallocate account to fit first bet
     let new_size = game_round.to_account_info().data_len() + std::mem::size_of::<BetEntry>();
     game_round.to_account_info().resize(new_size)?;
@@ -144,11 +153,20 @@ pub fn create_game(
         timestamp: clock.unix_timestamp,
     };
 
-    game_round.bets = vec![bet_entry];
+    game_round.bets[0] = bet_entry;
 
-    msg!("First bet placed: {}, amount: {}, total bets: {}",
-         player_key, amount, game_round.bets.len());
+    msg!(
+        "First bet placed: {}, amount: {}, total bets: {}",
+        player_key,
+        amount,
+        game_round.bets.len()
+    );
     msg!("Total pot: {} lamports", game_round.total_pot);
+    msg!("game round ->{}", game_round.get_lamports());
+    msg!("game Len ->{}", game_round.to_account_info().data_len());
+    msg!("Rent {}", Rent::get()?.minimum_balance(GameRound::LEN));
+    // logger tout les accounts
+    // check ta
 
     // ⭐ Emit bet placed event
     emit!(BetPlaced {
@@ -162,11 +180,4 @@ pub fn create_game(
     });
 
     Ok(())
-}
-
-fn generate_vrf_seed(round_id: u64, timestamp: i64) -> [u8; 32] {
-    let mut seed = [0u8; 32];
-    seed[0..8].copy_from_slice(&round_id.to_le_bytes());
-    seed[8..16].copy_from_slice(&timestamp.to_le_bytes());
-    seed
 }

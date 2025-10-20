@@ -57,8 +57,26 @@ pub fn initialize(
     // Initialize game control flags
     config.bets_locked = false;  // Start unlocked
 
+    // Generate initial random force for VRF
+    // Use clock + authority for initial randomness
+    let clock = Clock::get()?;
+    let mut force = [0u8; 32];
+    let seed_data = [
+        &clock.unix_timestamp.to_le_bytes()[..],
+        &clock.slot.to_le_bytes()[..],
+        ctx.accounts.authority.key().as_ref(),
+    ].concat();
+
+    // Hash the seed data to get random force
+    use anchor_lang::solana_program::keccak::hashv;
+    let hash = hashv(&[&seed_data]);
+    force.copy_from_slice(&hash.0);
+    config.force = force;
+
     // Initialize counter at 0
     counter.current_round_id = 0;
+
+    msg!("Initial VRF force generated: {:?}", &force[0..16]);
 
     msg!("Domin8 game initialized with authority: {}", ctx.accounts.authority.key());
     msg!("Game counter initialized at round 0");

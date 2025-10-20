@@ -2,6 +2,7 @@ use crate::state::BetEntry;
 use anchor_lang::prelude::*;
 
 /// Game status enumeration
+#[repr(u8)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Debug)]
 pub enum GameStatus {
     Idle,                     // Waiting for first player
@@ -24,29 +25,25 @@ pub struct GameRound {
     pub end_timestamp: i64, // When betting window closes
 
     // Individual bets (unlimited - dynamically grows via realloc)
-    pub bets: Vec<BetEntry>,
 
     // Pot tracking
     pub total_pot: u64,
 
     // Winner
     pub winner: Pubkey,
+    pub winning_bet_index: u32, // Index of the winning bet (for UI display)
 
     // ORAO VRF integration
     pub vrf_request_pubkey: Pubkey, // ORAO VRF request account
     pub vrf_seed: [u8; 32],         // Seed used for VRF request
     pub randomness_fulfilled: bool, // Track if randomness is ready
+    pub bet_index: u8,              // Track if randomness is ready
+    pub bets: [BetEntry; 8],
 }
 
 impl GameRound {
-    /// Base account space calculation (no bets):
-    /// 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start_timestamp) + 8 (end_timestamp)
-    /// + 4 (bets vec len) + 0 (dynamic bets - grows with realloc)
-    /// + 8 (total_pot) + 32 (winner)
-    /// + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
-    /// = 8 + 8 + 1 + 8 + 8 + 4 + 0 + 8 + 32 + 32 + 32 + 1 = 142 bytes (base)
-    /// Each bet adds 48 bytes dynamically via realloc
-    pub const LEN: usize = 8 + 8 + GameStatus::LEN + 8 + 8 + 4 + 8 + 32 + 32 + 32 + 1;
+    pub const LEN: usize =
+        8 + GameStatus::LEN + 8 + 8 + 8 + 32 + 4 + 32 + 32 + 1 + 1 + (BetEntry::LEN * 8) + 8;
 
     /// Check if the game is in a state where bets can be placed
     pub fn can_accept_bets(&self) -> bool {
@@ -56,6 +53,10 @@ impl GameRound {
     /// Check if the game is a small game (2+ bets) - all games are small games in MVP
     pub fn is_small_game(&self) -> bool {
         self.bets.len() >= 2
+    }
+    pub fn add_bet(&mut self, bet: BetEntry) {
+        self.bet_index += 1;
+        self.bets[self.bet_index as usize] = bet;
     }
 
     /// Get bet entry by wallet address

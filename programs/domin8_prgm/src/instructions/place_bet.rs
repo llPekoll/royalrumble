@@ -99,7 +99,7 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         timestamp: clock.unix_timestamp,
     };
 
-    game_round.bets.push(bet_entry);
+    game_round.add_bet(bet_entry);
 
     msg!(
         "New bet placed: {}, amount: {}, total bets: {}",
