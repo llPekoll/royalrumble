@@ -250,9 +250,9 @@ contract Domin8Test is Test {
         assertEq(player2.balance, player2BalanceBefore + winnerPayout, "Player 2 (winner) did not receive correct payout");
         assertEq(treasury.balance, treasuryBalanceBefore + houseFee, "Treasury did not receive correct house fee");
 
-        (, Domin8.GameStatus statusAfterPayout, , , , address winner, , ) = domin8.gameRounds(0);
+        (, Domin8.GameStatus statusAfterPayout, , , , Domin8.BetEntry memory winner, , ) = domin8.gameRounds(0);
         assertEq(uint(statusAfterPayout), uint(Domin8.GameStatus.Finished), "Final status should be Finished");
-        assertEq(winner, player2, "Winner should be Player 2");
+        assertEq(winner.wallet, player2, "Winner should be Player 2");
 
         assertEq(domin8.currentRoundId(), 1, "Round ID should have incremented to 1");
         assertEq(domin8.betsLocked(), false, "Bets should be unlocked for the next round");

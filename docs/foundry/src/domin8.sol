@@ -43,7 +43,7 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         uint64 endTimestamp; // When the betting window closes
         BetEntry[] bets;
         uint256 totalPot;
-        address winner;
+        BetEntry winner;
         bool randomnessFulfilled;
         bytes32 vrfRequestId;
     }
@@ -294,20 +294,20 @@ contract Domin8 is VRFConsumerBaseV2Plus {
 
         uint256 selection = randomness % totalWeight;
         uint256 cumulative = 0;
-        address winnerAddress;
+        BetEntry memory winningBet;
 
         for (uint256 i = 0; i < game.bets.length; i++) {
             cumulative += game.bets[i].betAmount;
             if (selection < cumulative) {
-                winnerAddress = game.bets[i].wallet;
+                winningBet = game.bets[i];
                 break;
             }
         }
         // Fallback in case of rounding issues
-        if (winnerAddress == address(0)) {
-            winnerAddress = game.bets[game.bets.length - 1].wallet;
+        if (winningBet.wallet == address(0)) {
+            winningBet = game.bets[game.bets.length - 1];
         }
-        game.winner = winnerAddress;
+        game.winner = winningBet;
 
         // 2. Calculate Payouts
         uint256 houseFee = (game.totalPot * houseFeeBasisPoints) / 10000;
@@ -317,11 +317,11 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         (bool successTreasury, ) = treasury.call{value: houseFee}("");
         if (!successTreasury) revert TransferFailed();
 
-        (bool successWinner, ) = payable(winnerAddress).call{value: winnerPayout}("");
+        (bool successWinner, ) = payable(winningBet.wallet).call{value: winnerPayout}("");
         if (!successWinner) revert TransferFailed();
 
         game.status = GameStatus.Finished;
-        emit WinnerSelected(roundId, winnerAddress, game.totalPot, houseFee, winnerPayout);
+        emit WinnerSelected(roundId, winningBet.wallet, game.totalPot, houseFee, winnerPayout);
 
         // 4. Reset for next game
         currentRoundId++;
