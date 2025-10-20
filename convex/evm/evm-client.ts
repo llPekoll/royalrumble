@@ -75,7 +75,11 @@ export class EvmClient {
             endTimestamp: Number(roundData.endTimestamp),
             bets: bets,
             totalPot: roundData.totalPot.toString(),
-            winner: roundData.winner,
+            winner: {
+                wallet: roundData.winner.wallet,
+                betAmount: Number(roundData.winner.betAmount),
+                timestamp: Number(roundData.winner.timestamp)
+            },
             randomnessFulfilled: roundData.randomnessFulfilled,
             vrfRequestId: roundData.vrfRequestId
         };

@@ -48,7 +48,7 @@ export interface GameRound {
   endTimestamp: number;
   bets: BetEntry[];
   totalPot: string; // Using string to handle large numbers (uint256)
-  winner: string;
+  winner: BetEntry;
   randomnessFulfilled: boolean;
   vrfRequestId: string; // bytes32 from Solidity is a hex string
 }

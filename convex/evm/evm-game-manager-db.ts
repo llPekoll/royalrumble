@@ -31,7 +31,7 @@ export const syncGameRecord = internalMutation({
       await ctx.db.patch(existingGame._id, {
         status: gameStatusString,
         totalPot: totalPot.toString(),
-        winner: winner,
+        winner: winner.wallet, // Extract wallet address from BetEntry
         vrfRequestId: vrfRequestId,
         randomnessFulfilled: randomnessFulfilled,
         playersCount: bets.length,
@@ -50,7 +50,7 @@ export const syncGameRecord = internalMutation({
         startTimestamp: startTimestamp * 1000,
         endTimestamp: endTimestamp * 1000,
         totalPot: totalPot.toString(),
-        winner,
+        winner: winner.wallet, // Extract wallet address from BetEntry
         playersCount: bets.length,
         vrfRequestId,
         randomnessFulfilled,
