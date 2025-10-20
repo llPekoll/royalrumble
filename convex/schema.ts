@@ -119,6 +119,7 @@ export default defineSchema({
     toStatus: v.optional(v.string()),
     playersCount: v.optional(v.number()),
     transactionType: v.optional(v.string()),
+    retryCount: v.optional(v.float64()),
   })
     .index("by_round_id", ["roundId"])
     .index("by_timestamp", ["timestamp"])

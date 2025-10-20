@@ -188,7 +188,7 @@ export const cleanupOldGames = internalAction({
 
 function getEnvVariables() {
     const rpcEndpoint = process.env.EVM_RPC_ENDPOINT;
-    const privateKey = process.env.CRANK_AUTHORITY_PRIVATE_KEY;
+    const privateKey = process.env.CRANK_EVM_PRIVATE_KEY;
     const contractAddress = process.env.DOMIN8_CONTRACT_ADDRESS;
 
     if (!rpcEndpoint || !privateKey || !contractAddress) {
