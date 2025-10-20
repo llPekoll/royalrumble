@@ -1,7 +1,8 @@
-import { internalMutation, internalQuery, query } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
-import { GameStatus } from "./lib/types";
-import { Doc, Id } from "./_generated/dataModel";
+import { GameStatus } from "./evm-types";
+import type { Doc, Id } from "../_generated/dataModel";
 
 // ============================================================================
 // Internal Mutations - Called by actions
@@ -15,13 +16,13 @@ export const syncGameRecord = internalMutation({
   args: {
     gameRound: v.any(), // Using v.any() to accept the raw struct from the EVM client
   },
-  handler: async (ctx, { gameRound }) => {
+  handler: async (ctx: MutationCtx, { gameRound }: any) => {
     const { roundId, status, startTimestamp, endTimestamp, totalPot, winner, vrfRequestId, randomnessFulfilled, bets } = gameRound;
     const now = Date.now();
 
     const existingGame = await ctx.db
       .query("games")
-      .withIndex("by_round_id", (q) => q.eq("roundId", roundId))
+      .withIndex("by_round_id", (q: any) => q.eq("roundId", roundId))
       .first();
 
     const gameStatusString = GameStatus[status as number];
@@ -68,7 +69,7 @@ export const syncGameRecord = internalMutation({
  */
 export const updateGameStatus = internalMutation({
     args: { gameId: v.id("games"), status: v.string() },
-    handler: async (ctx, { gameId, status }) => {
+    handler: async (ctx: MutationCtx, { gameId, status }: any) => {
         await ctx.db.patch(gameId, { status, lastUpdated: Date.now() });
     },
 });
@@ -90,7 +91,7 @@ export const logGameEvent = internalMutation({
       transactionType: v.optional(v.string()),
     }),
   },
-  handler: async (ctx, { roundId, event, details }) => {
+  handler: async (ctx: MutationCtx, { roundId, event, details }: any) => {
     await ctx.db.insert("gameEvents", {
       roundId,
       event,
@@ -111,10 +112,10 @@ export const updateSystemHealth = internalMutation({
     lastError: v.optional(v.string()),
     metadata: v.optional(v.any()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     const health = await ctx.db
       .query("systemHealth")
-      .withIndex("by_component", (q) => q.eq("component", args.component))
+      .withIndex("by_component", (q: any) => q.eq("component", args.component))
       .first();
 
     if (health) {
@@ -149,10 +150,10 @@ const getRandomActiveMap = async (db: any) => {
  */
 export const getGameByRoundId = internalQuery({
   args: { roundId: v.number() },
-  handler: async (ctx, { roundId }) => {
+  handler: async (ctx: QueryCtx, { roundId }: any) => {
     return await ctx.db
       .query("games")
-      .withIndex("by_round_id", (q) => q.eq("roundId", roundId))
+      .withIndex("by_round_id", (q: any) => q.eq("roundId", roundId))
       .first();
   },
 });
@@ -167,7 +168,7 @@ export const getGameByRoundId = internalQuery({
  */
 export const getGameState = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: QueryCtx) => {
     // Get the latest game by last checked time
     const game = await ctx.db
       .query("games")
@@ -180,7 +181,7 @@ export const getGameState = query({
     // Get bets for this game
     const bets = await ctx.db
       .query("bets")
-      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .withIndex("by_game", (q: any) => q.eq("gameId", game._id))
       .collect();
 
     return { game, bets };
@@ -194,11 +195,11 @@ export const getGameState = query({
 
 export const getOldCompletedGames = internalQuery({
   args: { cutoffTime: v.number() },
-  handler: async (ctx, { cutoffTime }) => {
+  handler: async (ctx: QueryCtx, { cutoffTime }: any) => {
     return await ctx.db
       .query("games")
       .withIndex("by_last_checked")
-      .filter((q) => q.and(
+      .filter((q: any) => q.and(
           q.eq(q.field("status"), "Finished"),
           q.lt(q.field("lastUpdated"), cutoffTime)
       ))
@@ -208,20 +209,20 @@ export const getOldCompletedGames = internalQuery({
 
 export const getGameBets = internalQuery({
   args: { gameId: v.id("games") },
-  handler: async (ctx, { gameId }) => {
+  handler: async (ctx: QueryCtx, { gameId }: any) => {
     return await ctx.db
       .query("bets")
-      .withIndex("by_game", (q) => q.eq("gameId", gameId))
+      .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
       .collect();
   },
 });
 
 export const deleteBet = internalMutation({
   args: { betId: v.id("bets") },
-  handler: async (ctx, { betId }) => await ctx.db.delete(betId),
+  handler: async (ctx: MutationCtx, { betId }: any) => await ctx.db.delete(betId),
 });
 
 export const deleteGame = internalMutation({
   args: { gameId: v.id("games") },
-  handler: async (ctx, { gameId }) => await ctx.db.delete(gameId),
+  handler: async (ctx: MutationCtx, { gameId }: any) => await ctx.db.delete(gameId),
 });

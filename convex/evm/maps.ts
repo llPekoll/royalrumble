@@ -1,13 +1,14 @@
-import { query } from "./_generated/server";
+import { query } from "../_generated/server";
+import type { QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 
 // Get all active maps (for demo mode preloading)
 export const getAllActiveMaps = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: QueryCtx) => {
     const maps = await ctx.db
       .query("maps")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .withIndex("by_active", (q: any) => q.eq("isActive", true))
       .collect();
 
     return maps;
@@ -17,7 +18,7 @@ export const getAllActiveMaps = query({
 // Get map by ID
 export const getMap = query({
   args: { mapId: v.id("maps") },
-  handler: async (ctx, args) => {
+  handler: async (ctx: QueryCtx, args: any) => {
     return await ctx.db.get(args.mapId);
   },
 });
@@ -25,11 +26,11 @@ export const getMap = query({
 // Get a random map for demo mode (client-side only, nothing stored)
 export const getRandomMap = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: QueryCtx) => {
     // Get all active maps
     const maps = await ctx.db
       .query("maps")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .withIndex("by_active", (q: any) => q.eq("isActive", true))
       .collect();
 
     if (maps.length === 0) {
@@ -44,11 +45,11 @@ export const getRandomMap = query({
 // Get a default map for display when no game is active
 export const getDefaultMap = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: QueryCtx) => {
     // Get first active map
     const maps = await ctx.db
       .query("maps")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .withIndex("by_active", (q: any) => q.eq("isActive", true))
       .collect();
 
     if (maps.length === 0) {
@@ -71,7 +72,7 @@ export const calculateSpawnPositions = query({
     mapId: v.id("maps"),
     participantCount: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: QueryCtx, args: any) => {
     const map = await ctx.db.get(args.mapId);
     if (!map) {
       throw new Error("Map not found");

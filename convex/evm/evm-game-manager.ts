@@ -1,9 +1,10 @@
 "use node";
-import { internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { EvmClient } from "./lib/evm";
-import { GameStatus, TRANSACTION_TYPES } from "./lib/types";
-import { Doc, Id } from "./_generated/dataModel";
+import { internalAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { EvmClient } from "./evm-client";
+import { GameStatus, TRANSACTION_TYPES } from "./evm-types";
+import type { Doc, Id } from "../_generated/dataModel";
 
 /**
  * @notice Main cron job handler that checks and progresses the game state.
@@ -11,7 +12,7 @@ import { Doc, Id } from "./_generated/dataModel";
  */
 export const checkAndProgressGames = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: ActionCtx) => {
     const now = Date.now();
     let roundId: number | undefined;
 
@@ -22,7 +23,7 @@ export const checkAndProgressGames = internalAction({
 
       // 2. Perform Health Check
       const health = await evmClient.healthCheck();
-      await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
+      await ctx.runMutation(internal.evm["evm-game-manager-db"].updateSystemHealth, {
         component: "evm_rpc",
         status: health.healthy ? "healthy" : "unhealthy",
         lastCheck: now,
@@ -40,7 +41,7 @@ export const checkAndProgressGames = internalAction({
       roundId = gameRound.roundId; // Assign roundId for error logging
 
       // 4. Sync State with Convex Database
-      const game = await ctx.runMutation(internal.gameManagerDb.syncGameRecord, {
+      const game = await ctx.runMutation(internal.evm["evm-game-manager-db"].syncGameRecord, {
           gameRound,
       });
 
@@ -53,12 +54,12 @@ export const checkAndProgressGames = internalAction({
 
     } catch (error: any) {
       console.error(`Cron job error for round ${roundId ?? 'unknown'}:`, error);
-      await ctx.runMutation(internal.gameManagerDb.logGameEvent, {
+      await ctx.runMutation(internal.evm["evm-game-manager-db"].logGameEvent, {
         roundId: roundId,
         event: "cron_error",
         details: { success: false, errorMessage: error.message },
       });
-      await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
+      await ctx.runMutation(internal.evm["evm-game-manager-db"].updateSystemHealth, {
         component: "cron_job", status: "unhealthy", lastCheck: now, lastError: error.message,
       });
     }
@@ -69,10 +70,10 @@ export const checkAndProgressGames = internalAction({
  * @notice Routes game logic based on the current on-chain status.
  */
 async function processGameStatus(
-  ctx: any,
+  ctx: ActionCtx,
   evmClient: EvmClient,
   gameRound: any,
-  game: Doc<"games">
+  game: any
 ) {
   switch (gameRound.status as GameStatus) {
     case GameStatus.Waiting:
@@ -94,10 +95,10 @@ async function processGameStatus(
  * @notice Handles the 'Waiting' phase: checks if the betting window is closed and triggers the next step.
  */
 async function handleWaitingPhase(
-  ctx: any,
+  ctx: ActionCtx,
   evmClient: EvmClient,
   gameRound: any,
-  game: Doc<"games">
+  game: any
 ) {
   const now = Date.now();
   const waitingEndTime = gameRound.endTimestamp * 1000;
@@ -111,7 +112,7 @@ async function handleWaitingPhase(
     const receipt = await tx.wait();
     if (receipt && receipt.status === 1) {
       await logTransaction(ctx, game.roundId, "transaction_confirmed", TRANSACTION_TYPES.CLOSE_BETTING_WINDOW, tx.hash);
-      await ctx.runMutation(internal.gameManagerDb.updateGameStatus, {
+      await ctx.runMutation(internal.evm["evm-game-manager-db"].updateGameStatus, {
         gameId: game._id,
         status: "AwaitingWinnerRandomness"
       });
@@ -125,10 +126,10 @@ async function handleWaitingPhase(
  * @notice Handles the 'AwaitingWinnerRandomness' phase: checks if randomness is fulfilled and triggers payouts.
  */
 async function handleWinnerRandomness(
-  ctx: any,
+  ctx: ActionCtx,
   evmClient: EvmClient,
   gameRound: any,
-  game: Doc<"games">
+  game: any
 ) {
   if (gameRound.randomnessFulfilled) {
     console.log(`Randomness fulfilled for round ${game.roundId}. Selecting winner...`);
@@ -139,7 +140,7 @@ async function handleWinnerRandomness(
     const receipt = await tx.wait();
     if (receipt && receipt.status === 1) {
       await logTransaction(ctx, game.roundId, "game_completed", TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT, tx.hash);
-      await ctx.runMutation(internal.gameManagerDb.updateGameStatus, {
+      await ctx.runMutation(internal.evm["evm-game-manager-db"].updateGameStatus, {
         gameId: game._id,
         status: "Finished"
       });
@@ -155,12 +156,12 @@ async function handleWinnerRandomness(
  */
 export const cleanupOldGames = internalAction({
     args: {},
-    handler: async (ctx) => {
+    handler: async (ctx: ActionCtx) => {
         const now = Date.now();
         const threeDaysAgo = now - 3 * 24 * 60 * 60 * 1000;
         console.log("🧹 Starting database cleanup for old games...");
 
-        const oldGames = await ctx.runQuery(internal.gameManagerDb.getOldCompletedGames, {
+        const oldGames = await ctx.runQuery(internal.evm["evm-game-manager-db"].getOldCompletedGames, {
             cutoffTime: threeDaysAgo,
         });
 
@@ -170,11 +171,11 @@ export const cleanupOldGames = internalAction({
         }
 
         for (const game of oldGames) {
-            const bets = await ctx.runQuery(internal.gameManagerDb.getGameBets, { gameId: game._id });
+            const bets = await ctx.runQuery(internal.evm["evm-game-manager-db"].getGameBets, { gameId: game._id });
             for (const bet of bets) {
-                await ctx.runMutation(internal.gameManagerDb.deleteBet, { betId: bet._id });
+                await ctx.runMutation(internal.evm["evm-game-manager-db"].deleteBet, { betId: bet._id });
             }
-            await ctx.runMutation(internal.gameManagerDb.deleteGame, { gameId: game._id });
+            await ctx.runMutation(internal.evm["evm-game-manager-db"].deleteGame, { gameId: game._id });
         }
         console.log(`✅ Cleaned up ${oldGames.length} old games from the database.`);
     },
@@ -196,8 +197,8 @@ function getEnvVariables() {
     return { rpcEndpoint, privateKey, contractAddress };
 }
 
-async function logTransaction(ctx: any, roundId: number | undefined, event: string, type: string, hash: string) {
-  await ctx.runMutation(internal.gameManagerDb.logGameEvent, {
+async function logTransaction(ctx: ActionCtx, roundId: number | undefined, event: string, type: string, hash: string) {
+  await ctx.runMutation(internal.evm["evm-game-manager-db"].logGameEvent, {
     roundId,
     event,
     details: { success: true, transactionType: type, transactionHash: hash },

@@ -1,4 +1,5 @@
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, query } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 
 // =================================================================================================
@@ -17,11 +18,11 @@ export const createOrUpdateBetFromEvent = internalMutation({
     txHash: v.string(),
     timestamp: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     // Find the corresponding game in the database
     const game = await ctx.db
       .query("games")
-      .withIndex("by_round_id", (q) => q.eq("roundId", args.roundId))
+      .withIndex("by_round_id", (q: any) => q.eq("roundId", args.roundId))
       .first();
 
     if (!game) {
@@ -33,7 +34,7 @@ export const createOrUpdateBetFromEvent = internalMutation({
     // Check if this bet (by txHash) has already been processed to prevent duplicates
     const existingBet = await ctx.db
       .query("bets")
-      .withIndex("by_tx_hash", (q) => q.eq("txHash", args.txHash))
+      .withIndex("by_tx_hash", (q: any) => q.eq("txHash", args.txHash))
       .first();
 
     if (existingBet) {
@@ -45,7 +46,7 @@ export const createOrUpdateBetFromEvent = internalMutation({
     // Get the player record to link the bet
     const playerRecord = await ctx.db
         .query("players")
-        .withIndex("by_wallet", (q) => q.eq("walletAddress", args.player))
+        .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.player))
         .first();
 
     // Create the new bet record
@@ -62,7 +63,7 @@ export const createOrUpdateBetFromEvent = internalMutation({
     });
     
     // Increment players count in the game record for the UI
-    const betsInGame = await ctx.db.query("bets").withIndex("by_game", q => q.eq("gameId", game._id)).collect();
+    const betsInGame = await ctx.db.query("bets").withIndex("by_game", (q: any) => q.eq("gameId", game._id)).collect();
     await ctx.db.patch(game._id, { playersCount: betsInGame.length + 1 });
   },
 });
@@ -77,10 +78,10 @@ export const settleBetsFromEvent = internalMutation({
         winner: v.string(),
         txHash: v.string(),
     },
-    handler: async (ctx, { roundId, winner }) => {
+    handler: async (ctx: MutationCtx, { roundId, winner }: any) => {
         const game = await ctx.db
             .query("games")
-            .withIndex("by_round_id", (q) => q.eq("roundId", roundId))
+            .withIndex("by_round_id", (q: any) => q.eq("roundId", roundId))
             .first();
             
         if (!game) {
@@ -88,7 +89,7 @@ export const settleBetsFromEvent = internalMutation({
             return;
         }
 
-        const bets = await ctx.db.query("bets").withIndex("by_game", q => q.eq("gameId", game._id)).collect();
+        const bets = await ctx.db.query("bets").withIndex("by_game", (q: any) => q.eq("gameId", game._id)).collect();
 
         for (const bet of bets) {
             const isWinner = bet.walletAddress.toLowerCase() === winner.toLowerCase();
@@ -109,10 +110,10 @@ export const settleBetsFromEvent = internalMutation({
  */
 export const getGameBetsWithDetails = query({
   args: { gameId: v.id("games") },
-  handler: async (ctx, args) => {
+  handler: async (ctx: QueryCtx, args: any) => {
     const bets = await ctx.db
       .query("bets")
-      .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+      .withIndex("by_game", (q: any) => q.eq("gameId", args.gameId))
       .collect();
 
     // Enhance bets with player data

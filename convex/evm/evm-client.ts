@@ -1,6 +1,6 @@
 "use node";
 import { ethers } from "ethers";
-import { GameConfig, GameRound, BetEntry } from "./evm-types";
+import type { GameConfig, GameRound, BetEntry } from "./evm-types";
 import Domin8ABI from "./Domin8.json"; // Placeholder for your contract's ABI
 
 /**

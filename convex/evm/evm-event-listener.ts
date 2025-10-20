@@ -1,8 +1,10 @@
 "use node";
-import { internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { EvmClient } from "./lib/evm";
+import { internalAction, internalMutation, internalQuery } from "../_generated/server";
+import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { EvmClient } from "./evm-client";
 import { ethers } from "ethers";
+import { v } from "convex/values";
 
 /**
  * @notice Listens for and processes events from the Domin8 smart contract.
@@ -11,7 +13,7 @@ import { ethers } from "ethers";
  */
 export const listenToBlockchainEvents = internalAction({
     args: {},
-    handler: async (ctx) => {
+    handler: async (ctx: ActionCtx) => {
         const now = Date.now();
         try {
             // 1. Initialize EVM Client
@@ -20,7 +22,7 @@ export const listenToBlockchainEvents = internalAction({
             const contract = evmClient.contract;
 
             // 2. Get Last Processed Block
-            const lastProcessedBlock = await ctx.runQuery(internal.eventListener.getLastProcessedBlock);
+            const lastProcessedBlock = await ctx.runQuery(internal.evm["evm-event-listener"].getLastProcessedBlock);
             const currentBlock = await evmClient.healthCheck().then(h => h.blockNumber ?? lastProcessedBlock);
             
             // Avoid querying a massive range on the first run
@@ -44,17 +46,17 @@ export const listenToBlockchainEvents = internalAction({
             }
 
             // 5. Update Last Processed Block
-            await ctx.runMutation(internal.eventListener.updateLastProcessedBlock, {
+            await ctx.runMutation(internal.evm["evm-event-listener"].updateLastProcessedBlock, {
                 blockNumber: currentBlock,
             });
 
-            await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
+            await ctx.runMutation(internal.evm["evm-game-manager-db"].updateSystemHealth, {
                 component: "event_listener", status: "healthy", lastCheck: now
             });
 
         } catch (error: any) {
             console.error("Event listener error:", error);
-            await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
+            await ctx.runMutation(internal.evm["evm-game-manager-db"].updateSystemHealth, {
                 component: "event_listener", status: "unhealthy", lastCheck: now, lastError: error.message
             });
         }
@@ -66,11 +68,11 @@ export const listenToBlockchainEvents = internalAction({
  * @param ctx The Convex action context.
  * @param event The decoded event object from ethers.js.
  */
-async function processEvent(ctx: any, event: ethers.EventLog) {
+async function processEvent(ctx: ActionCtx, event: ethers.EventLog) {
     const args = event.args;
     switch (event.eventName) {
         case "BetPlaced":
-            await ctx.runMutation(internal.bets.createOrUpdateBetFromEvent, {
+            await ctx.runMutation(internal.evm["evm-bets"].createOrUpdateBetFromEvent, {
                 roundId: Number(args.roundId),
                 player: args.player,
                 amount: args.amount.toString(),
@@ -79,7 +81,7 @@ async function processEvent(ctx: any, event: ethers.EventLog) {
             });
             break;
         case "WinnerSelected":
-            await ctx.runMutation(internal.bets.settleBetsFromEvent, {
+            await ctx.runMutation(internal.evm["evm-bets"].settleBetsFromEvent, {
                 roundId: Number(args.roundId),
                 winner: args.winner,
                 txHash: event.transactionHash
@@ -94,10 +96,11 @@ async function processEvent(ctx: any, event: ethers.EventLog) {
  * @notice Retrieves the last block number that was processed by the event listener.
  */
 export const getLastProcessedBlock = internalQuery({
-    handler: async (ctx) => {
+    args: {},
+    handler: async (ctx: QueryCtx) => {
         const health = await ctx.db
             .query("systemHealth")
-            .withIndex("by_component", (q) => q.eq("component", "event_listener"))
+            .withIndex("by_component", (q: any) => q.eq("component", "event_listener"))
             .first();
         return health?.metadata?.lastProcessedBlock ?? 0;
     },
@@ -108,10 +111,10 @@ export const getLastProcessedBlock = internalQuery({
  */
 export const updateLastProcessedBlock = internalMutation({
     args: { blockNumber: v.number() },
-    handler: async (ctx, { blockNumber }) => {
+    handler: async (ctx: MutationCtx, { blockNumber }: any) => {
         const health = await ctx.db
             .query("systemHealth")
-            .withIndex("by_component", (q) => q.eq("component", "event_listener"))
+            .withIndex("by_component", (q: any) => q.eq("component", "event_listener"))
             .first();
 
         if (health) {

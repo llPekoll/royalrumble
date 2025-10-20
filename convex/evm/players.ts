@@ -1,12 +1,13 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
 
 export const getPlayer = query({
   args: { walletAddress: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx: QueryCtx, args: any) => {
     const player = await ctx.db
       .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
       .first();
 
     if (!player) {
@@ -19,10 +20,10 @@ export const getPlayer = query({
 
 export const getPlayerWithCharacter = query({
   args: { walletAddress: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx: QueryCtx, args: any) => {
     const player = await ctx.db
       .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
       .first();
 
     if (!player) {
@@ -32,7 +33,7 @@ export const getPlayerWithCharacter = query({
     // Get a random character for the player (since players don't have persistent characters)
     const characters = await ctx.db
       .query("characters")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .withIndex("by_active", (q: any) => q.eq("isActive", true))
       .collect();
 
     const character = characters.length > 0 
@@ -52,10 +53,10 @@ export const createPlayer = mutation({
     walletAddress: v.string(),
     displayName: v.optional(v.string())
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     const existingPlayer = await ctx.db
       .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
       .first();
 
     if (existingPlayer) {
@@ -77,10 +78,10 @@ export const createPlayer = mutation({
 
 export const updateLastActive = mutation({
   args: { walletAddress: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     const player = await ctx.db
       .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
       .first();
 
     if (player) {
@@ -100,10 +101,10 @@ export const updateDisplayName = mutation({
     walletAddress: v.string(),
     displayName: v.string()
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     const player = await ctx.db
       .query("players")
-      .withIndex("by_wallet", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_wallet", (q: any) => q.eq("walletAddress", args.walletAddress))
       .first();
 
     if (!player) {
@@ -135,7 +136,7 @@ export const updatePlayerStats = mutation({
     playerId: v.id("players"),
     won: v.boolean(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       throw new Error("Player not found");
@@ -159,7 +160,7 @@ export const addAchievement = mutation({
     playerId: v.id("players"),
     achievementId: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: MutationCtx, args: any) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       throw new Error("Player not found");

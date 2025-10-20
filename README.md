@@ -30,6 +30,12 @@ docker compose exec backend ./generate_admin_key.sh
 # push env var in convex
 CRANK_AUTHORITY_PRIVATE_KEY=<PRIVATE_KEY_OF_A_WALLET>
 SOLANA_RPC_ENDPOINT=https://api.devnet.solana.com
+
+-- EVM
+CRANK_AUTHORITY_PRIVATE_KEY
+DOMIN8_CONTRACT_ADDRESS
+EVM_RPC_ENDPOINT
+
 ```
 
 at that stage you still have to copy seeds to make it work

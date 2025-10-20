@@ -1,5 +1,6 @@
 // Transaction cleanup functions
-import { internalMutation } from "./_generated/server";
+import { internalMutation } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 
 /**
  * Clean up old transaction records (gameEvents older than 7 days)
@@ -7,7 +8,7 @@ import { internalMutation } from "./_generated/server";
  */
 export const cleanupOldTransactions = internalMutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx: MutationCtx) => {
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
@@ -17,7 +18,7 @@ export const cleanupOldTransactions = internalMutation({
     const oldEvents = await ctx.db
       .query("gameEvents")
       .withIndex("by_timestamp")
-      .filter((q) => q.lt(q.field("timestamp"), sevenDaysAgo))
+      .filter((q: any) => q.lt(q.field("timestamp"), sevenDaysAgo))
       .collect();
 
     let deletedCount = 0;
