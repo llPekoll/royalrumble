@@ -139,6 +139,63 @@ The game adapts based on the number of participants:
 
 - [Bun](https://bun.sh/) - JavaScript runtime
 - [Docker](https://www.docker.com/) & Docker Compose - For local Convex backend
+- [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) - For smart contract development
+- [Anchor](https://www.anchor-lang.com/docs/installation) - Solana framework
+
+### Wallet & Program Configuration
+
+Each developer needs their own wallet and program ID for development. This project uses environment variables to manage machine-specific configurations.
+
+#### Setup Your Development Environment
+
+1. **Create your Solana wallet**:
+```bash
+# Generate a new wallet (for testnet/devnet)
+solana-keygen new --outfile solana/my-wallet.json
+```
+
+2. **Configure your `.env.local`** (not committed to git):
+```bash
+# Copy the example file
+cp .env.example .env.local
+
+# Edit .env.local and add your wallet path
+ANCHOR_WALLET=./solana/my-wallet.json
+```
+
+3. **Build and deploy your program**:
+```bash
+# Build the smart contract
+bun run anchor:build
+
+# Deploy to devnet (make sure your wallet has devnet SOL)
+bun run anchor:deploy
+```
+
+4. **Update your `.env.local` with the deployed program ID**:
+```bash
+# After deploy, you'll get a program ID like: 8BH1JMeZCohtUKcfGGTqpYjpwxMowZBi6HrnAhc6eJFz
+# Add it to your .env.local:
+ANCHOR_PROGRAM_ID=<your-deployed-program-id>
+```
+
+### Anchor Commands
+
+All Anchor commands automatically use your wallet and program ID from `.env.local`:
+
+```bash
+# Build the smart contract
+bun run anchor:build
+
+# Deploy to devnet with your wallet
+bun run anchor:deploy
+
+# Run tests with your configuration
+bun run anchor:test
+
+# Start local validator
+bun run anchor:localnet
+```
 
 ### Development Commands
 
@@ -191,11 +248,27 @@ The project uses Docker Compose to run a local Convex backend with PostgreSQL da
 
 ## 🚦 Environment Variables
 
+Create a `.env.local` file (copy from `.env.example`):
+
 ```env
+# Convex configuration
 CONVEX_DEPLOYMENT=your-deployment
+VITE_CONVEX_URL=http://127.0.0.1:3210
+
+# Solana configuration
 SOLANA_RPC_URL=your-rpc-url
-NEXT_PUBLIC_SOLANA_NETWORK=devnet
+VITE_SOLANA_NETWORK=devnet
+
+# Anchor configuration (machine-specific)
+ANCHOR_WALLET=./solana/your-wallet.json
+ANCHOR_PROGRAM_ID=your-program-id-after-deploy
+
+# Other services
+PRIVY_APP_SECRET=your-privy-secret
+VITE_PRIVY_APP_ID=your-privy-app-id
 ```
+
+**Note**: Each developer should have their own `.env.local` with their specific wallet and program ID.
 
 ## 📚 Documentation
 

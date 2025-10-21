@@ -54,7 +54,7 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     // ⭐ Lock bets to prevent new bets during resolution
     config.bets_locked = true;
 
-    let bet_count = game_round.bets.len();
+    let bet_count = game_round.bet_count as usize;
     msg!("Closing betting window: game {} with {} bets", game_round.round_id, bet_count);
     msg!("Bets locked - no new bets allowed during resolution");
 
@@ -67,7 +67,9 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     if bet_count == 1 {
         // Single bet - immediate finish with refund
         game_round.status = GameStatus::Finished;
-        game_round.winner = game_round.bets[0].wallet;
+        game_round.winning_bet_index = 0;
+        // Winner wallet will be retrieved from BetEntry PDA when needed
+        game_round.winner = Pubkey::default(); // Placeholder, actual winner retrieved via BetEntry
         msg!("Single bet game - immediate finish with refund");
         return Ok(());
     }
@@ -91,7 +93,7 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     // ⭐ Emit game locked event
     emit!(GameLocked {
         round_id: game_round.round_id,
-        final_bet_count: game_round.bets.len() as u8,
+        final_bet_count: game_round.bet_count as u8,
         total_pot: game_round.total_pot,
         vrf_request_pubkey: game_round.vrf_request_pubkey,
     });

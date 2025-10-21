@@ -312,6 +312,39 @@
           }
         },
         {
+          "name": "bet_entry",
+          "docs": [
+            "First bet entry PDA (bet_index = 0)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "vault",
           "writable": true,
           "pda": {
@@ -641,6 +674,35 @@
           }
         },
         {
+          "name": "bet_entry",
+          "docs": [
+            "CREATE: BetEntry PDA for storing bet details"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
+              },
+              {
+                "kind": "account",
+                "path": "game_round.bet_count",
+                "account": "GameRound"
+              }
+            ]
+          }
+        },
+        {
           "name": "vault",
           "writable": true,
           "pda": {
@@ -818,6 +880,19 @@
     }
   ],
   "accounts": [
+    {
+      "name": "BetEntry",
+      "discriminator": [
+        32,
+        21,
+        144,
+        65,
+        176,
+        182,
+        3,
+        204
+      ]
+    },
     {
       "name": "GameConfig",
       "discriminator": [
@@ -1128,14 +1203,31 @@
       "code": 6037,
       "name": "GameTooRecentToCleanup",
       "msg": "Game is too recent to cleanup (must be older than 1 week)"
+    },
+    {
+      "code": 6038,
+      "name": "MaxBetsReached",
+      "msg": "Maximum number of bets reached (64 max)"
     }
   ],
   "types": [
     {
       "name": "BetEntry",
+      "docs": [
+        "Individual bet stored as separate PDA",
+        "Seeds: [b\"bet\", game_round_id.to_le_bytes(), bet_index.to_le_bytes()]"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "game_round_id",
+            "type": "u64"
+          },
+          {
+            "name": "bet_index",
+            "type": "u32"
+          },
           {
             "name": "wallet",
             "type": "pubkey"
@@ -1147,6 +1239,10 @@
           {
             "name": "timestamp",
             "type": "i64"
+          },
+          {
+            "name": "payout_collected",
+            "type": "bool"
           }
         ]
       }
@@ -1342,8 +1438,9 @@
     {
       "name": "GameRound",
       "docs": [
-        "Current game round state stored as singleton PDA",
-        "Seeds: [b\"game_round\"]"
+        "Current game round state stored as PDA per round",
+        "Seeds: [b\"game_round\", round_id.to_le_bytes()]",
+        "Bets are stored both as separate PDAs AND in arrays for efficient winner selection"
       ],
       "type": {
         "kind": "struct",
@@ -1369,8 +1466,21 @@
             "type": "i64"
           },
           {
+            "name": "bet_count",
+            "type": "u32"
+          },
+          {
             "name": "total_pot",
             "type": "u64"
+          },
+          {
+            "name": "bet_amounts",
+            "type": {
+              "array": [
+                "u64",
+                64
+              ]
+            }
           },
           {
             "name": "winner",
@@ -1396,23 +1506,6 @@
           {
             "name": "randomness_fulfilled",
             "type": "bool"
-          },
-          {
-            "name": "bet_index",
-            "type": "u8"
-          },
-          {
-            "name": "bets",
-            "type": {
-              "array": [
-                {
-                  "defined": {
-                    "name": "BetEntry"
-                  }
-                },
-                8
-              ]
-            }
           }
         ]
       }

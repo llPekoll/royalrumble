@@ -22,12 +22,23 @@ pub struct PlaceBet<'info> {
     #[account(
         mut,
         seeds = [GAME_ROUND_SEED, counter.current_round_id.to_le_bytes().as_ref()],
-        bump,
-        realloc = game_round.to_account_info().data_len() + std::mem::size_of::<BetEntry>(),
-        realloc::payer = player,
-        realloc::zero = false,
+        bump
     )]
     pub game_round: Account<'info, GameRound>,
+
+    /// CREATE: BetEntry PDA for storing bet details
+    #[account(
+        init,
+        payer = player,
+        space = BetEntry::LEN,
+        seeds = [
+            BET_ENTRY_SEED,
+            counter.current_round_id.to_le_bytes().as_ref(),
+            game_round.bet_count.to_le_bytes().as_ref()
+        ],
+        bump
+    )]
+    pub bet_entry: Account<'info, BetEntry>,
 
     /// CHECK: This is the vault PDA that holds game funds
     #[account(
@@ -88,24 +99,34 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         amount,
     )?;
 
+    // Check if we've reached max bets
+    require!(
+        game_round.bet_count < 64,
+        Domin8Error::MaxBetsReached
+    );
+
     // Add to existing pot
     game_round.total_pot = game_round.total_pot.saturating_add(amount);
 
-    // Find existing bet or add new one
-    // New bet - add to vector (account was already reallocated)
-    let bet_entry = BetEntry {
-        wallet: player_key,
-        bet_amount: amount,
-        timestamp: clock.unix_timestamp,
-    };
+    // Store bet amount in array for efficient winner selection
+    let bet_index = game_round.bet_count as usize;
+    game_round.bet_amounts[bet_index] = amount;
+    game_round.bet_count += 1;
 
-    game_round.add_bet(bet_entry);
+    // Create BetEntry PDA for detailed tracking
+    let bet_entry = &mut ctx.accounts.bet_entry;
+    bet_entry.game_round_id = game_round.round_id;
+    bet_entry.bet_index = bet_index as u32;
+    bet_entry.wallet = player_key;
+    bet_entry.bet_amount = amount;
+    bet_entry.timestamp = clock.unix_timestamp;
+    bet_entry.payout_collected = false;
 
     msg!(
         "New bet placed: {}, amount: {}, total bets: {}",
         player_key,
         amount,
-        game_round.bets.len()
+        game_round.bet_count
     );
 
     msg!("Total pot: {} lamports", game_round.total_pot);
@@ -115,7 +136,7 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         round_id: game_round.round_id,
         player: player_key,
         amount,
-        bet_count: game_round.bets.len() as u8,
+        bet_count: game_round.bet_count as u8,
         total_pot: game_round.total_pot,
         end_timestamp: game_round.end_timestamp,
         is_first_bet: false,

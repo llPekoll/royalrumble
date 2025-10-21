@@ -17,11 +17,14 @@
     "script:initialize:devnet": "node scripts/initialize-standalone.mjs --cluster=devnet",
     "script:initialize:ts": "ts-node scripts/initialize-game.ts",
     "script:initialize:cjs": "node scripts/initialize-game.cjs",
-    "anchor:test": "anchor test",
-    "anchor:build": "anchor build"
+    "anchor:test": "dotenv -e .env.local -- bash -c 'anchor test --provider.wallet ${ANCHOR_WALLET} --program-name domin8_prgm --program-id ${ANCHOR_PROGRAM_ID}'",
+    "anchor:test:skip": "dotenv -e .env.local -- bash -c 'anchor test --skip-build --skip-deploy --provider.wallet ${ANCHOR_WALLET}'",
+    "anchor:build": "dotenv -e .env.local -- bash -c 'anchor build'",
+    "anchor:deploy": "dotenv -e .env.local -- bash -c 'anchor deploy --provider.wallet ${ANCHOR_WALLET} --program-name domin8_prgm --program-id ${ANCHOR_PROGRAM_ID}'",
+    "anchor:localnet": "anchor localnet"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1",
+    "@coral-xyz/anchor": "0.31.1",
     "@orao-network/solana-vrf": "^0.7.0",
     "@privy-io/react-auth": "^3.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -59,6 +62,8 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "chai": "^6.2.0",
+    "cross-env": "^10.1.0",
+    "dotenv-cli": "^10.0.0",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",

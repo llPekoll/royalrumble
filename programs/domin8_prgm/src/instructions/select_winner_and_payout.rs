@@ -76,16 +76,23 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
     
     // 2. SELECT WINNER USING VERIFIED RANDOMNESS
     require!(
-        game_round.bets.len() >= 2,
+        game_round.bet_count >= 2,
         Domin8Error::InvalidGameStatus
     );
 
-    let bet_refs: Vec<&BetEntry> = game_round.bets.iter().collect();
-    let (winning_bet_index, winner_wallet) = select_weighted_winner(&bet_refs, randomness)?;
+    // Select winning bet index using only bet amounts
+    let winning_bet_index = select_weighted_winner_index(
+        &game_round.bet_amounts,
+        game_round.bet_count as usize,
+        randomness
+    )?;
 
-    game_round.winner = winner_wallet;
     game_round.winning_bet_index = winning_bet_index as u32;
-    msg!("Winner selected: Bet #{} - Player {}", winning_bet_index, winner_wallet);
+    
+    // For now, we'll set winner to default and retrieve actual wallet in separate instruction
+    // TODO: Create a separate instruction to retrieve winner wallet from BetEntry PDA
+    game_round.winner = Pubkey::default(); // Placeholder - actual winner retrieved via BetEntry PDA
+    msg!("Winner selected: Bet #{} (wallet will be retrieved from BetEntry PDA)", winning_bet_index);
     
     // 3. CALCULATE WINNINGS
     let total_pot = game_round.total_pot;
@@ -98,27 +105,12 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
     
     msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
     
-    // 4. DISTRIBUTE WINNINGS - Use direct lamport manipulation to avoid lifetime issues
-    if winner_payout > 0 {
-        // Find winner account in remaining_accounts
-        let mut winner_found = false;
-        for account in ctx.remaining_accounts {
-            if account.key() == winner_wallet {
-                let vault_lamports = ctx.accounts.vault.lamports();
-                require!(
-                    vault_lamports >= winner_payout,
-                    Domin8Error::InsufficientFunds
-                );
-                
-                // Direct lamport transfer
-                **ctx.accounts.vault.try_borrow_mut_lamports()? -= winner_payout;
-                **account.try_borrow_mut_lamports()? += winner_payout;
-                winner_found = true;
-                break;
-            }
-        }
-        require!(winner_found, Domin8Error::InvalidWinnerAccount);
-    }
+    // 4. DISTRIBUTE WINNINGS - Winner payout will be handled in separate instruction
+    // TODO: Create separate claim_winnings instruction that:
+    // 1. Loads BetEntry PDA for winning bet index
+    // 2. Verifies caller is the winner 
+    // 3. Transfers winner_payout from vault to winner
+    msg!("Winner payout of {} SOL will be claimable via separate instruction", winner_payout);
     
     // Transfer house fee to treasury
     if house_fee > 0 {
@@ -139,7 +131,7 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
     // ⭐ Emit winner selected event
     emit!(WinnerSelected {
         round_id: old_round_id,
-        winner: winner_wallet,
+        winner: Pubkey::default(), // Placeholder - actual winner in BetEntry PDA
         winning_bet_index: winning_bet_index as u32,
         total_pot,
         house_fee,
@@ -211,15 +203,19 @@ fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
     Ok(u64::from_le_bytes(randomness_bytes))
 }
 
-/// Select winner weighted by bet amounts
-/// Returns (winning_bet_index, winner_wallet)
-fn select_weighted_winner(bets: &[&BetEntry], randomness: u64) -> Result<(usize, Pubkey)> {
-    if bets.is_empty() {
+/// Select winner index weighted by bet amounts
+/// Returns winning_bet_index
+fn select_weighted_winner_index(
+    bet_amounts: &[u64; 64],
+    bet_count: usize,
+    randomness: u64
+) -> Result<usize> {
+    if bet_count == 0 {
         return Err(Domin8Error::NoPlayers.into());
     }
 
-    // Calculate total weight
-    let total_weight: u64 = bets.iter().map(|b| b.bet_amount).sum();
+    // Calculate total weight from active bets only
+    let total_weight: u64 = bet_amounts[..bet_count].iter().sum();
 
     if total_weight == 0 {
         return Err(Domin8Error::InvalidBetAmount.into());
@@ -230,14 +226,14 @@ fn select_weighted_winner(bets: &[&BetEntry], randomness: u64) -> Result<(usize,
 
     // Find winner based on cumulative weights
     let mut cumulative = 0u64;
-    for (index, bet) in bets.iter().enumerate() {
-        cumulative = cumulative.saturating_add(bet.bet_amount);
+    for index in 0..bet_count {
+        cumulative = cumulative.saturating_add(bet_amounts[index]);
         if selection < cumulative {
-            return Ok((index, bet.wallet));
+            return Ok(index);
         }
     }
 
     // Fallback to last bet (should never reach here)
-    let last_index = bets.len() - 1;
-    Ok((last_index, bets.last().unwrap().wallet))
+    Ok(bet_count - 1)
 }
+

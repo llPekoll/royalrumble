@@ -117,4 +117,7 @@ pub enum Domin8Error {
 
     #[msg("Game is too recent to cleanup (must be older than 1 week)")]
     GameTooRecentToCleanup,
+
+    #[msg("Maximum number of bets reached (64 max)")]
+    MaxBetsReached,
 }

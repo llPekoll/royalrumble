@@ -76,6 +76,21 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
     return { networkState, treasury, vrfRequest, seed };
   }
 
+  // Helper function to derive BetEntry PDA
+  function deriveBetEntryPda(roundId: number, betIndex: number): web3.PublicKey {
+    const roundIdBuffer = Buffer.alloc(8);
+    roundIdBuffer.writeUInt32LE(roundId, 0);
+    const betIndexBuffer = Buffer.alloc(4);
+    betIndexBuffer.writeUInt32LE(betIndex, 0);
+
+    const [betEntryPda] = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("bet"), roundIdBuffer, betIndexBuffer],
+      program.programId
+    );
+
+    return betEntryPda;
+  }
+
   before(async () => {
     console.log("\n╔════════════════════════════════════════════╗");
     console.log("║     DOMIN8 DEVNET TESTS (REAL VRF)         ║");
@@ -295,6 +310,11 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       console.log(gameRound);
       console.log("Game Round PDA:", gameCounterPda);
 
+      // Derive BetEntry PDA for first bet
+      const betEntryPda = deriveBetEntryPda(currentRoundId, 0);
+
+      console.log("BetEntry PDA:", betEntryPda.toString());
+
       try {
         const tx = await program.methods
           .createGame(new BN(firstBetAmount))
@@ -302,6 +322,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
             config: gameConfigPda,
             counter: gameCounterPda,
             gameRound: gameRoundPda,
+            betEntry: betEntryPda,
             vault: vaultPda,
             player: playerWallet, // Use provider wallet
             vrfProgram: vrf.programId,
@@ -322,15 +343,20 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         console.log("Round ID:", gameRoundAccount.roundId.toString());
         console.log("Status:", Object.keys(gameRoundAccount.status)[0]);
         console.log("Total Pot:", gameRoundAccount.totalPot.toString(), "lamports");
-        console.log("Bets Count:", gameRoundAccount.bets.length);
+        console.log("Bet Count:", gameRoundAccount.betCount);
         console.log("Winner:", gameRoundAccount.winner.toString());
+
+        // Fetch BetEntry account to verify bet details
+        const betEntryAccount = await program.account.betEntry.fetch(betEntryPda);
+        console.log("First Bet Amount:", betEntryAccount.betAmount.toString(), "lamports");
+        console.log("First Bet Wallet:", betEntryAccount.wallet.toString());
 
         // Verify game round
         expect(gameRoundAccount.roundId.toString()).to.equal("0");
         expect(gameRoundAccount.totalPot.toString()).to.equal(firstBetAmount.toString());
-        expect(gameRoundAccount.bets.length).to.equal(1);
-        expect(gameRoundAccount.bets[0].wallet.toString()).to.equal(playerWallet.toString());
-        expect(gameRoundAccount.bets[0].amount.toString()).to.equal(firstBetAmount.toString());
+        expect(gameRoundAccount.betCount).to.equal(1);
+        expect(betEntryAccount.wallet.toString()).to.equal(playerWallet.toString());
+        expect(betEntryAccount.betAmount.toString()).to.equal(firstBetAmount.toString());
 
         // Verify status is Waiting
         expect(Object.keys(gameRoundAccount.status)[0]).to.equal("waiting");
@@ -372,12 +398,18 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
       const gameBeforeBet = await program.account.gameRound.fetch(gameRoundPda);
       const totalBefore = gameBeforeBet.totalPot;
+      const betIndex = gameBeforeBet.betCount;
+
+      // Derive BetEntry PDA for this bet
+      const betEntryPda = deriveBetEntryPda(currentRoundId, betIndex);
 
       const tx = await program.methods
         .placeBet(new BN(bet2Amount))
         .accounts({
           config: gameConfigPda,
+          counter: gameCounterPda,
           gameRound: gameRoundPda,
+          betEntry: betEntryPda,
           vault: vaultPda,
           player: player2.publicKey,
           systemProgram: web3.SystemProgram.programId,
@@ -389,17 +421,18 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
       // Verify game updated
       const gameAfterBet = await program.account.gameRound.fetch(gameRoundPda);
+      const betEntryAccount = await program.account.betEntry.fetch(betEntryPda);
 
       console.log("\n=== Game State After Player2 Bet ===");
       console.log("Total Pot:", gameAfterBet.totalPot.toString(), "lamports");
-      console.log("Bets Count:", gameAfterBet.bets.length);
+      console.log("Bet Count:", gameAfterBet.betCount);
 
       expect(gameAfterBet.totalPot.toString()).to.equal(
         totalBefore.add(new BN(bet2Amount)).toString()
       );
-      expect(gameAfterBet.bets.length).to.equal(2);
-      expect(gameAfterBet.bets[1].wallet.toString()).to.equal(player2.publicKey.toString());
-      expect(gameAfterBet.bets[1].amount.toString()).to.equal(bet2Amount.toString());
+      expect(gameAfterBet.betCount).to.equal(2);
+      expect(betEntryAccount.wallet.toString()).to.equal(player2.publicKey.toString());
+      expect(betEntryAccount.betAmount.toString()).to.equal(bet2Amount.toString());
 
       console.log("✓ Player2 bet accepted");
     });

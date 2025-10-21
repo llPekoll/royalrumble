@@ -9,9 +9,15 @@ pub struct BetEntry {
     pub wallet: Pubkey,      // Player who placed the bet
     pub bet_amount: u64,     // Amount in lamports
     pub timestamp: i64,      // When bet was placed
+    pub payout_collected: bool, // Track if winnings have been collected
 }
 
 impl BetEntry {
-    // 8 (discriminator) + 8 (game_round_id) + 4 (bet_index) + 32 (wallet) + 8 (bet_amount) + 8 (timestamp)
-    pub const LEN: usize = 8 + 8 + 4 + 32 + 8 + 8; // 68 bytes
+    // 8 (discriminator) + 8 (game_round_id) + 4 (bet_index) + 32 (wallet) + 8 (bet_amount) + 8 (timestamp) + 1 (payout_collected)
+    pub const LEN: usize = 8 + 8 + 4 + 32 + 8 + 8 + 1; // 69 bytes
+
+    /// Check if this bet is the winner
+    pub fn is_winner(&self, game_round: &crate::state::GameRound) -> bool {
+        game_round.winning_bet_index == self.bet_index
+    }
 }

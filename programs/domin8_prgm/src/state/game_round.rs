@@ -16,7 +16,7 @@ impl GameStatus {
 
 /// Current game round state stored as PDA per round
 /// Seeds: [b"game_round", round_id.to_le_bytes()]
-/// Bets are stored separately as individual PDAs
+/// Bets are stored both as separate PDAs AND in arrays for efficient winner selection
 #[account]
 pub struct GameRound {
     pub round_id: u64,
@@ -24,9 +24,13 @@ pub struct GameRound {
     pub start_timestamp: i64,
     pub end_timestamp: i64, // When betting window closes
 
-    // Bet tracking (bets stored as separate PDAs)
+    // Bet tracking
     pub bet_count: u32,     // Number of bets placed
     pub total_pot: u64,     // Sum of all bet amounts
+
+    // Bet amounts array for efficient winner selection (max 64 bets)
+    pub bet_amounts: [u64; 64],  // Amount for each bet
+    // Wallet details stored in separate BetEntry PDAs
 
     // Winner
     pub winner: Pubkey,
@@ -40,9 +44,11 @@ pub struct GameRound {
 
 impl GameRound {
     // 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start) + 8 (end)
-    // + 4 (bet_count) + 8 (total_pot) + 32 (winner) + 4 (winning_bet_index)
+    // + 4 (bet_count) + 8 (total_pot) 
+    // + (8 * 64) (bet_amounts) - removed bet_wallets array
+    // + 32 (winner) + 4 (winning_bet_index)
     // + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
-    pub const LEN: usize = 8 + 8 + 1 + 8 + 8 + 4 + 8 + 32 + 4 + 32 + 32 + 1; // 146 bytes
+    pub const LEN: usize = 8 + 8 + 1 + 8 + 8 + 4 + 8 + (8 * 64) + 32 + 4 + 32 + 32 + 1; // 658 bytes (much smaller!)
 
     /// Check if the game is in a state where bets can be placed
     pub fn can_accept_bets(&self) -> bool {

@@ -161,9 +161,16 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     bet_entry.wallet = player_key;
     bet_entry.bet_amount = amount;
     bet_entry.timestamp = clock.unix_timestamp;
+    bet_entry.payout_collected = false;
 
-    // Increment bet count
+    // Store first bet in array for efficient winner selection
+    game_round.bet_amounts[0] = amount;
     game_round.bet_count = 1;
+
+    // Initialize remaining array slots to zero
+    for i in 1..64 {
+        game_round.bet_amounts[i] = 0;
+    }
 
     msg!(
         "First bet placed: {}, amount: {}, total bets: {}",
@@ -175,15 +182,13 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     msg!("game round ->{}", game_round.get_lamports());
     msg!("game Len ->{}", game_round.to_account_info().data_len());
     msg!("Rent {}", Rent::get()?.minimum_balance(GameRound::LEN));
-    // logger tout les accounts
-    // check ta
 
     // ⭐ Emit bet placed event
     emit!(BetPlaced {
         round_id: game_round.round_id,
         player: player_key,
         amount,
-        bet_count: game_round.bets.len() as u8,
+        bet_count: game_round.bet_count as u8,
         total_pot: game_round.total_pot,
         end_timestamp: game_round.end_timestamp,
         is_first_bet: true,

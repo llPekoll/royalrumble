@@ -11,6 +11,7 @@ pub const HOUSE_FEE_BASIS_POINTS: u16 = 500; // 5%
 pub const GAME_CONFIG_SEED: &[u8] = b"game_config";
 pub const GAME_COUNTER_SEED: &[u8] = b"game_counter";
 pub const GAME_ROUND_SEED: &[u8] = b"game_round";
+pub const BET_ENTRY_SEED: &[u8] = b"bet";
 pub const VAULT_SEED: &[u8] = b"vault";
 
 /// Default game durations (in seconds)
