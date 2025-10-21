@@ -6,24 +6,24 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { toast } from "sonner";
 import { MultiParticipantPanel } from "./MultiParticipantPanel";
-import { CharacterSelection } from "./CharacterSelection";
+import CharacterSelection from "./CharacterSelection";
 import { generateRandomName } from "../lib/nameGenerator";
 import { Users, Gamepad2 } from "lucide-react";
 
 export function GameLobby() {
-  const { connected, publicKey } = usePrivyWallet();
-  // TODO: need to be redone in a blockchainway
+  const { connected, walletAddress } = usePrivyWallet();
+  
   // Get player data
   const playerData = useQuery(
-    api.players.getPlayerWithCharacter,
-    connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
+    api.evm.players.getPlayerWithCharacter,
+    connected && walletAddress ? { walletAddress } : "skip"
   );
 
   // Mutations
-  const createPlayer = useMutation(api.players.createPlayer);
+  const createPlayer = useMutation(api.evm.players.createPlayer);
 
   const handleCreatePlayer = async () => {
-    if (!connected || !publicKey) {
+    if (!connected || !walletAddress) {
       toast.error("Please connect your wallet first");
       return;
     }
@@ -32,13 +32,13 @@ export function GameLobby() {
       const randomName = generateRandomName();
       console.log(
         "Manual player creation for wallet:",
-        publicKey.toString(),
+        walletAddress,
         "with name:",
         randomName
       );
 
       await createPlayer({
-        walletAddress: publicKey.toString(),
+        walletAddress,
         displayName: randomName,
       });
       toast.success(

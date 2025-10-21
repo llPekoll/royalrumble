@@ -1,17 +1,16 @@
-"use node";
 /**
  * EVM bet placement utilities
  * This file contains the logic for calling the Domin8 smart contract functions
  */
 
 import { ethers } from "ethers";
+import Domin8ABI from "../../convex/evm/Domin8.json";
 
 // Types for transaction parameters
 export interface PlaceBetParams {
   wallet: any; // Privy wallet
   betAmountEth: number;
   contractAddress: string;
-  rpcUrl: string;
 }
 
 export interface PlaceBetResult {
@@ -33,22 +32,17 @@ export async function placeBetOnContract(
     wallet,
     betAmountEth,
     contractAddress,
-    rpcUrl,
   } = params;
 
-  // Create provider and signer
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const signer = await provider.getSigner(wallet.address);
+  // Create provider and signer using Privy's wallet provider
+  const ethProvider = await wallet.getEthereumProvider();
+  const provider = new ethers.BrowserProvider(ethProvider);
+  const signer = await provider.getSigner();
 
-  // Create contract instance (minimal ABI for placeBet function)
+  // Create contract instance with full ABI
   const contract = new ethers.Contract(
     contractAddress,
-    [
-      "function placeBet() payable",
-      "function createGame() payable",
-      "function currentRoundId() view returns (uint64)",
-      "function gameRounds(uint64) view returns (tuple(uint64 roundId, uint8 status, uint64 startTimestamp, uint64 endTimestamp, uint256 betCount, uint256 totalPot, uint256 winnerBetIndex, bool randomnessFulfilled, bytes32 vrfRequestId))"
-    ],
+    Domin8ABI.abi,
     signer
   );
 

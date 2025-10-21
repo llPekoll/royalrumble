@@ -20,7 +20,7 @@ export function MultiParticipantPanel() {
 
   // Get participants from enhanced bets table
   const allParticipants = useQuery(
-    api.bets.getGameParticipants, // Updated to use bets table
+    api.evm.bets.getGameParticipants, // Updated to use EVM bets table
     currentGame ? { gameId: currentGame._id } : "skip"
   );
 

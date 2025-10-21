@@ -19,11 +19,11 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
 ) {
   const game = useRef<Phaser.Game | null>(null);
 
-  // TODO: Fetch current game state from Solana blockchain
+  // TODO: Fetch current game state from EVM blockchain
   // For now in demo mode, use random map
 
-  const characters = useQuery(api.characters.getActiveCharacters);
-  const demoMap = useQuery(api.maps.getRandomMap); // Fetch single random map for demo mode
+  const characters = useQuery(api.evm.characters.getActiveCharacters);
+  const demoMap = useQuery(api.evm.maps.getRandomMap); // Fetch single random map for demo mode
 
   // Check if all required data is loaded
   const isDataReady = characters && characters.length > 0 && demoMap;

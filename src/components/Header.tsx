@@ -9,86 +9,31 @@ import { SoundControl } from "./SoundControl";
 import { toast } from "sonner";
 import { User, Map } from "lucide-react";
 import { generateRandomName } from "../lib/nameGenerator";
-import { usePrivy } from "@privy-io/react-auth";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { getSolanaRpcUrl } from "../lib/utils";
 
 export function Header() {
-  const { connected, publicKey } = usePrivyWallet();
-  const { user, authenticated } = usePrivy();
+  const { connected, walletAddress, ethBalance, isLoadingBalance } = usePrivyWallet();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  const createPlayer = useMutation(api.players.createPlayer);
-
-  // Get ONLY Privy embedded wallet ADDRESS (not external wallets)
-  const getPrivyEmbeddedWalletAddress = () => {
-    if (!user) return null;
-
-    // Look for Privy embedded Solana wallet in linkedAccounts
-    const embeddedWallet = user.linkedAccounts?.find(
-      (account) =>
-        account.type === "wallet" &&
-        "chainType" in account &&
-        account.chainType === "solana" &&
-        (!("walletClientType" in account) || account.walletClientType === "privy")
-    );
-
-    return embeddedWallet && "address" in embeddedWallet ? embeddedWallet.address : null;
-  };
-
-  const privyWalletAddress = getPrivyEmbeddedWalletAddress();
+  const createPlayer = useMutation(api.evm.players.createPlayer);
 
   const playerData = useQuery(
-    api.players.getPlayer,
-    connected && publicKey ? { walletAddress: publicKey.toString() } : "skip"
+    api.evm.players.getPlayer,
+    connected && walletAddress ? { walletAddress } : "skip"
   );
 
-  // Get game state from Solana-based system
-  const gameState = useQuery(api.gameManagerDb.getGameState);
-
-  // Fetch ONLY Privy embedded wallet balance via direct RPC
-  useEffect(() => {
-    if (!authenticated || !privyWalletAddress) {
-      setBalance(null);
-      setIsLoadingBalance(false);
-      return;
-    }
-
-    const fetchBalance = async () => {
-      setIsLoadingBalance(true);
-      try {
-        const connection = new Connection(getSolanaRpcUrl(), "confirmed");
-        const publicKey = new PublicKey(privyWalletAddress);
-        const lamports = await connection.getBalance(publicKey);
-        setBalance(lamports / LAMPORTS_PER_SOL);
-      } catch (error) {
-        console.error("Failed to fetch Privy wallet balance:", error);
-        setBalance(null);
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    void fetchBalance();
-
-    // Refresh balance every 10 seconds
-    const interval = setInterval(() => void fetchBalance(), 10000);
-    return () => clearInterval(interval);
-  }, [authenticated, privyWalletAddress]);
+  // Get game state from EVM-based system
+  const gameState = useQuery(api.evm["evm-game-manager-db"].getGameState);
 
   // Create player with random name on first connect
   useEffect(() => {
-    if (connected && publicKey && playerData === null && !hasAttemptedCreation) {
+    if (connected && walletAddress && playerData === null && !hasAttemptedCreation) {
       const randomName = generateRandomName();
-      const walletAddr = publicKey.toString();
 
       setHasAttemptedCreation(true);
 
       createPlayer({
-        walletAddress: walletAddr,
+        walletAddress,
         displayName: randomName,
       })
         .then(() => {
@@ -104,7 +49,7 @@ export function Header() {
     if (!connected) {
       setHasAttemptedCreation(false);
     }
-  }, [connected, publicKey, playerData, hasAttemptedCreation, createPlayer]);
+  }, [connected, walletAddress, playerData, hasAttemptedCreation, createPlayer]);
 
   return (
     <>
@@ -158,10 +103,10 @@ export function Header() {
                       <div className="text-indigo-300 font-bold text-xl flex items-center justify-end">
                         {isLoadingBalance ? (
                           <span className="text-lg">Loading...</span>
-                        ) : balance !== null ? (
+                        ) : ethBalance !== null ? (
                           <>
-                            {balance.toFixed(4)}{" "}
-                            <span className="text-indigo-400 ml-1 text-lg">SOL</span>
+                            {ethBalance.toFixed(4)}{" "}
+                            <span className="text-indigo-400 ml-1 text-lg">ETH</span>
                           </>
                         ) : (
                           <span className="text-lg">--</span>
@@ -180,12 +125,12 @@ export function Header() {
       </header>
 
       {/* Render modals outside header */}
-      {showProfileDialog && publicKey && (
+      {showProfileDialog && walletAddress && (
         <ProfileDialog
           open={showProfileDialog}
           onOpenChange={setShowProfileDialog}
           currentName={playerData?.displayName}
-          walletAddress={publicKey.toString()}
+          walletAddress={walletAddress}
         />
       )}
     </>

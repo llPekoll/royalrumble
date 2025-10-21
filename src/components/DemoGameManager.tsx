@@ -44,8 +44,8 @@ export function DemoGameManager({ isActive, phaserRef }: DemoGameManagerProps) {
 
   // Get the preloaded demo map and characters from Phaser
   // These are already loaded in Preloader, so we just fetch them for reference
-  const demoMapQuery = useQuery(api.maps.getRandomMap);
-  const charactersQuery = useQuery(api.characters.getActiveCharacters);
+  const demoMapQuery = useQuery(api.evm.maps.getRandomMap);
+  const charactersQuery = useQuery(api.evm.characters.getActiveCharacters);
 
   // Memoize to prevent reference changes from triggering re-spawns
   const characters = useMemo(() => charactersQuery ?? undefined, [charactersQuery?.length]);

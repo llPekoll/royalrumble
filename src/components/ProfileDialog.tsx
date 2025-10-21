@@ -31,7 +31,7 @@ export function ProfileDialog({
   const [displayName, setDisplayName] = useState(currentName || "");
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const updateDisplayName = useMutation(api.players.updateDisplayName);
+  const updateDisplayName = useMutation(api.evm.players.updateDisplayName);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

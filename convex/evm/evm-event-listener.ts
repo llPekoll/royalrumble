@@ -74,12 +74,14 @@ async function processEvent(ctx: ActionCtx, event: ethers.EventLog) {
     const args = event.args;
     switch (event.eventName) {
         case "BetPlaced":
+            // Note: Smart contract BetPlaced event doesn't emit timestamp
+            // We use the current time for record-keeping purposes
             await ctx.runMutation(internal.evm["evm-bets"].createOrUpdateBetFromEvent, {
                 roundId: Number(args.roundId),
                 player: args.player,
                 amount: args.amount.toString(),
                 txHash: event.transactionHash,
-                timestamp: Number(args.timestamp) * 1000,
+                timestamp: Date.now(),
             });
             break;
         case "WinnerSelected":

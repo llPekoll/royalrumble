@@ -27,8 +27,8 @@ The Royal Rumble project has migrated its backend (smart contract + Convex) to E
   - Created `placeBetOnContract()` function for EVM contract interactions
   - Handles both `createGame()` and `placeBet()` contract calls
   - Includes `validateBetAmount()` for EVM constraints (ETH instead of SOL)
-  - Uses ethers.js for contract interactions
-- **Note**: ⚠️ Function has a critical bug - uses incorrect signer creation that will fail. Needs wallet provider integration fix.
+  - Uses ethers.js v6 with proper wallet provider integration
+  - Imports full ABI from `convex/evm/Domin8.json` for type-safe contract calls
 
 ### 4. Utility Functions (`src/lib/utils.ts`)
 - **Status**: ✅ Complete
@@ -40,7 +40,7 @@ The Royal Rumble project has migrated its backend (smart contract + Convex) to E
 ## 🔄 Partially Updated
 
 ### CharacterSelection Component (`src/components/CharacterSelection.tsx`)
-- **Status**: 🔄 In Progress (~70% complete)
+- **Status**: ✅ Complete
 - **Completed**:
   - Updated imports to use EVM utilities
   - Changed wallet destructuring to use EVM wallet
@@ -48,7 +48,10 @@ The Royal Rumble project has migrated its backend (smart contract + Convex) to E
   - Modified balance checks
   - Implemented `handlePlaceBet()` with EVM contract call
   - Added proper error handling and success messages
-- **Remaining**:
+  - Removed all Solana transaction code (~500 lines)
+  - Fixed API paths: `api.players` → `api.evm.players`, `api.characters` → `api.evm.characters`
+  - Fixed CharacterPreviewScene prop interface (characterId + characterName instead of character object)
+  - Removed unused imports (useMutation, getEvmRpcUrl, etc.)
   - Remove ~400 lines of OLD Solana transaction building code (lines 150-550+)
   - Clean up dead code and unused imports
   - Fix the wallet provider issue in `placeBetOnContract()`
@@ -205,42 +208,32 @@ Consider removing unused Solana packages:
 - **Utility Functions**: 60% 🔄 (getEvmRpcUrl done, cleanup needed)
 - **Testing**: 0% ❌
 
-**Overall Progress**: ~60% complete
+**Overall Progress**: ~75% complete
 
 ## 🎯 Immediate Action Items (Priority Order)
 
-### 1. Fix Critical Blocker (1-2 hours)
+### 1. ✅ COMPLETE: Fix Critical Blocker
 **File**: `src/lib/evm-place-bet.ts`
-```typescript
-// Replace lines 35-36:
-// OLD (BROKEN):
-const provider = new ethers.JsonRpcProvider(rpcUrl);
-const signer = await provider.getSigner(wallet.address);
+**Status**: Fixed - Now uses Privy's `getEthereumProvider()` and `BrowserProvider`
 
-// NEW (WORKING):
-const ethProvider = await wallet.getEthereumProvider();
-const provider = new ethers.BrowserProvider(ethProvider);
-const signer = await provider.getSigner();
-```
-
-### 2. Clean Up CharacterSelection (2-3 hours)
+### 2. ✅ COMPLETE: Clean Up CharacterSelection
 **File**: `src/components/CharacterSelection.tsx`
-- Delete lines ~160-560 (all Solana transaction code)
-- Remove unused imports: `@solana/web3.js`, `@solana-program/*`
-- Test bet placement with fixed provider
-- Verify UI shows success/error correctly
+**Status**: Complete - Removed 500+ lines of Solana code, fixed all lint errors, updated API paths
 
-### 3. Fix Event Listener Timestamp (30 mins)
+### 3. ✅ COMPLETE: Fix Event Listener Timestamp
 **File**: `convex/evm/evm-event-listener.ts`
-```typescript
-// Around line 72, replace:
-timestamp: Number(args.timestamp) * 1000,
+**Status**: Fixed - Now uses `Date.now()` instead of non-existent `args.timestamp`
 
-// With:
-timestamp: Date.now(), // Or fetch from block if needed
-```
+### 4. ✅ COMPLETE: Update All Component API Paths
+**Files Updated**:
+- `src/PhaserGame.tsx` - Changed to `api.evm.characters` and `api.evm.maps`
+- `src/components/ProfileDialog.tsx` - Changed to `api.evm.players.updateDisplayName`
+- `src/components/Header.tsx` - Changed to `api.evm.players` and `api.evm["evm-game-manager-db"]`, removed Solana balance fetching
+- `src/components/GameLobby.tsx` - Changed to `api.evm.players`, replaced `publicKey` with `walletAddress`
+- `src/components/MultiParticipantPanel.tsx` - Changed to `api.evm.bets.getGameParticipants`
+- `src/components/DemoGameManager.tsx` - Changed to `api.evm.characters` and `api.evm.maps`
 
-### 4. Update Environment Variables (15 mins)
+### 5. Update Environment Variables (15 mins)
 **File**: `.env` or `.env.local`
 ```bash
 # Add these:
@@ -251,7 +244,7 @@ VITE_DOMIN8_CONTRACT_ADDRESS=0x... # From deployment
 VITE_SOLANA_NETWORK=devnet
 ```
 
-### 5. Test End-to-End (1 hour)
+### 6. Test End-to-End (1 hour)
 - [ ] Connect wallet
 - [ ] Select character
 - [ ] Place bet (0.01 ETH)
@@ -259,12 +252,19 @@ VITE_SOLANA_NETWORK=devnet
 - [ ] Check Convex dashboard for bet record
 - [ ] Confirm UI updates
 
-**Time Estimate**: 5-7 hours to get betting working
-**Current Blocker**: Wallet provider fix (#1 above)
+**Time Estimate**: 1-2 hours remaining (env vars + testing)
+**Current Status**: Core integration complete, all source files migrated, ready for deployment configuration and testing
 
 ## 🚨 Critical Path
 
 The critical path for a working EVM frontend is:
+1. ✅ **Fix wallet provider in `evm-place-bet.ts`** - COMPLETE
+2. ✅ **Complete CharacterSelection cleanup** - COMPLETE
+3. Fix event listener timestamp bug
+4. Test EVM contract integration
+5. Full end-to-end testing
+
+The core betting functionality is now complete. The remaining tasks are minor fixes and testing.
 1. **Fix wallet provider in `evm-place-bet.ts`** - Most critical blocker
 2. Complete CharacterSelection cleanup - Remove dead Solana code
 3. Test EVM contract integration
@@ -275,57 +275,43 @@ Once CharacterSelection is complete, the core betting functionality should work.
 
 ## 🐛 Critical Issues Found During Review
 
-### 1. **BLOCKER: Wallet Provider Issue in `evm-place-bet.ts`**
-**Severity**: 🔴 Critical - Prevents betting from working
+### 1. **✅ FIXED: Wallet Provider Issue in `evm-place-bet.ts`**
+**Severity**: Was 🔴 Critical - Now resolved
 
-**Problem**: The current implementation tries to create a signer like this:
+**Problem**: The original implementation tried to create a signer incorrectly:
 ```typescript
 const provider = new ethers.JsonRpcProvider(rpcUrl);
-const signer = await provider.getSigner(wallet.address);
+const signer = await provider.getSigner(wallet.address); // ❌ Won't work
 ```
 
-This won't work because:
-- `JsonRpcProvider.getSigner()` expects a provider that has wallet access (like MetaMask)
-- Privy wallet needs special handling through their SDK
-
-**Solution**: Use Privy's `getEthereumProvider()` method:
+**Solution Applied**: Use Privy's `getEthereumProvider()` method:
 ```typescript
-const provider = await wallet.getEthereumProvider();
-const ethersProvider = new ethers.BrowserProvider(provider);
-const signer = await ethersProvider.getSigner();
+const ethProvider = await wallet.getEthereumProvider();
+const provider = new ethers.BrowserProvider(ethProvider);
+const signer = await provider.getSigner();
 ```
 
-### 2. **Dead Code in CharacterSelection.tsx**
-**Severity**: 🟡 Medium - Code quality/maintenance issue
+### 2. **✅ FIXED: Dead Code in CharacterSelection.tsx**
+**Severity**: Was 🟡 Medium - Now resolved
 
-**Problem**: Lines ~160-560 contain unused Solana transaction code:
+**Problem**: Lines ~160-560 contained unused Solana transaction code:
 - PDA derivations for Solana program
 - `createSolanaRpc()` calls
 - Solana-specific account lookups
 - Old VRF seed generation
 
-**Impact**: Confusing for developers, increases bundle size
+**Solution Applied**: Removed all 500+ lines of Solana code, updated API paths to use `api.evm.*`
 
-**Solution**: Remove all Solana-specific code after testing EVM betting works
+### 3. **✅ FIXED: Missing Contract ABI Reference**
+**Severity**: Was 🟡 Medium - Now resolved
 
-### 3. **Missing Contract ABI Reference**
-**Severity**: 🟡 Medium - Limits functionality
+**Problem**: `evm-place-bet.ts` used minimal ABI (only placeBet/createGame)
 
-**Problem**: `evm-place-bet.ts` uses minimal ABI (only placeBet/createGame)
-
-**Current**:
+**Solution Applied**: Import full ABI from `convex/evm/Domin8.json`
 ```typescript
-const contract = new ethers.Contract(
-  contractAddress,
-  ["function placeBet() payable", "function createGame() payable", ...],
-  signer
-);
+import Domin8ABI from "../../convex/evm/Domin8.json";
+const contract = new ethers.Contract(contractAddress, Domin8ABI.abi, signer);
 ```
-
-**Better approach**: Import full ABI from `convex/evm/Domin8.json`
-- Enables type-safe contract interactions
-- Access to all contract methods and events
-- Better error messages
 
 ### 4. **BetPlaced Event Missing Timestamp**
 **Severity**: 🟢 Low - Backend handles it
