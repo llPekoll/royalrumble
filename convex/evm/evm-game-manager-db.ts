@@ -17,7 +17,7 @@ export const syncGameRecord = internalMutation({
     gameRound: v.any(), // Using v.any() to accept the raw struct from the EVM client
   },
   handler: async (ctx: MutationCtx, { gameRound }: any) => {
-    const { roundId, status, startTimestamp, endTimestamp, totalPot, winner, vrfRequestId, randomnessFulfilled, bets } = gameRound;
+    const { roundId, status, startTimestamp, endTimestamp, totalPot, winner, vrfRequestId, randomnessFulfilled, betCount } = gameRound;
     const now = Date.now();
 
     const existingGame = await ctx.db
@@ -32,10 +32,10 @@ export const syncGameRecord = internalMutation({
       await ctx.db.patch(existingGame._id, {
         status: gameStatusString,
         totalPot: totalPot.toString(),
-        winner: winner.wallet, // Extract wallet address from BetEntry
+        winner: winner?.wallet || null,
         vrfRequestId: vrfRequestId,
         randomnessFulfilled: randomnessFulfilled,
-        playersCount: bets.length,
+        playersCount: betCount,
         lastChecked: now,
         lastUpdated: now,
       });
@@ -51,8 +51,8 @@ export const syncGameRecord = internalMutation({
         startTimestamp: startTimestamp * 1000,
         endTimestamp: endTimestamp * 1000,
         totalPot: totalPot.toString(),
-        winner: winner.wallet, // Extract wallet address from BetEntry
-        playersCount: bets.length,
+        winner: winner?.wallet || null,
+        playersCount: betCount,
         vrfRequestId,
         randomnessFulfilled,
         mapId: map._id,

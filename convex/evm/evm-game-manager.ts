@@ -4,7 +4,6 @@ import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { EvmClient } from "./evm-client";
 import { GameStatus, TRANSACTION_TYPES } from "./evm-types";
-import type { Doc, Id } from "../_generated/dataModel";
 
 /**
  * @notice Main cron job handler that checks and progresses the game state.

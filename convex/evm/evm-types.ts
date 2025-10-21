@@ -33,6 +33,8 @@ export interface GameConfig {
  * @notice Represents an individual bet entry, matching the Solidity contract.
  */
 export interface BetEntry {
+  roundId: number;
+  betIndex: number;
   wallet: string;
   betAmount: number;
   timestamp: number;
@@ -46,9 +48,9 @@ export interface GameRound {
   status: GameStatus;
   startTimestamp: number;
   endTimestamp: number;
-  bets: BetEntry[];
+  betCount: number;
   totalPot: string; // Using string to handle large numbers (uint256)
-  winner: BetEntry;
+  winner: BetEntry | null;
   randomnessFulfilled: boolean;
   vrfRequestId: string; // bytes32 from Solidity is a hex string
 }

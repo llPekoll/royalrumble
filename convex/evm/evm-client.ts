@@ -64,24 +64,26 @@ export class EvmClient {
         const currentRoundId = await this.contract.currentRoundId();
         const roundData = await this.contract.gameRounds(currentRoundId);
 
-        const bets: BetEntry[] = roundData.bets.map((bet: any) => ({
-            wallet: bet.wallet,
-            betAmount: Number(bet.betAmount),
-            timestamp: Number(bet.timestamp)
-        }));
+        let winner: BetEntry | null = null;
+        if (roundData.winnerBetIndex > 0) {
+            const winnerData = await this.contract.roundBets(currentRoundId, roundData.winnerBetIndex);
+            winner = {
+                roundId: Number(winnerData.roundId),
+                betIndex: Number(winnerData.betIndex),
+                wallet: winnerData.wallet,
+                betAmount: Number(winnerData.betAmount),
+                timestamp: Number(winnerData.timestamp)
+            };
+        }
 
         return {
             roundId: Number(roundData.roundId),
             status: roundData.status,
             startTimestamp: Number(roundData.startTimestamp),
             endTimestamp: Number(roundData.endTimestamp),
-            bets: bets,
+            betCount: Number(roundData.betCount),
             totalPot: roundData.totalPot.toString(),
-            winner: {
-                wallet: roundData.winner.wallet,
-                betAmount: Number(roundData.winner.betAmount),
-                timestamp: Number(roundData.winner.timestamp)
-            },
+            winner,
             randomnessFulfilled: roundData.randomnessFulfilled,
             vrfRequestId: roundData.vrfRequestId
         };
