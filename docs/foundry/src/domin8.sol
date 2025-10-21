@@ -21,6 +21,8 @@ contract Domin8 is VRFConsumerBaseV2Plus {
      * @notice Represents an individual bet placed by a player.
      */
     struct BetEntry {
+        uint64 roundId;
+        uint256 betIndex;
         address wallet;
         uint64 betAmount;
         uint64 timestamp;
@@ -41,9 +43,9 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         GameStatus status;
         uint64 startTimestamp;
         uint64 endTimestamp; // When the betting window closes
-        BetEntry[] bets;
+        uint256 betCount;
         uint256 totalPot;
-        BetEntry winner;
+        uint256 winnerBetIndex;
         bool randomnessFulfilled;
         bytes32 vrfRequestId;
     }
@@ -71,6 +73,7 @@ contract Domin8 is VRFConsumerBaseV2Plus {
 
     uint64 public currentRoundId;
     mapping(uint64 => GameRound) public gameRounds;
+    mapping(uint64 => mapping(uint256 => BetEntry)) public roundBets;
 
     // --- Chainlink VRF State ---
     // UPDATED: s_subscriptionId is now uint256
@@ -194,9 +197,16 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         newGame.startTimestamp = uint64(block.timestamp);
         newGame.endTimestamp = newGame.startTimestamp + gameDurationConfig.waitingPhaseDuration;
         newGame.totalPot = msg.value;
+        newGame.betCount = 1;
 
         // Add the first bet
-        newGame.bets.push(BetEntry({ wallet: msg.sender, betAmount: uint64(msg.value), timestamp: uint64(block.timestamp) }));
+        roundBets[roundId][0] = BetEntry({
+            roundId: roundId,
+            betIndex: 0,
+            wallet: msg.sender,
+            betAmount: uint64(msg.value),
+            timestamp: uint64(block.timestamp)
+        });
 
         // UPDATED to VRF v2.5 request format
         uint256 requestId = s_vrfCoordinator.requestRandomWords(
@@ -245,7 +255,15 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         if (block.timestamp >= game.endTimestamp) revert BettingWindowClosed();
 
         game.totalPot += msg.value;
-        game.bets.push(BetEntry({ wallet: msg.sender, betAmount: uint64(msg.value), timestamp: uint64(block.timestamp) }));
+        uint256 betIndex = game.betCount;
+        game.betCount++;
+        roundBets[currentRoundId][betIndex] = BetEntry({
+            roundId: currentRoundId,
+            betIndex: betIndex,
+            wallet: msg.sender,
+            betAmount: uint64(msg.value),
+            timestamp: uint64(block.timestamp)
+        });
 
         emit BetPlaced(
             currentRoundId,
@@ -265,12 +283,12 @@ contract Domin8 is VRFConsumerBaseV2Plus {
         GameRound storage game = gameRounds[currentRoundId];
         if (game.status != GameStatus.Waiting) revert InvalidGameStatus();
         if (block.timestamp < game.endTimestamp) revert BettingWindowStillOpen();
-        if (game.bets.length < 2) revert NoPlayers();
+        if (game.betCount < 2) revert NoPlayers();
 
         betsLocked = true;
         game.status = GameStatus.AwaitingWinnerRandomness;
 
-        emit GameLocked(currentRoundId, game.bets.length, game.totalPot, game.vrfRequestId);
+        emit GameLocked(currentRoundId, game.betCount, game.totalPot, game.vrfRequestId);
     }
 
     /**
@@ -282,32 +300,33 @@ contract Domin8 is VRFConsumerBaseV2Plus {
 
         if (game.status != GameStatus.AwaitingWinnerRandomness) revert InvalidGameStatus();
         if (!game.randomnessFulfilled) revert RandomnessNotFulfilled();
-        if (game.bets.length == 0) revert NoPlayers();
+        if (game.betCount == 0) revert NoPlayers();
 
         uint256 randomness = s_roundToRandomWord[roundId];
 
         // 1. Select Winner
         uint256 totalWeight = 0;
-        for (uint256 i = 0; i < game.bets.length; i++) {
-            totalWeight += game.bets[i].betAmount;
+        for (uint256 i = 0; i < game.betCount; i++) {
+            totalWeight += roundBets[roundId][i].betAmount;
         }
 
         uint256 selection = randomness % totalWeight;
         uint256 cumulative = 0;
         BetEntry memory winningBet;
 
-        for (uint256 i = 0; i < game.bets.length; i++) {
-            cumulative += game.bets[i].betAmount;
+        for (uint256 i = 0; i < game.betCount; i++) {
+            cumulative += roundBets[roundId][i].betAmount;
             if (selection < cumulative) {
-                winningBet = game.bets[i];
+                winningBet = roundBets[roundId][i];
+                game.winnerBetIndex = i;
                 break;
             }
         }
         // Fallback in case of rounding issues
         if (winningBet.wallet == address(0)) {
-            winningBet = game.bets[game.bets.length - 1];
+            winningBet = roundBets[roundId][game.betCount - 1];
+            game.winnerBetIndex = game.betCount - 1;
         }
-        game.winner = winningBet;
 
         // 2. Calculate Payouts
         uint256 houseFee = (game.totalPot * houseFeeBasisPoints) / 10000;
