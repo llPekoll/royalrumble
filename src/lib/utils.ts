@@ -5,17 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getSolanaRpcUrl(): string {
-  const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
+export function getEvmRpcUrl(): string {
+  const network = import.meta.env.VITE_EVM_NETWORK || "base-sepolia";
 
   switch (network) {
-    case "mainnet":
-    case "mainnet-beta":
-      return "https://api.mainnet-beta.solana.com";
-    case "testnet":
-      return "https://api.testnet.solana.com";
-    case "devnet":
+    case "base-mainnet":
+      return "https://mainnet.base.org";
+    case "base-sepolia":
     default:
-      return "https://api.devnet.solana.com";
+      return "https://sepolia.base.org";
   }
 }

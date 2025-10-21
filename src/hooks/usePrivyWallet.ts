@@ -1,23 +1,23 @@
 import { usePrivy } from "@privy-io/react-auth";
-import { useWallets } from "@privy-io/react-auth/solana";
-import { PublicKey, Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { useWallets } from "@privy-io/react-auth";
+import { ethers } from "ethers";
 import { useState, useEffect } from "react";
-import { getSolanaRpcUrl } from "../lib/utils";
+import { getEvmRpcUrl } from "../lib/utils";
 
 export function usePrivyWallet() {
   const { ready, authenticated } = usePrivy();
   const { wallets } = useWallets();
-  const [solBalance, setSolBalance] = useState<number>(0);
+  const [ethBalance, setEthBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(false);
 
-  const solanaWallet = wallets[0];
-  const walletAddress = solanaWallet?.address;
+  const evmWallet = wallets.find(wallet => wallet.walletClientType === 'privy');
+  const walletAddress = evmWallet?.address;
   const connected = ready && authenticated && !!walletAddress;
 
-  // Fetch SOL balance from the Privy embedded wallet
+  // Fetch ETH balance from the Privy embedded wallet
   useEffect(() => {
     if (!connected || !walletAddress) {
-      setSolBalance(0);
+      setEthBalance(0);
       return;
     }
 
@@ -25,18 +25,17 @@ export function usePrivyWallet() {
       setIsLoadingBalance(true);
       try {
         // Get RPC endpoint based on network environment
-        const connection = new Connection(getSolanaRpcUrl(), "confirmed");
+        const provider = new ethers.JsonRpcProvider(getEvmRpcUrl());
 
-        // Fetch balance in lamports
-        const publicKey = new PublicKey(walletAddress);
-        const balanceLamports = await connection.getBalance(publicKey);
+        // Fetch balance in wei
+        const balanceWei = await provider.getBalance(walletAddress);
 
-        // Convert lamports to SOL
-        const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
-        setSolBalance(balanceSOL);
+        // Convert wei to ETH
+        const balanceETH = parseFloat(ethers.formatEther(balanceWei));
+        setEthBalance(balanceETH);
       } catch (error) {
-        console.error("Error fetching SOL balance:", error);
-        setSolBalance(0);
+        console.error("Error fetching ETH balance:", error);
+        setEthBalance(0);
       } finally {
         setIsLoadingBalance(false);
       }
@@ -55,13 +54,12 @@ export function usePrivyWallet() {
 
     setIsLoadingBalance(true);
     try {
-      const connection = new Connection(getSolanaRpcUrl(), "confirmed");
-      const publicKey = new PublicKey(walletAddress);
-      const balanceLamports = await connection.getBalance(publicKey);
-      const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
-      setSolBalance(balanceSOL);
+      const provider = new ethers.JsonRpcProvider(getEvmRpcUrl());
+      const balanceWei = await provider.getBalance(walletAddress);
+      const balanceETH = parseFloat(ethers.formatEther(balanceWei));
+      setEthBalance(balanceETH);
     } catch (error) {
-      console.error("Error refreshing SOL balance:", error);
+      console.error("Error refreshing ETH balance:", error);
     } finally {
       setIsLoadingBalance(false);
     }
@@ -69,11 +67,10 @@ export function usePrivyWallet() {
 
   return {
     connected,
-    publicKey: walletAddress ? new PublicKey(walletAddress) : null,
     walletAddress,
-    wallet: solanaWallet,
+    wallet: evmWallet,
     ready,
-    solBalance,
+    ethBalance,
     isLoadingBalance,
     refreshBalance,
   };

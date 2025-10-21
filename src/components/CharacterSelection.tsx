@@ -7,26 +7,8 @@ import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
-import { validateBetAmount } from "../lib/solana-deposit-bet";
-import { useWallets } from "@privy-io/react-auth/solana";
-import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Buffer } from "buffer";
-import {
-  createSolanaRpc,
-  createTransactionMessage,
-  setTransactionMessageFeePayer,
-  setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
-  compileTransaction,
-  getTransactionEncoder,
-  address,
-  pipe,
-} from "@solana/kit";
-
-// Make Buffer available globally for Privy
-if (typeof window !== "undefined") {
-  window.Buffer = Buffer;
-}
+import { validateBetAmount, placeBetOnContract } from "../lib/evm-place-bet";
+import { getEvmRpcUrl } from "../lib/utils";
 
 interface Character {
   _id: Id<"characters">;
@@ -41,19 +23,12 @@ interface CharacterSelectionProps {
 const CharacterSelection = memo(function CharacterSelection({
   onParticipantAdded,
 }: CharacterSelectionProps) {
-  const { connected, publicKey, solBalance, isLoadingBalance } = usePrivyWallet();
-  const { wallets } = useWallets();
+  const { connected, walletAddress, ethBalance, isLoadingBalance, wallet } = usePrivyWallet();
   const placeEntryBet = useMutation(api.bets.placeEntryBet);
 
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
   const [betAmount, setBetAmount] = useState<string>("0.1");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Memoize wallet address to prevent unnecessary re-queries
-  const walletAddress = useMemo(
-    () => (connected && publicKey ? publicKey.toString() : null),
-    [connected, publicKey]
-  );
 
   // Get player data - only fetch once
   const playerData = useQuery(api.players.getPlayer, walletAddress ? { walletAddress } : "skip");
@@ -61,20 +36,19 @@ const CharacterSelection = memo(function CharacterSelection({
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // TODO: Fetch game state from Solana blockchain
+  // TODO: Fetch game state from EVM blockchain
   // For now, always in demo mode (no game status checks)
 
   // Add missing variables for the updated handlePlaceBet function
-  const selectedWallet = wallets.length > 0 ? wallets[0] : null;
-  const gameState: any = null; // TODO: Replace with actual game state from Solana
+  const gameState: any = null; // TODO: Replace with actual game state from EVM
   const canPlaceBet = true; // TODO: Replace with actual game state logic
   const isPlayerInGame = false; // TODO: Replace with actual check
-  const solBalanceIn10K = solBalance * 10000; // Convert SOL to lamports (assuming 1 SOL = 10000 lamports)
+  const ethBalanceInWei = ethBalance * 1e18; // Convert ETH to wei
 
   // Check how many participants this player already has
-  const playerParticipantCount = 0; // Disabled until Solana integration
+  const playerParticipantCount = 0; // Disabled until EVM integration
 
-  // solBalance is now fetched from the Privy wallet via usePrivyWallet hook
+  // ethBalance is now fetched from the Privy wallet via usePrivyWallet hook
 
   // Initialize with random character when characters load
   useEffect(() => {
@@ -105,14 +79,14 @@ const CharacterSelection = memo(function CharacterSelection({
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !selectedWallet || !playerData || !currentCharacter) {
+    if (!connected || !walletAddress || !wallet || !playerData || !currentCharacter) {
       toast.error("Please wait for data to load");
       return;
     }
 
     // Check if player can place bet based on game state
     if (!canPlaceBet) {
-      const status = gameState?.gameState?.status;
+      const status = gameState?.status;
       if (status === "awaitingWinnerRandomness") {
         toast.error("Game is determining winner, please wait...");
       } else if (status === "finished") {
@@ -130,24 +104,58 @@ const CharacterSelection = memo(function CharacterSelection({
     }
 
     const amount = parseFloat(betAmount);
-    if (isNaN(amount) || amount < 0.1 || amount > 10) {
-      toast.error("Bet amount must be between 0.1 and 10 SOL");
+    if (isNaN(amount) || amount < 0.01 || amount > 10) {
+      toast.error("Bet amount must be between 0.01 and 10 ETH");
       return;
     }
 
-    if (amount > solBalanceIn10K / 10000) {
-      toast.error(`Insufficient SOL. You have ${solBalanceIn10K / 10000} SOL`);
+    if (amount > ethBalance) {
+      toast.error(`Insufficient ETH. You have ${ethBalance} ETH`);
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Validate bet amount using Solana program constraints
+      // Validate bet amount using EVM contract constraints
       const validation = validateBetAmount(amount);
       if (!validation.valid) {
         throw new Error(validation.error);
       }
+
+      // Get contract address from environment
+      const contractAddress = import.meta.env.VITE_DOMIN8_CONTRACT_ADDRESS;
+      if (!contractAddress) {
+        throw new Error("Contract address not configured");
+      }
+
+      // Place bet on the EVM contract
+      const rpcUrl = getEvmRpcUrl();
+      const result = await placeBetOnContract({
+        wallet,
+        betAmountEth: amount,
+        contractAddress,
+        rpcUrl,
+      });
+
+      toast.success(`Bet placed successfully! Transaction: ${result.txHash}`);
+
+      // TODO: Update Convex with the bet data
+      // For now, just show success
+
+    } catch (error) {
+      console.error("Failed to place bet:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to place bet");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [connected, walletAddress, wallet, playerData, currentCharacter, betAmount, canPlaceBet, gameState, isPlayerInGame, ethBalance]);
+
+  // Don't render if not connected or no character
+  // In demo mode (currentGame is null), always show the component
+  if (!connected || !currentCharacter) {
+    return null;
+  }
 
       // Create the appropriate instruction based on whether this is the first bet or not
       const programId = new PublicKey("9Did6kAH9Mkteyi4xCrrq5x8bjBPQ1o9zZEoGC2hSYnk");
