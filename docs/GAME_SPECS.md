@@ -6,7 +6,7 @@ A fast-paced, dynamic battle royale betting game on Solana where players control
 ## Core Game Loop
 
 ### 1. Game Cycles
-- **Dynamic Duration**: 
+- **Dynamic Duration**:
   - Small games (< 8 participants): 45 seconds
   - Large games (≥ 8 participants): 75 seconds
 - **Continuous**: Games run 24/7 with no downtime
@@ -32,7 +32,7 @@ A fast-paced, dynamic battle royale betting game on Solana where players control
 - Players can add multiple GameParticipants
 - Place initial bets (self-betting only)
 
-##### Phase 2: Arena (10 seconds)  
+##### Phase 2: Arena (10 seconds)
 - All characters spawn in selected map
 - Characters move to center of screen
 - **Bet-to-Size Mechanic**: Character size increases with bet amount
@@ -100,9 +100,10 @@ A fast-paced, dynamic battle royale betting game on Solana where players control
   - Self-bet (Phase 2): Bet on your own character
   - Spectator bet (Phase 4): Bet on final 4 players
 - **Payout Calculation**:
-  - Self-bet win: 2-10x multiplier (based on total players)
-  - Spectator bet win: 1.5-4x multiplier (based on odds)
-
+  <!--- Self-bet win: 2-10x multiplier (based on total players)-->
+  <!--- Spectator bet win: 1.5-4x multiplier (based on odds)-->
+  soit le premier gagne 95% 5% pour la maison
+  ceux qui ont parié sur le winner se partagent la mise des spectateurs au proratat
 ## NFT System
 
 ### Character NFTs
@@ -123,9 +124,9 @@ A fast-paced, dynamic battle royale betting game on Solana where players control
 ## Technical Architecture
 
 ### Frontend
-- **Framework**: Next.js 14 with TypeScript
-- **Styling**: Tailwind CSS
-- **Animation**: Framer Motion or Three.js
+- **Framework**: React  with TypeScript
+<!--- **Styling**: Tailwind CSS-->
+- **Animation**:  Phaser
 - **State Management**: Convex React hooks
 - **Wallet Connection**: Solana Wallet Adapter
 
@@ -138,7 +139,7 @@ A fast-paced, dynamic battle royale betting game on Solana where players control
   - **Queries**: Read game state, player stats
   - **Mutations**: Place bets, update game state, manage participants
   - **Actions**: Blockchain interactions, VRF calls
-- **Scheduled Functions**: 
+- **Scheduled Functions**:
   - Game loop timer (every 10 seconds for phase transitions)
   - Transaction processing (every 30 seconds)
   - Cleanup tasks (hourly/daily)
