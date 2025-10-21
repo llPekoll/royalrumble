@@ -34,6 +34,16 @@ pub struct CreateGame<'info> {
     )]
     pub game_round: Account<'info, GameRound>,
 
+    /// First bet entry PDA (bet_index = 0)
+    #[account(
+        init,
+        payer = player,
+        space = BetEntry::LEN,
+        seeds = [b"bet", counter.current_round_id.to_le_bytes().as_ref(), 0u32.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub bet_entry: Account<'info, BetEntry>,
+
     /// CHECK: This is the vault PDA that holds game funds
     #[account(
         mut,
@@ -143,23 +153,23 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     msg!("ORAO VRF requested immediately - will fulfill during waiting period");
     msg!("VRF seed (first 16 bytes): {:?}", &seed[0..16]);
     msg!("VRF request account: {}", ctx.accounts.vrf_request.key());
-    // Reallocate account to fit first bet
-    let new_size = game_round.to_account_info().data_len() + std::mem::size_of::<BetEntry>();
-    game_round.to_account_info().resize(new_size)?;
 
-    let bet_entry = BetEntry {
-        wallet: player_key,
-        bet_amount: amount,
-        timestamp: clock.unix_timestamp,
-    };
+    // Initialize the first bet entry PDA
+    let bet_entry = &mut ctx.accounts.bet_entry;
+    bet_entry.game_round_id = game_round.round_id;
+    bet_entry.bet_index = 0; // First bet
+    bet_entry.wallet = player_key;
+    bet_entry.bet_amount = amount;
+    bet_entry.timestamp = clock.unix_timestamp;
 
-    game_round.bets[0] = bet_entry;
+    // Increment bet count
+    game_round.bet_count = 1;
 
     msg!(
         "First bet placed: {}, amount: {}, total bets: {}",
         player_key,
         amount,
-        game_round.bets.len()
+        game_round.bet_count
     );
     msg!("Total pot: {} lamports", game_round.total_pot);
     msg!("game round ->{}", game_round.get_lamports());

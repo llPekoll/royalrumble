@@ -1,4 +1,3 @@
-use crate::state::BetEntry;
 use anchor_lang::prelude::*;
 
 /// Game status enumeration
@@ -7,7 +6,7 @@ use anchor_lang::prelude::*;
 pub enum GameStatus {
     Idle,                     // Waiting for first player
     Waiting,                  // Accepting bets
-    AwaitingWinnerRandomness, // Waiting for Switchboard VRF for winner selection
+    AwaitingWinnerRandomness, // Waiting for ORAO VRF for winner selection
     Finished,                 // Game concluded, winner selected
 }
 
@@ -15,8 +14,9 @@ impl GameStatus {
     pub const LEN: usize = 1; // Enum is 1 byte
 }
 
-/// Current game round state stored as singleton PDA
-/// Seeds: [b"game_round"]
+/// Current game round state stored as PDA per round
+/// Seeds: [b"game_round", round_id.to_le_bytes()]
+/// Bets are stored separately as individual PDAs
 #[account]
 pub struct GameRound {
     pub round_id: u64,
@@ -24,10 +24,9 @@ pub struct GameRound {
     pub start_timestamp: i64,
     pub end_timestamp: i64, // When betting window closes
 
-    // Individual bets (unlimited - dynamically grows via realloc)
-
-    // Pot tracking
-    pub total_pot: u64,
+    // Bet tracking (bets stored as separate PDAs)
+    pub bet_count: u32,     // Number of bets placed
+    pub total_pot: u64,     // Sum of all bet amounts
 
     // Winner
     pub winner: Pubkey,
@@ -37,13 +36,13 @@ pub struct GameRound {
     pub vrf_request_pubkey: Pubkey, // ORAO VRF request account
     pub vrf_seed: [u8; 32],         // Seed used for VRF request
     pub randomness_fulfilled: bool, // Track if randomness is ready
-    pub bet_index: u8,              // Track if randomness is ready
-    pub bets: [BetEntry; 8],
 }
 
 impl GameRound {
-    pub const LEN: usize =
-        8 + GameStatus::LEN + 8 + 8 + 8 + 32 + 4 + 32 + 32 + 1 + 1 + (BetEntry::LEN * 8) + 8;
+    // 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start) + 8 (end)
+    // + 4 (bet_count) + 8 (total_pot) + 32 (winner) + 4 (winning_bet_index)
+    // + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
+    pub const LEN: usize = 8 + 8 + 1 + 8 + 8 + 4 + 8 + 32 + 4 + 32 + 32 + 1; // 146 bytes
 
     /// Check if the game is in a state where bets can be placed
     pub fn can_accept_bets(&self) -> bool {
@@ -52,21 +51,7 @@ impl GameRound {
 
     /// Check if the game is a small game (2+ bets) - all games are small games in MVP
     pub fn is_small_game(&self) -> bool {
-        self.bets.len() >= 2
-    }
-    pub fn add_bet(&mut self, bet: BetEntry) {
-        self.bet_index += 1;
-        self.bets[self.bet_index as usize] = bet;
-    }
-
-    /// Get bet entry by wallet address
-    pub fn find_bet(&self, wallet: &Pubkey) -> Option<&BetEntry> {
-        self.bets.iter().find(|b| b.wallet == *wallet)
-    }
-
-    /// Get mutable bet entry by wallet address
-    pub fn find_bet_mut(&mut self, wallet: &Pubkey) -> Option<&mut BetEntry> {
-        self.bets.iter_mut().find(|b| b.wallet == *wallet)
+        self.bet_count >= 2
     }
 
     /// Calculate total pot value
