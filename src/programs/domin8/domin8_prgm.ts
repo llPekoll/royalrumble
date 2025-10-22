@@ -1,14 +1,20 @@
-{
-  "address": "7H8sbK7ySoPgR53GGgriPxrDnPWZW3s8CQJ4pQvbAAra",
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/domin8_prgm.json`.
+ */
+export type Domin8Prgm = {
+  "address": "8BH1JMeZCohtUKcfGGTqpYjpwxMowZBi6HrnAhc6eJFz",
   "metadata": {
-    "name": "domin8_prgm",
+    "name": "domin8Prgm",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
   "instructions": [
     {
-      "name": "cleanup_old_game",
+      "name": "cleanupOldGame",
       "docs": [
         "Cleanup old game round (backend-triggered after 1 week)"
       ],
@@ -71,7 +77,7 @@
           }
         },
         {
-          "name": "game_round",
+          "name": "gameRound",
           "writable": true,
           "pda": {
             "seeds": [
@@ -92,7 +98,7 @@
               },
               {
                 "kind": "arg",
-                "path": "round_id"
+                "path": "roundId"
               }
             ]
           }
@@ -106,19 +112,19 @@
           "signer": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "round_id",
+          "name": "roundId",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "close_betting_window",
+      "name": "closeBettingWindow",
       "docs": [
         "Close betting window and lock game for winner selection"
       ],
@@ -158,7 +164,7 @@
           }
         },
         {
-          "name": "game_round",
+          "name": "gameRound",
           "writable": true,
           "pda": {
             "seeds": [
@@ -180,7 +186,7 @@
               {
                 "kind": "account",
                 "path": "counter.current_round_id",
-                "account": "GameCounter"
+                "account": "gameCounter"
               }
             ]
           }
@@ -220,7 +226,7 @@
       "args": []
     },
     {
-      "name": "create_game",
+      "name": "createGame",
       "docs": [
         "Create a new game round with the first bet (called by first player)"
       ],
@@ -284,7 +290,7 @@
           }
         },
         {
-          "name": "game_round",
+          "name": "gameRound",
           "writable": true,
           "pda": {
             "seeds": [
@@ -306,13 +312,13 @@
               {
                 "kind": "account",
                 "path": "counter.current_round_id",
-                "account": "GameCounter"
+                "account": "gameCounter"
               }
             ]
           }
         },
         {
-          "name": "bet_entry",
+          "name": "betEntry",
           "docs": [
             "First bet entry PDA (bet_index = 0)"
           ],
@@ -330,7 +336,7 @@
               {
                 "kind": "account",
                 "path": "counter.current_round_id",
-                "account": "GameCounter"
+                "account": "gameCounter"
               },
               {
                 "kind": "const",
@@ -368,14 +374,14 @@
           "signer": true
         },
         {
-          "name": "vrf_program",
+          "name": "vrfProgram",
           "docs": [
             "ORAO VRF Program"
           ],
           "address": "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
         },
         {
-          "name": "network_state",
+          "name": "networkState",
           "docs": [
             "ORAO Network State (validated as PDA from ORAO VRF program)"
           ],
@@ -465,14 +471,14 @@
           "writable": true
         },
         {
-          "name": "vrf_request",
+          "name": "vrfRequest",
           "docs": [
             "VRF Request Account (will be created by ORAO VRF program)"
           ],
           "writable": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -571,7 +577,7 @@
           "signer": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -583,7 +589,7 @@
       ]
     },
     {
-      "name": "place_bet",
+      "name": "placeBet",
       "docs": [
         "Place an additional bet in the current game round (called by subsequent players)"
       ],
@@ -646,7 +652,7 @@
           }
         },
         {
-          "name": "game_round",
+          "name": "gameRound",
           "writable": true,
           "pda": {
             "seeds": [
@@ -668,13 +674,13 @@
               {
                 "kind": "account",
                 "path": "counter.current_round_id",
-                "account": "GameCounter"
+                "account": "gameCounter"
               }
             ]
           }
         },
         {
-          "name": "bet_entry",
+          "name": "betEntry",
           "docs": [
             "CREATE: BetEntry PDA for storing bet details"
           ],
@@ -692,12 +698,12 @@
               {
                 "kind": "account",
                 "path": "counter.current_round_id",
-                "account": "GameCounter"
+                "account": "gameCounter"
               },
               {
                 "kind": "account",
                 "path": "game_round.bet_count",
-                "account": "GameRound"
+                "account": "gameRound"
               }
             ]
           }
@@ -726,7 +732,7 @@
           "signer": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -738,7 +744,7 @@
       ]
     },
     {
-      "name": "select_winner_and_payout",
+      "name": "selectWinnerAndPayout",
       "docs": [
         "Select winner using VRF and distribute payouts"
       ],
@@ -779,7 +785,7 @@
           }
         },
         {
-          "name": "game_round",
+          "name": "gameRound",
           "writable": true,
           "pda": {
             "seeds": [
@@ -801,7 +807,7 @@
               {
                 "kind": "account",
                 "path": "counter.current_round_id",
-                "account": "GameCounter"
+                "account": "gameCounter"
               }
             ]
           }
@@ -859,7 +865,7 @@
           "signer": true
         },
         {
-          "name": "vrf_request",
+          "name": "vrfRequest",
           "docs": [
             "VRF Request Account containing fulfilled randomness"
           ]
@@ -872,7 +878,7 @@
           "writable": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -881,7 +887,7 @@
   ],
   "accounts": [
     {
-      "name": "BetEntry",
+      "name": "betEntry",
       "discriminator": [
         32,
         21,
@@ -894,7 +900,7 @@
       ]
     },
     {
-      "name": "GameConfig",
+      "name": "gameConfig",
       "discriminator": [
         45,
         146,
@@ -907,7 +913,7 @@
       ]
     },
     {
-      "name": "GameCounter",
+      "name": "gameCounter",
       "discriminator": [
         117,
         67,
@@ -920,7 +926,7 @@
       ]
     },
     {
-      "name": "GameRound",
+      "name": "gameRound",
       "discriminator": [
         69,
         45,
@@ -933,7 +939,7 @@
       ]
     },
     {
-      "name": "NetworkState",
+      "name": "networkState",
       "discriminator": [
         212,
         237,
@@ -948,7 +954,7 @@
   ],
   "events": [
     {
-      "name": "BetPlaced",
+      "name": "betPlaced",
       "discriminator": [
         88,
         88,
@@ -961,7 +967,7 @@
       ]
     },
     {
-      "name": "GameInitialized",
+      "name": "gameInitialized",
       "discriminator": [
         82,
         221,
@@ -974,7 +980,7 @@
       ]
     },
     {
-      "name": "GameLocked",
+      "name": "gameLocked",
       "discriminator": [
         137,
         134,
@@ -987,7 +993,7 @@
       ]
     },
     {
-      "name": "GameReset",
+      "name": "gameReset",
       "discriminator": [
         171,
         230,
@@ -1000,7 +1006,7 @@
       ]
     },
     {
-      "name": "WinnerSelected",
+      "name": "winnerSelected",
       "discriminator": [
         245,
         110,
@@ -1016,208 +1022,203 @@
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidGameStatus",
+      "name": "invalidGameStatus",
       "msg": "Invalid game status for this action"
     },
     {
       "code": 6001,
-      "name": "Unauthorized",
+      "name": "unauthorized",
       "msg": "Unauthorized: only authority can perform this action"
     },
     {
       "code": 6002,
-      "name": "BettingPhaseClosed",
+      "name": "bettingPhaseClosed",
       "msg": "Betting phase is closed"
     },
     {
       "code": 6003,
-      "name": "BetTooSmall",
+      "name": "betTooSmall",
       "msg": "Bet amount is below minimum required"
     },
     {
       "code": 6004,
-      "name": "MaxPlayersReached",
+      "name": "maxPlayersReached",
       "msg": "Maximum number of players reached"
     },
     {
       "code": 6005,
-      "name": "PlayerNotFound",
+      "name": "playerNotFound",
       "msg": "Player not found in current game"
     },
     {
       "code": 6006,
-      "name": "RandomnessNotResolved",
+      "name": "randomnessNotResolved",
       "msg": "Switchboard randomness value is not yet available for the committed slot"
     },
     {
       "code": 6007,
-      "name": "InvalidRandomnessAccount",
+      "name": "invalidRandomnessAccount",
       "msg": "The provided Switchboard randomness account is not valid for the current game round"
     },
     {
       "code": 6008,
-      "name": "CommitSlotNotElapsed",
+      "name": "commitSlotNotElapsed",
       "msg": "The committed slot has not elapsed yet"
     },
     {
       "code": 6009,
-      "name": "NotASpectator",
+      "name": "notASpectator",
       "msg": "A finalist cannot place a spectator bet"
     },
     {
       "code": 6010,
-      "name": "FinalistNotFound",
+      "name": "finalistNotFound",
       "msg": "Target finalist not found"
     },
     {
       "code": 6011,
-      "name": "InsufficientFunds",
+      "name": "insufficientFunds",
       "msg": "Insufficient funds for bet"
     },
     {
       "code": 6012,
-      "name": "MathOverflow",
+      "name": "mathOverflow",
       "msg": "Mathematical overflow occurred"
     },
     {
       "code": 6013,
-      "name": "NoWinnerDetermined",
+      "name": "noWinnerDetermined",
       "msg": "No winner has been determined yet"
     },
     {
       "code": 6014,
-      "name": "InvalidGameType",
+      "name": "invalidGameType",
       "msg": "Invalid game type for this operation"
     },
     {
       "code": 6015,
-      "name": "NoWinnerSet",
+      "name": "noWinnerSet",
       "msg": "No winner has been set"
     },
     {
       "code": 6016,
-      "name": "NoFinalistsSet",
+      "name": "noFinalistsSet",
       "msg": "No finalists have been set"
     },
     {
       "code": 6017,
-      "name": "PayoutExceedsAvailableFunds",
+      "name": "payoutExceedsAvailableFunds",
       "msg": "Payout amount exceeds available funds"
     },
     {
       "code": 6018,
-      "name": "AlreadyClaimed",
+      "name": "alreadyClaimed",
       "msg": "Winnings have already been claimed"
     },
     {
       "code": 6019,
-      "name": "NoWinningsFound",
+      "name": "noWinningsFound",
       "msg": "No winnings found for this wallet"
     },
     {
       "code": 6020,
-      "name": "HouseFeeAlreadyCollected",
+      "name": "houseFeeAlreadyCollected",
       "msg": "House fee has already been collected"
     },
     {
       "code": 6021,
-      "name": "GameAlreadyReset",
+      "name": "gameAlreadyReset",
       "msg": "Game has already been reset"
     },
     {
       "code": 6022,
-      "name": "InvalidVrfAccount",
+      "name": "invalidVrfAccount",
       "msg": "VRF account is invalid"
     },
     {
       "code": 6023,
-      "name": "RandomnessNotFulfilled",
+      "name": "randomnessNotFulfilled",
       "msg": "Randomness not yet fulfilled"
     },
     {
       "code": 6024,
-      "name": "VrfRequestFailed",
+      "name": "vrfRequestFailed",
       "msg": "VRF request failed"
     },
     {
       "code": 6025,
-      "name": "InvalidVrfSeed",
+      "name": "invalidVrfSeed",
       "msg": "Invalid VRF seed"
     },
     {
       "code": 6026,
-      "name": "InvalidWinnerAccount",
+      "name": "invalidWinnerAccount",
       "msg": "Invalid winner account"
     },
     {
       "code": 6027,
-      "name": "InvalidTreasury",
+      "name": "invalidTreasury",
       "msg": "Invalid treasury account"
     },
     {
       "code": 6028,
-      "name": "NoPlayers",
+      "name": "noPlayers",
       "msg": "No players in game"
     },
     {
       "code": 6029,
-      "name": "InvalidBetAmount",
+      "name": "invalidBetAmount",
       "msg": "Invalid bet amount"
     },
     {
       "code": 6030,
-      "name": "ArithmeticOverflow",
+      "name": "arithmeticOverflow",
       "msg": "Arithmetic overflow occurred"
     },
     {
       "code": 6031,
-      "name": "EmergencyTimeNotElapsed",
+      "name": "emergencyTimeNotElapsed",
       "msg": "Emergency time threshold not yet elapsed"
     },
     {
       "code": 6032,
-      "name": "NoFundsToRefund",
+      "name": "noFundsToRefund",
       "msg": "No funds available to refund"
     },
     {
       "code": 6033,
-      "name": "BettingWindowClosed",
+      "name": "bettingWindowClosed",
       "msg": "Betting window has closed"
     },
     {
       "code": 6034,
-      "name": "BettingWindowStillOpen",
+      "name": "bettingWindowStillOpen",
       "msg": "Betting window is still open"
     },
     {
       "code": 6035,
-      "name": "BetsLocked",
+      "name": "betsLocked",
       "msg": "Bets are locked during resolution"
     },
     {
       "code": 6036,
-      "name": "CannotCleanupActiveGame",
+      "name": "cannotCleanupActiveGame",
       "msg": "Cannot cleanup active or current game"
     },
     {
       "code": 6037,
-      "name": "GameTooRecentToCleanup",
+      "name": "gameTooRecentToCleanup",
       "msg": "Game is too recent to cleanup (must be older than 1 week)"
     },
     {
       "code": 6038,
-      "name": "MaxBetsReached",
+      "name": "maxBetsReached",
       "msg": "Maximum number of bets reached (64 max)"
-    },
-    {
-      "code": 6039,
-      "name": "InvalidBetEntry",
-      "msg": "Invalid bet entry account"
     }
   ],
   "types": [
     {
-      "name": "BetEntry",
+      "name": "betEntry",
       "docs": [
         "Individual bet stored as separate PDA",
         "Seeds: [b\"bet\", game_round_id.to_le_bytes(), bet_index.to_le_bytes()]"
@@ -1226,11 +1227,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "game_round_id",
+            "name": "gameRoundId",
             "type": "u64"
           },
           {
-            "name": "bet_index",
+            "name": "betIndex",
             "type": "u32"
           },
           {
@@ -1238,7 +1239,7 @@
             "type": "pubkey"
           },
           {
-            "name": "bet_amount",
+            "name": "betAmount",
             "type": "u64"
           },
           {
@@ -1246,14 +1247,14 @@
             "type": "i64"
           },
           {
-            "name": "payout_collected",
+            "name": "payoutCollected",
             "type": "bool"
           }
         ]
       }
     },
     {
-      "name": "BetPlaced",
+      "name": "betPlaced",
       "docs": [
         "Event emitted when a bet is placed"
       ],
@@ -1261,7 +1262,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "round_id",
+            "name": "roundId",
             "type": "u64"
           },
           {
@@ -1273,26 +1274,26 @@
             "type": "u64"
           },
           {
-            "name": "bet_count",
+            "name": "betCount",
             "type": "u8"
           },
           {
-            "name": "total_pot",
+            "name": "totalPot",
             "type": "u64"
           },
           {
-            "name": "end_timestamp",
+            "name": "endTimestamp",
             "type": "i64"
           },
           {
-            "name": "is_first_bet",
+            "name": "isFirstBet",
             "type": "bool"
           }
         ]
       }
     },
     {
-      "name": "GameConfig",
+      "name": "gameConfig",
       "docs": [
         "Global game configuration stored as singleton PDA",
         "Seeds: [b\"game_config\"]"
@@ -1309,23 +1310,23 @@
             "type": "pubkey"
           },
           {
-            "name": "house_fee_basis_points",
+            "name": "houseFeeBasisPoints",
             "type": "u16"
           },
           {
-            "name": "min_bet_lamports",
+            "name": "minBetLamports",
             "type": "u64"
           },
           {
-            "name": "small_game_duration_config",
+            "name": "smallGameDurationConfig",
             "type": {
               "defined": {
-                "name": "GameDurationConfig"
+                "name": "gameDurationConfig"
               }
             }
           },
           {
-            "name": "bets_locked",
+            "name": "betsLocked",
             "type": "bool"
           },
           {
@@ -1341,7 +1342,7 @@
       }
     },
     {
-      "name": "GameCounter",
+      "name": "gameCounter",
       "docs": [
         "Global counter tracking current game round",
         "Seeds: [b\"game_counter\"]"
@@ -1350,14 +1351,14 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "current_round_id",
+            "name": "currentRoundId",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "GameDurationConfig",
+      "name": "gameDurationConfig",
       "docs": [
         "Configuration for game durations"
       ],
@@ -1365,14 +1366,14 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "waiting_phase_duration",
+            "name": "waitingPhaseDuration",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "GameInitialized",
+      "name": "gameInitialized",
       "docs": [
         "Event emitted when a new game round is initialized"
       ],
@@ -1380,22 +1381,22 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "round_id",
+            "name": "roundId",
             "type": "u64"
           },
           {
-            "name": "start_timestamp",
+            "name": "startTimestamp",
             "type": "i64"
           },
           {
-            "name": "end_timestamp",
+            "name": "endTimestamp",
             "type": "i64"
           }
         ]
       }
     },
     {
-      "name": "GameLocked",
+      "name": "gameLocked",
       "docs": [
         "Event emitted when game is locked (betting window closes)"
       ],
@@ -1403,26 +1404,26 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "round_id",
+            "name": "roundId",
             "type": "u64"
           },
           {
-            "name": "final_bet_count",
+            "name": "finalBetCount",
             "type": "u8"
           },
           {
-            "name": "total_pot",
+            "name": "totalPot",
             "type": "u64"
           },
           {
-            "name": "vrf_request_pubkey",
+            "name": "vrfRequestPubkey",
             "type": "pubkey"
           }
         ]
       }
     },
     {
-      "name": "GameReset",
+      "name": "gameReset",
       "docs": [
         "Event emitted when game is reset for next round"
       ],
@@ -1430,18 +1431,18 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "old_round_id",
+            "name": "oldRoundId",
             "type": "u64"
           },
           {
-            "name": "new_round_id",
+            "name": "newRoundId",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "GameRound",
+      "name": "gameRound",
       "docs": [
         "Current game round state stored as PDA per round",
         "Seeds: [b\"game_round\", round_id.to_le_bytes()]",
@@ -1451,35 +1452,35 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "round_id",
+            "name": "roundId",
             "type": "u64"
           },
           {
             "name": "status",
             "type": {
               "defined": {
-                "name": "GameStatus"
+                "name": "gameStatus"
               }
             }
           },
           {
-            "name": "start_timestamp",
+            "name": "startTimestamp",
             "type": "i64"
           },
           {
-            "name": "end_timestamp",
+            "name": "endTimestamp",
             "type": "i64"
           },
           {
-            "name": "bet_count",
+            "name": "betCount",
             "type": "u32"
           },
           {
-            "name": "total_pot",
+            "name": "totalPot",
             "type": "u64"
           },
           {
-            "name": "bet_amounts",
+            "name": "betAmounts",
             "type": {
               "array": [
                 "u64",
@@ -1492,15 +1493,15 @@
             "type": "pubkey"
           },
           {
-            "name": "winning_bet_index",
+            "name": "winningBetIndex",
             "type": "u32"
           },
           {
-            "name": "vrf_request_pubkey",
+            "name": "vrfRequestPubkey",
             "type": "pubkey"
           },
           {
-            "name": "vrf_seed",
+            "name": "vrfSeed",
             "type": {
               "array": [
                 "u8",
@@ -1509,14 +1510,14 @@
             }
           },
           {
-            "name": "randomness_fulfilled",
+            "name": "randomnessFulfilled",
             "type": "bool"
           }
         ]
       }
     },
     {
-      "name": "GameStatus",
+      "name": "gameStatus",
       "docs": [
         "Game status enumeration"
       ],
@@ -1527,22 +1528,22 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Idle"
+            "name": "idle"
           },
           {
-            "name": "Waiting"
+            "name": "waiting"
           },
           {
-            "name": "AwaitingWinnerRandomness"
+            "name": "awaitingWinnerRandomness"
           },
           {
-            "name": "Finished"
+            "name": "finished"
           }
         ]
       }
     },
     {
-      "name": "NetworkConfiguration",
+      "name": "networkConfiguration",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1555,21 +1556,21 @@
             "type": "pubkey"
           },
           {
-            "name": "request_fee",
+            "name": "requestFee",
             "type": "u64"
           },
           {
-            "name": "fulfillment_authorities",
+            "name": "fulfillmentAuthorities",
             "type": {
               "vec": "pubkey"
             }
           },
           {
-            "name": "token_fee_config",
+            "name": "tokenFeeConfig",
             "type": {
               "option": {
                 "defined": {
-                  "name": "OraoTokenFeeConfig"
+                  "name": "oraoTokenFeeConfig"
                 }
               }
             }
@@ -1578,7 +1579,7 @@
       }
     },
     {
-      "name": "NetworkState",
+      "name": "networkState",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1586,12 +1587,12 @@
             "name": "config",
             "type": {
               "defined": {
-                "name": "NetworkConfiguration"
+                "name": "networkConfiguration"
               }
             }
           },
           {
-            "name": "num_received",
+            "name": "numReceived",
             "docs": [
               "Total number of received requests."
             ],
@@ -1601,7 +1602,7 @@
       }
     },
     {
-      "name": "OraoTokenFeeConfig",
+      "name": "oraoTokenFeeConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1630,7 +1631,7 @@
       }
     },
     {
-      "name": "WinnerSelected",
+      "name": "winnerSelected",
       "docs": [
         "Event emitted when winner is determined"
       ],
@@ -1638,7 +1639,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "round_id",
+            "name": "roundId",
             "type": "u64"
           },
           {
@@ -1646,23 +1647,23 @@
             "type": "pubkey"
           },
           {
-            "name": "winning_bet_index",
+            "name": "winningBetIndex",
             "type": "u32"
           },
           {
-            "name": "total_pot",
+            "name": "totalPot",
             "type": "u64"
           },
           {
-            "name": "house_fee",
+            "name": "houseFee",
             "type": "u64"
           },
           {
-            "name": "winner_payout",
+            "name": "winnerPayout",
             "type": "u64"
           }
         ]
       }
     }
   ]
-}
+};

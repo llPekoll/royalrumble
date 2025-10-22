@@ -212,6 +212,7 @@ export class SolanaClient {
     } catch (error) {
       // Game round account doesn't exist yet (no bets placed)
       console.log("No game round exists yet for round", currentRoundId);
+      console.log("Error details:", error);
       return null;
     }
   }
@@ -282,6 +283,8 @@ export class SolanaClient {
       }
     }
 
+    // Skip preflight because simulation doesn't understand PDA signing (invoke_signed)
+    // The vault PDA will sign the transfer within the program
     const tx = await this.program.methods
       .selectWinnerAndPayout()
       .accounts({
@@ -295,7 +298,7 @@ export class SolanaClient {
         systemProgram: anchor.web3.SystemProgram.programId,
       } as any) // Temporary until TypeScript types are properly generated
       .remainingAccounts(remainingAccounts)
-      .rpc();
+      .rpc({ skipPreflight: true });
 
     return tx;
   }

@@ -120,4 +120,7 @@ pub enum Domin8Error {
 
     #[msg("Maximum number of bets reached (64 max)")]
     MaxBetsReached,
+
+    #[msg("Invalid bet entry account")]
+    InvalidBetEntry,
 }

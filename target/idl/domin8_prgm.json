@@ -1,5 +1,5 @@
 {
-  "address": "8BH1JMeZCohtUKcfGGTqpYjpwxMowZBi6HrnAhc6eJFz",
+  "address": "7H8sbK7ySoPgR53GGgriPxrDnPWZW3s8CQJ4pQvbAAra",
   "metadata": {
     "name": "domin8_prgm",
     "version": "0.1.0",
@@ -1208,6 +1208,11 @@
       "code": 6038,
       "name": "MaxBetsReached",
       "msg": "Maximum number of bets reached (64 max)"
+    },
+    {
+      "code": 6039,
+      "name": "InvalidBetEntry",
+      "msg": "Invalid bet entry account"
     }
   ],
   "types": [

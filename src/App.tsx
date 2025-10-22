@@ -5,7 +5,9 @@ import { Header } from "./components/Header";
 import { GameLobby } from "./components/GameLobby";
 import { BlockchainRandomnessDialog } from "./components/BlockchainRandomnessDialog";
 import { DemoGameManager } from "./components/DemoGameManager";
+import { BlockchainDebugDialog } from "./components/BlockchainDebugDialog";
 import { api } from "../convex/_generated/api";
+import { useGamePhase } from "./hooks/useGamePhase";
 
 export default function App() {
   const [showBlockchainDialog, setShowBlockchainDialog] = useState(false);
@@ -16,23 +18,24 @@ export default function App() {
   // Get current game state from new Solana-based system
   const gameData = useQuery(api.gameManagerDb.getGameState);
 
+  // Use phase-based system for game state management
+  const { phase, timeRemaining, description, isDemo } = useGamePhase();
+
   // Demo mode is active when no real game exists or game is in "idle" state
   // Handle undefined (loading state), null, or idle status
-  console.log({ gameData });
-  const isDemoMode =
-    !gameData ||
-    !gameData.game ||
-    gameData.game.status === "idle";
+  console.log({ gameData, phase, timeRemaining, description });
+  const isDemoMode = isDemo;
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {
     // Handle scene based on whether we're in demo or real game
     if (scene.scene.key === "RoyalRumble" && gameData?.game) {
-      // Real game scene - update with blockchain game state
+      // Real game scene - update with blockchain game state AND current phase
       (scene as any).updateGameState?.(gameData.game);
+      (scene as any).updateGamePhase?.(phase, timeRemaining);
 
       // Blockchain calls now handled by Solana crank system (no frontend trigger needed)
-      console.log("Real game active - Solana crank managing blockchain calls");
+      console.log(`Real game active - Phase: ${phase} (${timeRemaining}s remaining)`);
     } else if (scene.scene.key === "DemoScene") {
       // Demo scene is ready - DemoGameManager will handle it
       console.log("DemoScene is ready");
@@ -64,25 +67,19 @@ export default function App() {
     // Update game scene with real blockchain game state
     if (hasRealGame && scene.scene.key === "RoyalRumble") {
       (scene as any).updateGameState?.(gameData.game);
+      (scene as any).updateGamePhase?.(phase, timeRemaining);
 
-      // TODO: Fetch and display participants from Solana blockchain
-      // For now, game state only has minimal tracking data
+      console.log(`Game phase: ${phase}, time remaining: ${timeRemaining}s`);
       console.log("Game status:", gameData.game.status);
       console.log("Players count:", gameData.game.playersCount);
     }
-  }, [gameData]);
+  }, [gameData, phase, timeRemaining]);
 
-  // Show blockchain dialog during VRF randomness
+  // Show blockchain dialog during FIGHTING and VRF_DELAYED phases
   useEffect(() => {
-    if (gameData?.game) {
-      const isAwaitingRandomness = gameData.game.status === "awaitingWinnerRandomness";
-
-      // Show dialog while waiting for Solana VRF
-      setShowBlockchainDialog(isAwaitingRandomness);
-    } else {
-      setShowBlockchainDialog(false);
-    }
-  }, [gameData]);
+    const shouldShowDialog = phase === 'FIGHTING' || phase === 'VRF_DELAYED';
+    setShowBlockchainDialog(shouldShowDialog);
+  }, [phase]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -106,6 +103,9 @@ export default function App() {
 
       {/* Blockchain Randomness Dialog */}
       <BlockchainRandomnessDialog open={showBlockchainDialog} />
+
+      {/* Blockchain Debug Dialog (dev only) */}
+      <BlockchainDebugDialog />
     </div>
   );
 }

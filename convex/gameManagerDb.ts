@@ -200,6 +200,19 @@ export const getRandomActiveMap = internalQuery({
 });
 
 /**
+ * Get all active maps
+ */
+export const getMaps = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("maps")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+  },
+});
+
+/**
  * Get system health error count
  */
 export const getSystemHealthErrorCount = internalQuery({

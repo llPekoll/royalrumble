@@ -10,6 +10,16 @@ import { internal } from "./_generated/api";
 const crons = cronJobs();
 
 /**
+ * Game recovery - self-healing system that catches overdue actions
+ * Runs every 30 seconds to check if blockchain is ahead of expected state
+ */
+crons.interval(
+  "game-recovery",
+  { seconds: 30 },
+  internal.gameRecovery.checkGameRecovery
+);
+
+/**
  * Transaction cleanup - removes 7-day old transactions
  */
 crons.interval(

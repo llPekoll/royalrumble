@@ -88,12 +88,19 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
     )?;
 
     game_round.winning_bet_index = winning_bet_index as u32;
-    
-    // For now, we'll set winner to default and retrieve actual wallet in separate instruction
-    // TODO: Create a separate instruction to retrieve winner wallet from BetEntry PDA
-    game_round.winner = Pubkey::default(); // Placeholder - actual winner retrieved via BetEntry PDA
-    msg!("Winner selected: Bet #{} (wallet will be retrieved from BetEntry PDA)", winning_bet_index);
-    
+
+    // Get winner wallet from remaining_accounts (player wallet accounts passed from backend)
+    require!(
+        ctx.remaining_accounts.len() >= game_round.bet_count as usize,
+        Domin8Error::InvalidBetEntry
+    );
+
+    let winner_wallet_account = &ctx.remaining_accounts[winning_bet_index];
+    let winner_wallet = winner_wallet_account.key();
+    game_round.winner = winner_wallet;
+
+    msg!("Winner selected: Bet #{} - Wallet: {}", winning_bet_index, winner_wallet);
+
     // 3. CALCULATE WINNINGS
     let total_pot = game_round.total_pot;
     let house_fee = (total_pot as u128)
@@ -104,25 +111,44 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
     let winner_payout = total_pot.saturating_sub(house_fee);
     
     msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
-    
-    // 4. DISTRIBUTE WINNINGS - Winner payout will be handled in separate instruction
-    // TODO: Create separate claim_winnings instruction that:
-    // 1. Loads BetEntry PDA for winning bet index
-    // 2. Verifies caller is the winner 
-    // 3. Transfers winner_payout from vault to winner
-    msg!("Winner payout of {} SOL will be claimable via separate instruction", winner_payout);
-    
-    // Transfer house fee to treasury
-    if house_fee > 0 {
+
+    // 4. DISTRIBUTE WINNINGS
+    // Use system program transfer with PDA signing
+    let vault_bump = ctx.bumps.vault;
+    let signer_seeds: &[&[&[u8]]] = &[&[
+        VAULT_SEED,
+        &[vault_bump],
+    ]];
+
+    // Transfer winner payout
+    if winner_payout > 0 {
         let vault_lamports = ctx.accounts.vault.lamports();
         require!(
-            vault_lamports >= house_fee,
+            vault_lamports >= winner_payout,
             Domin8Error::InsufficientFunds
         );
-        
-        // Direct lamport transfer
-        **ctx.accounts.vault.try_borrow_mut_lamports()? -= house_fee;
-        **ctx.accounts.treasury.try_borrow_mut_lamports()? += house_fee;
+
+        let winner_account_info = winner_wallet_account.to_account_info();
+
+        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
+        **winner_account_info.try_borrow_mut_lamports()? += winner_payout;
+
+        msg!("Transferred {} lamports to winner {}", winner_payout, winner_wallet);
+    }
+
+    // Transfer house fee to treasury
+    if house_fee > 0 {
+        anchor_lang::system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.vault.to_account_info(),
+                    to: ctx.accounts.treasury.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            house_fee,
+        )?;
     }
     
     // 5. EMIT EVENTS BEFORE RESETTING STATE

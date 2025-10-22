@@ -6,11 +6,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-domin8_prgm = "8BH1JMeZCohtUKcfGGTqpYjpwxMowZBi6HrnAhc6eJFz"
+domin8_prgm = "7H8sbK7ySoPgR53GGgriPxrDnPWZW3s8CQJ4pQvbAAra"
+domin8_mvp = "11111111111111111111111111111112"  # Will be updated after deploy
 orao_vrf = "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
 
 [programs.localnet]
-domin8_prgm = "3HK2JxZBgv2zy8RnzLTYMCp55GV2xV7CyKqBhYFWV5Kq"
+domin8_prgm = "7H8sbK7ySoPgR53GGgriPxrDnPWZW3s8CQJ4pQvbAAra"
+domin8_mvp = "11111111111111111111111111111112"  # Will be updated after deploy
 orao_vrf = "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
 
 [registry]
