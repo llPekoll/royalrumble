@@ -1,27 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
+import { useGameContract } from "../hooks/useGameContract";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Shuffle } from "lucide-react";
 import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
-import { validateBetAmount } from "../lib/solana-deposit-bet";
-import { useWallets } from "@privy-io/react-auth/solana";
-import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Buffer } from "buffer";
-import {
-  createSolanaRpc,
-  createTransactionMessage,
-  setTransactionMessageFeePayer,
-  setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
-  compileTransaction,
-  getTransactionEncoder,
-  address,
-  pipe,
-} from "@solana/kit";
 
 // Make Buffer available globally for Privy
 if (typeof window !== "undefined") {
@@ -42,7 +30,7 @@ const CharacterSelection = memo(function CharacterSelection({
   onParticipantAdded,
 }: CharacterSelectionProps) {
   const { connected, publicKey, solBalance, isLoadingBalance } = usePrivyWallet();
-  const { wallets } = useWallets();
+  const { placeBet, validateBet } = useGameContract();
   const placeEntryBet = useMutation(api.bets.placeEntryBet);
 
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(null);
@@ -63,18 +51,12 @@ const CharacterSelection = memo(function CharacterSelection({
 
   // TODO: Fetch game state from Solana blockchain
   // For now, always in demo mode (no game status checks)
-
-  // Add missing variables for the updated handlePlaceBet function
-  const selectedWallet = wallets.length > 0 ? wallets[0] : null;
   const gameState: any = null; // TODO: Replace with actual game state from Solana
   const canPlaceBet = true; // TODO: Replace with actual game state logic
   const isPlayerInGame = false; // TODO: Replace with actual check
-  const solBalanceIn10K = solBalance * 10000; // Convert SOL to lamports (assuming 1 SOL = 10000 lamports)
 
   // Check how many participants this player already has
   const playerParticipantCount = 0; // Disabled until Solana integration
-
-  // solBalance is now fetched from the Privy wallet via usePrivyWallet hook
 
   // Initialize with random character when characters load
   useEffect(() => {
@@ -105,7 +87,7 @@ const CharacterSelection = memo(function CharacterSelection({
   };
 
   const handlePlaceBet = useCallback(async () => {
-    if (!connected || !publicKey || !selectedWallet || !playerData || !currentCharacter) {
+    if (!connected || !publicKey || !playerData || !currentCharacter) {
       toast.error("Please wait for data to load");
       return;
     }
@@ -135,129 +117,32 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    if (amount > solBalanceIn10K / 10000) {
-      toast.error(`Insufficient SOL. You have ${solBalanceIn10K / 10000} SOL`);
+    // Validate bet using hook
+    const validation = await validateBet(amount);
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid bet amount");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Validate bet amount using Solana program constraints
-      const validation = validateBetAmount(amount);
-      if (!validation.valid) {
-        throw new Error(validation.error);
-      }
+      console.log("[CharacterSelection] Placing bet via useGameContract hook...");
 
-      // Create the deposit bet instruction manually
-      const programId = new PublicKey("3HK2JxZBgv2zy8RnzLTYMCp55GV2xV7CyKqBhYFWV5Kq");
+      // Use the hook's placeBet function
+      const signatureHex = await placeBet(amount);
 
-      // Derive PDAs for config, game_round and vault (matching Rust constants)
-      const [configPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("game_config")],
-        programId
-      );
-
-      const [gameRoundPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("game_round")],
-        programId
-      );
-
-      const [vaultPDA] = PublicKey.findProgramAddressSync(
-        [new TextEncoder().encode("vault")],
-        programId
-      );
-
-      // Convert SOL to lamports
-      const amountLamports = Math.floor(amount * LAMPORTS_PER_SOL);
-
-      // Configure RPC connection to point to devnet
-      const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-      const rpcUrl =
-        network === "mainnet"
-          ? "https://api.mainnet-beta.solana.com"
-          : "https://api.devnet.solana.com";
-
-      // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
-      const instructionData = new Uint8Array(16);
-
-      // Use actual discriminator from built program IDL
-      const discriminator = new Uint8Array([82, 23, 26, 58, 40, 4, 106, 159]);
-      instructionData.set(discriminator, 0);
-
-      // Write amount as little-endian u64
-      const view = new DataView(instructionData.buffer);
-      view.setBigUint64(8, BigInt(amountLamports), true);
-
-      // First, let's try creating the vault account explicitly if it doesn't exist
-      const { getAccountInfo } = createSolanaRpc(rpcUrl);
-      let vaultExists = false;
-      try {
-        const vaultInfo = await getAccountInfo(address(vaultPDA.toString())).send();
-        vaultExists = vaultInfo.value !== null;
-      } catch (error) {
-        vaultExists = false;
-      }
-
-      console.log("Vault exists:", vaultExists);
-      console.log("Config PDA:", configPDA.toString());
-      console.log("Game Round PDA:", gameRoundPDA.toString());
-      console.log("Vault PDA:", vaultPDA.toString());
-
-      // Create deposit_bet instruction in @solana/kit format
-      // Account order must match the Rust instruction: config, game_round, vault, player, system_program
-      const depositBetInstruction = {
-        programAddress: address(programId.toString()),
-        accounts: [
-          { address: address(configPDA.toString()), role: 0 }, // readonly
-          { address: address(gameRoundPDA.toString()), role: 1 }, // writable
-          { address: address(vaultPDA.toString()), role: 1 }, // writable
-          { address: address(selectedWallet.address), role: 3 }, // signer + writable
-          { address: address(SystemProgram.programId.toString()), role: 0 }, // readonly
-        ],
-        data: instructionData,
-      };
-
-      console.log("Created deposit bet instruction:", depositBetInstruction);
-      console.log("Using wallet:", selectedWallet);
-
-      const { getLatestBlockhash } = createSolanaRpc(rpcUrl);
-      const { value: latestBlockhash } = await getLatestBlockhash().send();
-
-      // Create transaction using @solana/kit
-      const transaction = pipe(
-        createTransactionMessage({ version: 0 }),
-        (tx) => setTransactionMessageFeePayer(address(selectedWallet.address), tx),
-        (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-        (tx) => appendTransactionMessageInstructions([depositBetInstruction], tx),
-        (tx) => compileTransaction(tx),
-        (tx) => new Uint8Array(getTransactionEncoder().encode(tx))
-      );
-
-      // Send the transaction with explicit chain specification
-      const chainId = `solana:${network}` as `${string}:${string}`;
-      const receipts = await selectedWallet.signAndSendAllTransactions([
-        {
-          chain: chainId,
-          transaction,
-        },
-      ]);
-
-      console.log("Transaction successful:", receipts);
-
-      // Convert signature to hex string for display
-      const signature = receipts[0].signature;
-      const signatureHex = Array.from(signature as Uint8Array)
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-
+      console.log("[CharacterSelection] Transaction successful:", signatureHex);
       console.log("[CharacterSelection] Registering bet in Convex...");
+
+      // Convert to lamports for Convex
+      const amountLamports = Math.floor(amount * LAMPORTS_PER_SOL);
 
       // Register bet in Convex database after successful Solana transaction
       const gameInfo = await placeEntryBet({
         walletAddress: publicKey.toString(),
         characterId: currentCharacter._id,
-        betAmount: amountLamports, // Already in lamports
+        betAmount: amountLamports,
         txSignature: signatureHex,
       });
 
@@ -292,14 +177,14 @@ const CharacterSelection = memo(function CharacterSelection({
   }, [
     connected,
     publicKey,
-    selectedWallet,
     playerData,
     currentCharacter,
     betAmount,
-    solBalanceIn10K,
     canPlaceBet,
     isPlayerInGame,
     gameState,
+    placeBet,
+    validateBet,
     placeEntryBet,
     onParticipantAdded,
     allCharacters,

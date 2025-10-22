@@ -46,9 +46,11 @@ export interface GameRound {
   status: GameStatus;
   startTimestamp: number;
   endTimestamp: number; // When betting window closes
-  bets: BetEntry[];
+  betCount: number; // Number of bets placed
+  betAmounts: number[]; // Array of bet amounts (max 64)
   totalPot: number; // Total accumulated pot from all bets
   winner: string | null; // PublicKey as base58 string, or null if no winner yet
+  winningBetIndex: number; // Index of the winning bet
   // ORAO VRF integration
   vrfRequestPubkey: string | null; // PublicKey as base58 string, or null if not requested
   vrfSeed: number[];
@@ -60,6 +62,7 @@ export const PDA_SEEDS = {
   GAME_CONFIG: Buffer.from("game_config"),
   GAME_COUNTER: Buffer.from("game_counter"),
   GAME_ROUND: Buffer.from("game_round"),
+  BET_ENTRY: Buffer.from("bet"),
   VAULT: Buffer.from("vault"),
 } as const;
 

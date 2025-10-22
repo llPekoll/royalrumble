@@ -1,7 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { Domin8Prgm } from "../target/types/domin8_prgm";
 import { PublicKey, Keypair } from "@solana/web3.js";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const IDL = JSON.parse(readFileSync(join(__dirname, "../convex/lib/domin8_prgm.json"), "utf-8"));
 
 /**
  * Script to initialize the Domin8 game program
@@ -15,15 +22,17 @@ import { PublicKey, Keypair } from "@solana/web3.js";
  * Note: Individual game rounds will be created automatically on first bet
  *
  * Usage:
- *   ts-node scripts/initialize.ts
+ *   ANCHOR_PROVIDER_URL=https://api.devnet.solana.com ANCHOR_WALLET=path/to/wallet.json ts-node scripts/initialize.ts
  */
+
+const PROGRAM_ID = new PublicKey(IDL.address);
 
 async function main() {
   // Configure the client to use the configured cluster (devnet/localnet)
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.Domin8Prgm as Program<Domin8Prgm>;
+  const program = new Program(IDL as any, provider);
 
   console.log("🎮 Initializing Domin8 Game Program");
   console.log("==========================================");

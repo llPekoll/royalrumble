@@ -318,11 +318,12 @@ async function handleBetPlacedEvent(ctx: any, data: any, signature: string, now:
   let game = await ctx.runQuery(internal.gameManagerDb.getGameByRoundId, { roundId });
 
   if (!game) {
-    // If this is the first bet (game initialization), create the game record
+    // If this is the first bet (game initialization), start the game with scheduler
     if (data.isFirstBet) {
       const randomMap = await ctx.runQuery(internal.gameManagerDb.getRandomActiveMap, {});
 
-      game = await ctx.runMutation(internal.gameManagerDb.createGameRecord, {
+      // Use startGame mutation which triggers the scheduler chain
+      const gameId = await ctx.runMutation(internal.gameManager.startGame, {
         roundId,
         gameRound: {
           roundId,
@@ -336,9 +337,16 @@ async function handleBetPlacedEvent(ctx: any, data: any, signature: string, now:
           vrfSeed: [],
           randomnessFulfilled: false,
         },
-        gameConfig: {}, // Will be filled by polling fallback
+        gameConfig: {
+          smallGameDurationConfig: {
+            waitingPhaseDuration: 30, // 30 seconds waiting phase
+          },
+        },
         mapId: randomMap._id,
       });
+
+      // Get the created game
+      game = await ctx.runQuery(internal.gameManagerDb.getGame, { gameId });
     }
   }
 

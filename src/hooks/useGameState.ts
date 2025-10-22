@@ -13,7 +13,7 @@ export interface GameState {
   roundId: number;
   status: "Idle" | "Waiting" | "AwaitingWinnerRandomness" | "Finished";
   startTimestamp: number;
-  endTimestamp: number;           // ⭐ NEW: When betting closes
+  endTimestamp: number; // ⭐ NEW: When betting closes
   bets: BetEntry[];
   initialPot: number;
   winner: string | null;
@@ -32,7 +32,7 @@ export interface GameConfig {
   vrfFeeLamports: number;
   vrfNetworkState: string;
   vrfTreasury: string;
-  gameLocked: boolean;            // ⭐ NEW: Is game locked?
+  gameLocked: boolean; // ⭐ NEW: Is game locked?
 }
 
 const PROGRAM_ID = idl.address;
@@ -100,16 +100,17 @@ export function useGameState() {
           roundId: Number(gameRoundAccount.roundId),
           status: Object.keys(gameRoundAccount.status)[0] as any,
           startTimestamp: Number(gameRoundAccount.startTimestamp),
-          endTimestamp: Number(gameRoundAccount.endTimestamp),  // ⭐ NEW
+          endTimestamp: Number(gameRoundAccount.endTimestamp), // ⭐ NEW
           bets: gameRoundAccount.bets.map((bet: any) => ({
             wallet: bet.wallet.toString(),
             betAmount: Number(bet.betAmount) / 1_000_000_000, // Convert to SOL
             timestamp: Number(bet.timestamp),
           })),
           initialPot: Number(gameRoundAccount.initialPot) / 1_000_000_000, // Convert to SOL
-          winner: gameRoundAccount.winner.toString() === PublicKey.default.toString()
-            ? null
-            : gameRoundAccount.winner.toString(),
+          winner:
+            gameRoundAccount.winner.toString() === PublicKey.default.toString()
+              ? null
+              : gameRoundAccount.winner.toString(),
           vrfRequestPubkey: gameRoundAccount.vrfRequestPubkey.toString(),
           vrfSeed: Array.from(gameRoundAccount.vrfSeed),
           randomnessFulfilled: gameRoundAccount.randomnessFulfilled,
@@ -126,7 +127,7 @@ export function useGameState() {
           vrfFeeLamports: Number(gameConfigAccount.vrfFeeLamports) / 1_000_000_000,
           vrfNetworkState: gameConfigAccount.vrfNetworkState.toString(),
           vrfTreasury: gameConfigAccount.vrfTreasury.toString(),
-          gameLocked: gameConfigAccount.gameLocked,  // ⭐ NEW
+          gameLocked: gameConfigAccount.gameLocked, // ⭐ NEW
         };
 
         setGameState(parsedGameState);
@@ -143,10 +144,10 @@ export function useGameState() {
       }
     }
 
-    fetchGameState();
+    void fetchGameState();
 
     // Poll every 3 seconds for updates
-    const interval = setInterval(fetchGameState, 3000);
+    const interval = setInterval(() => void fetchGameState(), 3000);
 
     return () => {
       isSubscribed = false;

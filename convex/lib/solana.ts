@@ -89,7 +89,7 @@ export class SolanaClient {
   }
 
   // Get PDAs for the game accounts
-  private getPDAs(roundId?: number) {
+  private getPDAs(roundId?: number, betIndex?: number) {
     const [gameConfig] = PublicKey.findProgramAddressSync(
       [PDA_SEEDS.GAME_CONFIG],
       DOMIN8_PROGRAM_ID
@@ -113,7 +113,21 @@ export class SolanaClient {
       );
     }
 
-    return { gameConfig, gameCounter, gameRound, vault };
+    // Derive bet entry PDA if both roundId and betIndex are provided
+    let betEntry: PublicKey | undefined;
+    if (roundId !== undefined && betIndex !== undefined) {
+      const roundIdBuffer = Buffer.alloc(8);
+      roundIdBuffer.writeBigUInt64LE(BigInt(roundId));
+      const betIndexBuffer = Buffer.alloc(4);
+      const dataView = new DataView(betIndexBuffer.buffer);
+      dataView.setUint32(0, betIndex, true); // little-endian
+      [betEntry] = PublicKey.findProgramAddressSync(
+        [PDA_SEEDS.BET_ENTRY, roundIdBuffer, betIndexBuffer],
+        DOMIN8_PROGRAM_ID
+      );
+    }
+
+    return { gameConfig, gameCounter, gameRound, vault, betEntry };
   }
 
   // Get current round ID from GameCounter
@@ -185,17 +199,15 @@ export class SolanaClient {
         status,
         startTimestamp: account.startTimestamp?.toNumber() ?? 0,
         endTimestamp: account.endTimestamp?.toNumber() ?? 0,
-        bets: (account.bets || []).map((p: any) => ({
-          wallet: p.wallet?.toBase58() ?? "", // Convert PublicKey to string
-          betAmount: p.betAmount?.toNumber() ?? 0,
-          timestamp: p.timestamp?.toNumber() ?? 0,
-        })),
+        betCount: account.betCount ?? 0,
+        betAmounts: Array.from(account.betAmounts || []).map((amount: any) => amount?.toNumber() ?? 0),
         totalPot: account.totalPot?.toNumber() ?? 0,
         winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
+        winningBetIndex: account.winningBetIndex ?? 0,
         // ORAO VRF integration
         vrfRequestPubkey: account.vrfRequestPubkey ? account.vrfRequestPubkey.toBase58() : null, // Convert PublicKey to string or null
-        vrfSeed: Array.from(account.vrfSeed),
-        randomnessFulfilled: account.randomnessFulfilled,
+        vrfSeed: Array.from(account.vrfSeed || []),
+        randomnessFulfilled: account.randomnessFulfilled ?? false,
       };
     } catch (error) {
       // Game round account doesn't exist yet (no bets placed)
@@ -244,18 +256,31 @@ export class SolanaClient {
       throw new Error("Failed to derive game round PDA");
     }
 
-    // Fetch current game round to get player accounts
+    // Fetch current game round to get bet count
     const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
 
     // Get treasury from game config
     const gameConfigAccount = await this.program.account.gameConfig.fetch(gameConfig);
 
-    // Prepare remaining accounts - all player accounts that could potentially win
-    const remainingAccounts = (gameRoundAccount.bets || []).map((bet: any) => ({
-      pubkey: bet.wallet,
-      isWritable: true, // Player accounts will receive funds if they win
-      isSigner: false, // Player accounts are not signing this transaction
-    }));
+    // Fetch BetEntry PDAs for all bets to get player wallet addresses
+    const betCount = gameRoundAccount.betCount;
+    const remainingAccounts = [];
+
+    for (let i = 0; i < betCount; i++) {
+      const { betEntry } = this.getPDAs(currentRoundId, i);
+      if (betEntry) {
+        try {
+          const betEntryAccount = await this.program.account.betEntry.fetch(betEntry);
+          remainingAccounts.push({
+            pubkey: betEntryAccount.wallet,
+            isWritable: true, // Player accounts will receive funds if they win
+            isSigner: false, // Player accounts are not signing this transaction
+          });
+        } catch (error) {
+          console.error(`Failed to fetch bet entry ${i}:`, error);
+        }
+      }
+    }
 
     const tx = await this.program.methods
       .selectWinnerAndPayout()

@@ -558,6 +558,64 @@ async function placeBet(amount: number) {
 5. "Bet confirmed! ✓" notification
 6. No complex wallet setup required
 
+### Privy Wallet Integration
+
+**IMPORTANT**: This project uses **Privy** for wallet management, NOT `@solana/wallet-adapter`.
+
+#### Frontend Hook (`src/hooks/useGameContract.ts`)
+```typescript
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+
+// Get Privy wallet
+const { ready, authenticated } = usePrivy();
+const { wallets } = useWallets();
+
+const solanaWallet = wallets.find(
+  (wallet) => wallet.walletClientType === "privy" && wallet.chainType === "solana"
+);
+
+// Get wallet address
+const walletAddress = new PublicKey(solanaWallet.address);
+
+// Sign transactions
+const signedTx = await solanaWallet.signTransaction(transaction);
+```
+
+#### App Setup
+Wrap your app with Privy providers:
+```typescript
+import { PrivyProvider } from "@privy-io/react-auth";
+
+<PrivyProvider
+  appId={import.meta.env.VITE_PRIVY_APP_ID}
+  config={{
+    supportedChains: [solana],
+    embeddedWallets: {
+      createOnLogin: "users-without-wallets",
+    },
+  }}
+>
+  <App />
+</PrivyProvider>
+```
+
+#### Environment Variables
+```bash
+# Frontend (.env.local)
+VITE_PRIVY_APP_ID=your_privy_app_id
+
+# Backend (Convex)
+PRIVY_APP_SECRET=your_privy_app_secret
+```
+
+#### Why Privy?
+- ✅ Email/social login (no wallet setup required)
+- ✅ Embedded wallets (managed by Privy)
+- ✅ Seamless transaction signing
+- ✅ Users can export private keys (non-custodial)
+- ✅ 1-2 second bet confirmations
+- ✅ No browser extension needed
+
 ## Game Flow by Type
 
 ### Demo Mode Flow (Client-Side)

@@ -1,6 +1,7 @@
 // Database operations for game management (mutations and queries)
 // These run in the standard Convex runtime (not Node.js)
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // ============================================================================
@@ -153,6 +154,16 @@ export const updateSystemHealth = internalMutation({
 // ============================================================================
 // Internal Queries - Database read operations called by actions
 // ============================================================================
+
+/**
+ * Get game by ID
+ */
+export const getGame = internalQuery({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    return await ctx.db.get(gameId);
+  },
+});
 
 /**
  * Get game by round ID
@@ -433,5 +444,48 @@ export const createOrUpdateBet = internalMutation({
         timestamp: Date.now(), // Optional field for event listener tracking
       });
     }
+  },
+});
+
+/**
+ * Cleanup old completed games
+ * Removes games that finished more than 3 days ago
+ */
+export const cleanupOldGames = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+
+    // Get old completed games
+    const oldGames = await ctx.runQuery(internal.gameManagerDb.getOldCompletedGames, {
+      cutoffTime: threeDaysAgo,
+    });
+
+    let deletedCount = 0;
+
+    for (const game of oldGames) {
+      try {
+        // Delete associated bets
+        const bets = await ctx.db
+          .query("bets")
+          .withIndex("by_game", (q) => q.eq("gameId", game._id))
+          .collect();
+
+        for (const bet of bets) {
+          await ctx.db.delete(bet._id);
+        }
+
+        // Delete the game
+        await ctx.db.delete(game._id);
+        deletedCount++;
+
+        console.log(`Deleted old game ${game.roundId} and ${bets.length} associated bets`);
+      } catch (error) {
+        console.error(`Failed to delete game ${game.roundId}:`, error);
+      }
+    }
+
+    console.log(`Cleanup complete: deleted ${deletedCount} old games`);
+    return { deletedCount };
   },
 });

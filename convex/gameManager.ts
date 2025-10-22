@@ -1,23 +1,100 @@
-// Core game management functions for the Convex crank service
-import { internalAction } from "./_generated/server";
+// Core game management functions using scheduler-based flow
+import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { v } from "convex/values";
 import { SolanaClient } from "./lib/solana";
 import { GameStatus, TRANSACTION_TYPES } from "./lib/types";
+
 /**
- * Main cron job handler - checks and progresses games as needed
- * Called every 15 seconds by the cron job
- * NOTE: This must be an action (not mutation) because it makes network calls to Solana
+ * Start a new game when first bet is placed
+ * This triggers the scheduler chain for automatic game progression
  */
-export const checkAndProgressGames = internalAction({
-  args: {},
-  handler: async (ctx) => {
+export const startGame = internalMutation({
+  args: {
+    roundId: v.number(),
+    gameRound: v.any(),
+    gameConfig: v.any(),
+    mapId: v.id("maps"),
+  },
+  handler: async (ctx, { roundId, gameRound, gameConfig, mapId }) => {
+    const now = Date.now();
+
+    // Create game record
+    const gameId = await ctx.db.insert("games", {
+      // Blockchain fields
+      roundId,
+      status: gameRound.status,
+      startTimestamp: gameRound.startTimestamp ? gameRound.startTimestamp * 1000 : undefined,
+      endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined,
+      totalPot: gameRound.totalPot || 0,
+      winner: gameRound.winner,
+      playersCount: gameRound.bets?.length || 0,
+
+      // VRF fields
+      vrfRequestPubkey: gameRound.vrfRequestPubkey,
+      randomnessFulfilled: gameRound.randomnessFulfilled || false,
+
+      // UI enhancement fields
+      mapId,
+      winnerId: undefined,
+
+      // Essential timing
+      phaseStartTime: gameRound.startTimestamp ? gameRound.startTimestamp * 1000 : now,
+      waitingDuration: gameConfig.smallGameDurationConfig?.waitingPhaseDuration || 30,
+
+      // Cron management
+      lastChecked: now,
+      lastUpdated: now,
+    });
+
+    // Log game started
+    await ctx.db.insert("gameEvents", {
+      roundId,
+      event: "game_started",
+      timestamp: now,
+      success: true,
+      fromStatus: "idle",
+      toStatus: "waiting",
+    });
+
+    // Schedule betting window closure after waiting duration (default 30 seconds)
+    const waitingDurationMs = (gameConfig.smallGameDurationConfig?.waitingPhaseDuration || 30) * 1000;
+
+    await ctx.scheduler.runAfter(
+      waitingDurationMs,
+      internal.gameManager.closeBettingWindow,
+      { gameId }
+    );
+
+    console.log(`Game ${roundId} started, betting window closes in ${waitingDurationMs}ms`);
+
+    return gameId;
+  },
+});
+
+/**
+ * Close betting window and request VRF
+ * Automatically triggered by scheduler after waiting phase ends
+ */
+export const closeBettingWindow = internalAction({
+  args: {
+    gameId: v.id("games"),
+  },
+  handler: async (ctx, { gameId }) => {
     const now = Date.now();
 
     try {
+      // Get game data
+      const game = await ctx.runQuery(internal.gameManagerDb.getGame, { gameId });
+      if (!game) {
+        console.error(`Game ${gameId} not found`);
+        return;
+      }
+
+      console.log(`Closing betting window for round ${game.roundId}`);
+
       // Initialize Solana client
-      // TODO make sure we get the proper RPC
       const rpcEndpoint = process.env.SOLANA_RPC_ENDPOINT || "https://api.devnet.solana.com";
-      // private key de mon wallet
       const authorityKey = process.env.CRANK_AUTHORITY_PRIVATE_KEY;
 
       if (!authorityKey) {
@@ -26,171 +103,6 @@ export const checkAndProgressGames = internalAction({
 
       const solanaClient = new SolanaClient(rpcEndpoint, authorityKey);
 
-      // Health check first
-      const health = await solanaClient.healthCheck();
-      await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
-        component: "cron_job",
-        status: health.healthy ? "healthy" : "unhealthy",
-        lastCheck: now,
-        lastError: health.healthy ? undefined : health.message,
-        slot: health.slot,
-      });
-
-      if (!health.healthy) {
-        console.error("Solana health check failed:", health.message);
-        return;
-      }
-
-      // Get current game state from Solana with error handling
-      let gameRound, gameConfig;
-      try {
-        gameRound = await solanaClient.getGameRound();
-        gameConfig = await solanaClient.getGameConfig();
-      } catch (error) {
-        console.error("Failed to fetch game state from Solana:", error);
-        await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
-          component: "cron_job",
-          status: "unhealthy",
-          lastCheck: now,
-          lastError: `Failed to fetch game state: ${error instanceof Error ? error.message : String(error)}`,
-        });
-        return;
-      }
-
-      // Validate the fetched data
-      if (!gameRound || gameRound.roundId === undefined) {
-        console.error("Invalid game round data received from Solana");
-        return;
-      }
-
-      if (!gameConfig) {
-        console.error("Invalid game config data received from Solana");
-        return;
-      }
-
-      // Get or create game tracking in Convex
-      const roundId = gameRound.roundId;
-      let game = await ctx.runQuery(internal.gameManagerDb.getGameByRoundId, { roundId });
-
-      if (!game) {
-        // Get a random active map for the game
-        const randomMap = await ctx.runQuery(internal.gameManagerDb.getRandomActiveMap, {});
-
-        game = await ctx.runMutation(internal.gameManagerDb.createGameRecord, {
-          roundId,
-          gameRound,
-          gameConfig,
-          mapId: randomMap._id,
-        });
-      }
-
-      // Ensure game exists
-      if (!game) {
-        throw new Error("Failed to get or create game");
-      }
-
-      // Update game state from blockchain
-      await ctx.runMutation(internal.gameManagerDb.updateGame, {
-        gameId: game._id,
-        lastChecked: now,
-        endTimestamp: gameRound.endTimestamp ? gameRound.endTimestamp * 1000 : undefined, // ⭐ Sync betting window end time
-        playersCount: gameRound.bets?.length || 0,
-        totalPot: gameRound.totalPot || 0,
-      });
-
-      // Log current state
-      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
-        roundId,
-        event: "cron_check",
-        details: {
-          success: true,
-          fromStatus: gameRound.status,
-          playersCount: gameRound.bets.length,
-        },
-      });
-
-      // Process based on current game status (simplified for small games MVP)
-      await processGameStatus(ctx, solanaClient, gameRound, game, now);
-    } catch (error) {
-      console.error("Cron job error:", error);
-
-      // Log error
-      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
-        roundId: 0, // Unknown round
-        event: "cron_error",
-        details: {
-          success: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        },
-      });
-
-      // Update system health
-      const errorCount = await ctx.runQuery(internal.gameManagerDb.getSystemHealthErrorCount, {
-        component: "cron_job",
-      });
-      await ctx.runMutation(internal.gameManagerDb.updateSystemHealth, {
-        component: "cron_job",
-        status: "unhealthy",
-        lastCheck: now,
-        lastError: error instanceof Error ? error.message : String(error),
-        errorCount: errorCount + 1,
-      });
-    }
-  },
-});
-
-/**
- * Process game based on current status and timing (simplified for small games MVP)
- */
-async function processGameStatus(
-  ctx: any,
-  solanaClient: SolanaClient,
-  gameRound: any,
-  game: any,
-  now: number
-) {
-  switch (gameRound.status) {
-    case GameStatus.Idle:
-      // Nothing to do, waiting for players
-      break;
-
-    case GameStatus.Waiting:
-      await handleWaitingPhase(ctx, solanaClient, gameRound, game, now);
-      break;
-
-    // Large game phases removed for small games MVP:
-    // case GameStatus.AwaitingFinalistRandomness:
-    // case GameStatus.SpectatorBetting:
-
-    case GameStatus.AwaitingWinnerRandomness:
-      await handleWinnerRandomness(ctx, solanaClient, gameRound, game, now);
-      break;
-
-    default:
-      console.warn(`Unknown game status: ${gameRound.status}`);
-  }
-}
-
-/**
- * Handle waiting phase - UNIFIED: progress directly to resolution with ORAO VRF request
- * Uses end_timestamp from smart contract for trustless time enforcement
- */
-async function handleWaitingPhase(
-  ctx: any,
-  solanaClient: SolanaClient,
-  gameRound: any,
-  game: any,
-  now: number
-) {
-  // ⭐ Use end_timestamp from smart contract (already in seconds)
-  const waitingEndTime = gameRound.endTimestamp * 1000; // Convert to milliseconds
-
-  if (now >= waitingEndTime) {
-    console.log(
-      `Betting window closed for round ${game.roundId} (end_timestamp: ${gameRound.endTimestamp}), progressing with unified ORAO VRF`
-    );
-
-    try {
       // Close betting window and transition to winner selection
       const txHash = await solanaClient.closeBettingWindow();
 
@@ -203,7 +115,7 @@ async function handleWaitingPhase(
           transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
           fromStatus: GameStatus.Waiting,
           toStatus: GameStatus.AwaitingWinnerRandomness,
-          playersCount: gameRound.bets.length,
+          playersCount: game.playersCount,
         },
       });
 
@@ -222,178 +134,171 @@ async function handleWaitingPhase(
         await ctx.runMutation(internal.gameManagerDb.updateGame, {
           gameId: game._id,
           status: "awaitingWinnerRandomness",
+          lastUpdated: now,
         });
+
+        // Schedule VRF check after 5 seconds
+        await ctx.scheduler.runAfter(
+          5000,
+          internal.gameManager.checkVrfAndComplete,
+          { gameId, retryCount: 0 }
+        );
+
+        console.log(`Betting window closed for round ${game.roundId}, VRF check scheduled`);
       } else {
         throw new Error("Transaction confirmation failed");
       }
     } catch (error) {
-      console.error("Failed to progress with unified ORAO VRF:", error);
-      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
-        roundId: game.roundId,
-        event: "transaction_failed",
-        details: {
-          success: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
-        },
-      });
-    }
-  }
-}
-
-// REMOVED FOR SMALL GAMES MVP - Large game functions no longer needed
-// async function handleFinalistRandomness(...) { ... }
-// async function handleSpectatorBettingPhase(...) { ... }
-
-/**
- * Handle winner randomness and complete game - UNIFIED: resolve winner + distribute + reset
- */
-async function handleWinnerRandomness(
-  ctx: any,
-  solanaClient: SolanaClient,
-  gameRound: any,
-  game: any,
-  now: number
-) {
-  // Check if ORAO VRF is fulfilled
-  const vrfFulfilled = await solanaClient.checkVrfFulfillment(gameRound.vrfRequestPubkey);
-
-  if (vrfFulfilled) {
-    console.log(`ORAO VRF fulfilled for round ${game.roundId}, completing game`);
-
-    try {
-      // Select winner and distribute payouts
-      const txHash = await solanaClient.selectWinnerAndPayout(gameRound.vrfRequestPubkey);
-
-      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
-        roundId: game.roundId,
-        event: "transaction_sent",
-        details: {
-          success: true,
-          transactionHash: txHash,
-          transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
-          fromStatus: GameStatus.AwaitingWinnerRandomness,
-          toStatus: GameStatus.Idle,
-        },
-      });
-
-      const confirmed = await solanaClient.confirmTransaction(txHash);
-      if (confirmed) {
+      console.error("Failed to close betting window:", error);
+      const game = await ctx.runQuery(internal.gameManagerDb.getGame, { gameId });
+      if (game) {
         await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
           roundId: game.roundId,
-          event: "game_completed",
+          event: "transaction_failed",
+          details: {
+            success: false,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
+          },
+        });
+      }
+    }
+  },
+});
+
+/**
+ * Check VRF fulfillment and complete game
+ * Automatically triggered by scheduler with retry logic
+ */
+export const checkVrfAndComplete = internalAction({
+  args: {
+    gameId: v.id("games"),
+    retryCount: v.number(),
+  },
+  handler: async (ctx, { gameId, retryCount }) => {
+    const now = Date.now();
+    const MAX_RETRIES = 10; // Max 10 retries = 50 seconds total (5s initial + 5s * 10)
+
+    try {
+      // Get game data
+      const game = await ctx.runQuery(internal.gameManagerDb.getGame, { gameId });
+      if (!game) {
+        console.error(`Game ${gameId} not found`);
+        return;
+      }
+
+      // Get fresh game state from Solana
+      const rpcEndpoint = process.env.SOLANA_RPC_ENDPOINT || "https://api.devnet.solana.com";
+      const authorityKey = process.env.CRANK_AUTHORITY_PRIVATE_KEY;
+
+      if (!authorityKey) {
+        throw new Error("CRANK_AUTHORITY_PRIVATE_KEY environment variable not set");
+      }
+
+      const solanaClient = new SolanaClient(rpcEndpoint, authorityKey);
+      const gameRound = await solanaClient.getGameRound();
+
+      if (!gameRound) {
+        console.error(`Failed to fetch game round for game ${game.roundId}`);
+        return;
+      }
+
+      if (!gameRound.vrfRequestPubkey) {
+        console.error(`No VRF request pubkey for round ${game.roundId}`);
+        return;
+      }
+
+      // Check if ORAO VRF is fulfilled
+      const vrfFulfilled = await solanaClient.checkVrfFulfillment(gameRound.vrfRequestPubkey);
+
+      if (vrfFulfilled) {
+        console.log(`ORAO VRF fulfilled for round ${game.roundId}, completing game`);
+
+        // Select winner and distribute payouts
+        const txHash = await solanaClient.selectWinnerAndPayout(gameRound.vrfRequestPubkey);
+
+        await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
+          roundId: game.roundId,
+          event: "transaction_sent",
           details: {
             success: true,
             transactionHash: txHash,
             transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
+            fromStatus: GameStatus.AwaitingWinnerRandomness,
+            toStatus: GameStatus.Idle,
           },
         });
 
-        // Mark game as completed and ready for next round
-        await ctx.runMutation(internal.gameManagerDb.updateGame, {
-          gameId: game._id,
-          status: "idle",
-          lastUpdated: now,
-        });
+        const confirmed = await solanaClient.confirmTransaction(txHash);
+        if (confirmed) {
+          await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
+            roundId: game.roundId,
+            event: "game_completed",
+            details: {
+              success: true,
+              transactionHash: txHash,
+              transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
+            },
+          });
+
+          // Mark game as completed
+          await ctx.runMutation(internal.gameManagerDb.updateGame, {
+            gameId: game._id,
+            status: "idle",
+            lastUpdated: now,
+          });
+
+          console.log(`Game ${game.roundId} completed successfully`);
+        } else {
+          throw new Error("Transaction confirmation failed");
+        }
       } else {
-        throw new Error("Transaction confirmation failed");
+        // VRF not yet fulfilled
+        if (retryCount < MAX_RETRIES) {
+          console.log(
+            `ORAO VRF not yet fulfilled for round ${game.roundId}, retry ${retryCount + 1}/${MAX_RETRIES}`
+          );
+
+          // Schedule another check after 5 seconds
+          await ctx.scheduler.runAfter(
+            5000,
+            internal.gameManager.checkVrfAndComplete,
+            { gameId, retryCount: retryCount + 1 }
+          );
+        } else {
+          // Max retries exceeded
+          console.error(
+            `Max VRF retries exceeded for round ${game.roundId}, marking game as failed`
+          );
+
+          await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
+            roundId: game.roundId,
+            event: "vrf_timeout",
+            details: {
+              success: false,
+              errorMessage: "VRF fulfillment timeout after 50 seconds",
+              retryCount,
+            },
+          });
+
+          // TODO: Implement refund logic here if needed
+        }
       }
     } catch (error) {
-      console.error("Failed to complete game with unified resolve and distribute:", error);
-      await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
-        roundId: game.roundId,
-        event: "transaction_failed",
-        details: {
-          success: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
-        },
-      });
-    }
-  } else {
-    // VRF not yet fulfilled, wait longer
-    console.log(`ORAO VRF not yet fulfilled for round ${game.roundId}, waiting...`);
-  }
-}
-
-/**
- * Clean up old completed games (older than 3 days)
- * Called by cron job every 3 days
- */
-export const cleanupOldGames = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-    const threeDaysAgo = now - 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
-
-    console.log("🧹 Starting game cleanup...");
-
-    try {
-      // Find old completed games
-      const oldGames = await ctx.runQuery(internal.gameManagerDb.getOldCompletedGames, {
-        cutoffTime: threeDaysAgo,
-      });
-
-      if (!oldGames || oldGames.length === 0) {
-        console.log("✨ No old games to clean up");
-        return {
-          deletedGames: 0,
-          deletedParticipants: 0,
-          deletedBets: 0,
-          message: "No old games to clean up",
-        };
+      console.error("Failed to check VRF and complete game:", error);
+      const game = await ctx.runQuery(internal.gameManagerDb.getGame, { gameId });
+      if (game) {
+        await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
+          roundId: game.roundId,
+          event: "transaction_failed",
+          details: {
+            success: false,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
+            retryCount,
+          },
+        });
       }
-
-      let deletedGames = 0;
-      let deletedParticipants = 0;
-      let deletedBets = 0;
-
-      // Delete related data for each old game
-      for (const game of oldGames) {
-        // Get and delete participants
-        const participants = await ctx.runQuery(internal.gameManagerDb.getGameParticipants, {
-          gameId: game._id,
-        });
-
-        for (const participant of participants) {
-          await ctx.runMutation(internal.gameManagerDb.deleteParticipant, {
-            participantId: participant._id,
-          });
-          deletedParticipants++;
-        }
-
-        // Get and delete bets
-        const bets = await ctx.runQuery(internal.gameManagerDb.getGameBets, {
-          gameId: game._id,
-        });
-
-        for (const bet of bets) {
-          await ctx.runMutation(internal.gameManagerDb.deleteBet, {
-            betId: bet._id,
-          });
-          deletedBets++;
-        }
-
-        // Delete the game itself
-        await ctx.runMutation(internal.gameManagerDb.deleteGame, {
-          gameId: game._id,
-        });
-        deletedGames++;
-      }
-
-      console.log(
-        `✅ Cleaned up ${deletedGames} old games, ${deletedParticipants} participants, ${deletedBets} bets`
-      );
-
-      return {
-        deletedGames,
-        deletedParticipants,
-        deletedBets,
-        message: `Cleaned up ${deletedGames} games older than 3 days`,
-      };
-    } catch (error) {
-      console.error("Error during game cleanup:", error);
-      throw error;
     }
   },
 });
