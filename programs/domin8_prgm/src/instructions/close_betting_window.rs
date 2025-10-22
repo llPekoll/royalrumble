@@ -58,21 +58,27 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     msg!("Closing betting window: game {} with {} bets", game_round.round_id, bet_count);
     msg!("Bets locked - no new bets allowed during resolution");
 
-    // Validate minimum bets
-    require!(
-        bet_count >= 2,
-        Domin8Error::InvalidGameStatus
-    );
-
+    // Handle single bet game (refund scenario)
     if bet_count == 1 {
         // Single bet - immediate finish with refund
         game_round.status = GameStatus::Finished;
         game_round.winning_bet_index = 0;
         // Winner wallet will be retrieved from BetEntry PDA when needed
         game_round.winner = Pubkey::default(); // Placeholder, actual winner retrieved via BetEntry
+
+        // ⭐ IMPORTANT: Unlock bets immediately for single-bet refunds (no winner selection needed)
+        config.bets_locked = false;
+
         msg!("Single bet game - immediate finish with refund");
+        msg!("Bets unlocked - ready for next round");
         return Ok(());
     }
+
+    // Validate minimum bets for competitive games
+    require!(
+        bet_count >= 2,
+        Domin8Error::InvalidGameStatus
+    );
 
     // Multi-bet game (2+ bets) - VRF was already requested at game creation
     // Just transition to AwaitingWinnerRandomness status

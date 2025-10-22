@@ -3,6 +3,7 @@ use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::errors::Domin8Error;
 use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED, VAULT_SEED};
 use crate::events::{WinnerSelected, GameReset};
+use orao_solana_vrf::state::RandomnessAccountData;
 
 #[derive(Accounts)]
 pub struct SelectWinnerAndPayout<'info> {
@@ -16,8 +17,7 @@ pub struct SelectWinnerAndPayout<'info> {
     #[account(
         mut,
         seeds = [GAME_ROUND_SEED, counter.current_round_id.to_le_bytes().as_ref()],
-        bump,
-        close = crank
+        bump
     )]
     pub game_round: Account<'info, GameRound>,
 
@@ -57,7 +57,7 @@ pub struct SelectWinnerAndPayout<'info> {
 }
 
 /// Select winner using VRF randomness and distribute payouts
-pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<()> {
+pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWinnerAndPayout<'info>>) -> Result<()> {
     let game_round = &mut ctx.accounts.game_round;
     
     require!(
@@ -120,7 +120,7 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
         &[vault_bump],
     ]];
 
-    // Transfer winner payout
+    // Transfer winner payout using invoke_signed
     if winner_payout > 0 {
         let vault_lamports = ctx.accounts.vault.lamports();
         require!(
@@ -128,10 +128,22 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
             Domin8Error::InsufficientFunds
         );
 
-        let winner_account_info = winner_wallet_account.to_account_info();
+        // Use invoke_signed for PDA signing
+        let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.vault.key(),
+            &winner_wallet,
+            winner_payout,
+        );
 
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= winner_payout;
-        **winner_account_info.try_borrow_mut_lamports()? += winner_payout;
+        anchor_lang::solana_program::program::invoke_signed(
+            &transfer_ix,
+            &[
+                ctx.accounts.vault.to_account_info(),
+                winner_wallet_account.clone(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            signer_seeds,
+        )?;
 
         msg!("Transferred {} lamports to winner {}", winner_payout, winner_wallet);
     }
@@ -151,34 +163,28 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
         )?;
     }
     
-    // 5. EMIT EVENTS BEFORE RESETTING STATE
-    let old_round_id = game_round.round_id;
+    // 5. MARK GAME AS FINISHED
+    game_round.status = GameStatus::Finished;
+    msg!("Game status updated to Finished");
 
-    // ⭐ Emit winner selected event
+    // 6. EMIT WINNER SELECTED EVENT
     emit!(WinnerSelected {
-        round_id: old_round_id,
-        winner: Pubkey::default(), // Placeholder - actual winner in BetEntry PDA
+        round_id: game_round.round_id,
+        winner: winner_wallet,
         winning_bet_index: winning_bet_index as u32,
         total_pot,
         house_fee,
         winner_payout,
     });
 
-    // 6. INCREMENT COUNTER FOR NEXT GAME
+    // 7. INCREMENT COUNTER FOR NEXT GAME
     let counter = &mut ctx.accounts.counter;
     let new_round_id = counter.current_round_id
         .checked_add(1)
         .ok_or(Domin8Error::ArithmeticOverflow)?;
     counter.current_round_id = new_round_id;
 
-    // ⭐ Emit game reset event
-    emit!(GameReset {
-        old_round_id,
-        new_round_id,
-    });
-
-    // 7. ROTATE FORCE FIELD FOR NEXT GAME (like riskdotfun)
-    // Generate new random force using randomness from VRF + clock
+    // 8. ROTATE FORCE FIELD FOR NEXT GAME (prevents VRF account collisions)
     let config = &mut ctx.accounts.config;
     let clock = Clock::get()?;
     let mut new_force = [0u8; 32];
@@ -196,37 +202,36 @@ pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<(
 
     msg!("New VRF force for next game: {:?}", &new_force[0..16]);
 
-    // 8. UNLOCK BETS FOR NEXT GAME
+    // 9. UNLOCK BETS FOR NEXT GAME
     config.bets_locked = false;
 
-    msg!("Game {} completed - counter incremented to {}", old_round_id, new_round_id);
-    msg!("Bets unlocked - accepting bets for next round");
-    msg!("Game account closed - rent reclaimed to crank authority");
-    msg!("New game account will be created on next bet with round_id {}", new_round_id);
+    msg!("✓ Game {} completed successfully", game_round.round_id);
+    msg!("✓ Winner: {} - Prize: {} lamports", winner_wallet, winner_payout);
+    msg!("✓ House fee: {} lamports", house_fee);
+    msg!("✓ Counter incremented to {}", new_round_id);
+    msg!("✓ Bets unlocked for next round");
 
-    // The game_round account is automatically closed via the close constraint
-    // Rent is returned to the crank authority
-    // Next bet will create a fresh account with the new round_id
+    // GameRound account remains for historical record
+    // Use cleanup_old_game instruction to close it after 1 week
 
     Ok(())
 }
 
 fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
-    // Read fulfilled randomness from ORAO VRF account
-    let data = vrf_account.data.borrow();
-    
-    // ORAO VRF account structure - randomness is at offset 8+32 = 40
-    require!(data.len() >= 40 + 8, Domin8Error::InvalidVrfAccount);
-    
-    // Check if randomness is fulfilled (flag at offset 8+32+8 = 48)
-    let fulfilled = data[48] != 0;
-    require!(fulfilled, Domin8Error::RandomnessNotFulfilled);
-    
-    // Read 8-byte randomness value
-    let randomness_bytes: [u8; 8] = data[40..48].try_into()
+    // Use ORAO SDK to properly deserialize the VRF account
+    let mut data = &vrf_account.try_borrow_data()?[..];
+    let vrf_state = RandomnessAccountData::try_deserialize(&mut data)
         .map_err(|_| Domin8Error::InvalidVrfAccount)?;
-    
-    Ok(u64::from_le_bytes(randomness_bytes))
+
+    // Get fulfilled randomness (returns [u8; 64])
+    let rnd64 = vrf_state
+        .fulfilled_randomness()
+        .ok_or(Domin8Error::RandomnessNotFulfilled)?;
+
+    // Use first 8 bytes as u64
+    let randomness = u64::from_le_bytes(rnd64[0..8].try_into().unwrap());
+
+    Ok(randomness)
 }
 
 /// Select winner index weighted by bet amounts

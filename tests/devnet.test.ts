@@ -78,10 +78,9 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
   // Helper function to derive BetEntry PDA
   function deriveBetEntryPda(roundId: number, betIndex: number): web3.PublicKey {
-    const roundIdBuffer = Buffer.alloc(8);
-    roundIdBuffer.writeUInt32LE(roundId, 0);
-    const betIndexBuffer = Buffer.alloc(4);
-    betIndexBuffer.writeUInt32LE(betIndex, 0);
+    // Match Rust: round_id is u64 (8 bytes), bet_count is u32 (4 bytes)
+    const roundIdBuffer = new BN(roundId).toArrayLike(Buffer, "le", 8);
+    const betIndexBuffer = new BN(betIndex).toArrayLike(Buffer, "le", 4);
 
     const [betEntryPda] = web3.PublicKey.findProgramAddressSync(
       [Buffer.from("bet"), roundIdBuffer, betIndexBuffer],
@@ -119,7 +118,8 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
     console.log("VRF Program ID:", vrf.programId.toString());
 
     // Load permanent test accounts from keypair files
-    treasuryKeypair = web3.Keypair.generate(); // Treasury can be generated (doesn't need funds)
+    // Treasury will be read from config (may already be initialized on devnet)
+    treasuryKeypair = web3.Keypair.generate(); // Placeholder - will fetch actual from config
 
     // Load player keypairs from test-wallets directory
     const player1Json = JSON.parse(
@@ -182,6 +182,21 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
     console.log("Game Config PDA:", gameConfigPda.toString());
     console.log("Game Counter PDA:", gameCounterPda.toString());
     console.log("Vault PDA:", vaultPda.toString());
+
+    // Fetch actual treasury from config if it exists
+    try {
+      const configAccount = await program.account.gameConfig.fetch(gameConfigPda);
+      const actualTreasury = configAccount.treasury;
+      console.log("\n✅ Config exists - using actual treasury:", actualTreasury.toString());
+      // Update treasuryKeypair to use the actual address (we won't have the secret key, but we don't need it)
+      // For balance checking, we'll use the publicKey from config
+      treasuryKeypair = {
+        publicKey: actualTreasury,
+        secretKey: treasuryKeypair.secretKey, // Keep placeholder secret (not used)
+      } as web3.Keypair;
+    } catch (e) {
+      console.log("\n⚠ Config doesn't exist yet - will be initialized in tests");
+    }
   });
 
   describe("1. Initialize Configuration", () => {
@@ -288,8 +303,8 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       const vrfAccounts = await deriveVrfAccounts();
 
       // Derive game round PDA for current round
-      const roundIdBuffer = Buffer.alloc(8);
-      roundIdBuffer.writeUInt32LE(currentRoundId, 0);
+      // Match Rust: round_id is u64 (8 bytes)
+      const roundIdBuffer = new BN(currentRoundId).toArrayLike(Buffer, "le", 8);
 
       [gameRoundPda] = web3.PublicKey.findProgramAddressSync(
         [Buffer.from("game_round"), roundIdBuffer],
@@ -367,8 +382,8 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         console.log("First Bet Amount:", betEntryAccount.betAmount.toString(), "lamports");
         console.log("First Bet Wallet:", betEntryAccount.wallet.toString());
 
-        // Verify game round
-        expect(gameRoundAccount.roundId.toString()).to.equal("0");
+        // Verify game round (use currentRoundId from counter, not hardcoded 0)
+        expect(gameRoundAccount.roundId.toString()).to.equal(currentRoundId.toString());
         expect(gameRoundAccount.totalPot.toString()).to.equal(firstBetAmount.toString());
         expect(gameRoundAccount.betCount).to.equal(1);
         expect(betEntryAccount.wallet.toString()).to.equal(playerWallet.toString());
@@ -452,7 +467,13 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       const betIndex = gameBeforeBet.betCount;
 
       // Derive BetEntry PDA for this bet
+      console.log("DEBUG: Deriving BetEntry PDA");
+      console.log("  Round ID:", currentRoundId);
+      console.log("  Bet Index:", betIndex);
+      console.log("  Round ID (from game):", gameBeforeBet.roundId.toNumber());
+
       const betEntryPda = deriveBetEntryPda(currentRoundId, betIndex);
+      console.log("  Derived PDA:", betEntryPda.toString());
 
       const tx = await program.methods
         .placeBet(new BN(bet2Amount))
@@ -879,28 +900,42 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
     it("Should reject bets below minimum", async () => {
       console.log("\n=== Test 7.1: Reject Small Bets ===");
 
-      // Try to place a bet below minimum on current game round
+      // After previous test, counter has been incremented
+      // Get the NEW current round ID
+      const counterAccount = await program.account.gameCounter.fetch(gameCounterPda);
+      const newRoundId = counterAccount.currentRoundId.toNumber();
+      console.log("Current round ID from counter:", newRoundId);
+
+      // Derive NEW game round PDA for the new round
+      const newGameRoundPda = web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("game_round"), Buffer.from(new BN(newRoundId).toArray("le", 8))],
+        program.programId
+      )[0];
+
+      // Try to place a bet below minimum - this will CREATE a new game
       const tooSmallBet = 5_000_000; // 0.005 SOL (below 0.01 minimum)
 
-      // Get current game state to determine next bet index
-      const gameAccount = await program.account.gameRound.fetch(gameRoundPda);
-      const nextBetIndex = gameAccount.betCount;
-
-      // Derive bet entry PDA for next bet
-      const betEntryPda = deriveBetEntryPda(currentRoundId, nextBetIndex);
+      // Derive bet entry PDA for FIRST bet (index 0) in new round
+      const betEntryPda = deriveBetEntryPda(newRoundId, 0);
 
       const vrfAccounts = await deriveVrfAccounts();
 
       try {
+        // Use create_game since this is a new round
         await program.methods
-          .placeBet(new BN(tooSmallBet))
+          .createGame(new BN(tooSmallBet))
           .accounts({
             config: gameConfigPda,
-            gameRound: gameRoundPda,
+            counter: gameCounterPda,
+            gameRound: newGameRoundPda,
             betEntry: betEntryPda,
             vault: vaultPda,
             player: player1.publicKey,
+            networkState: vrfAccounts.networkState,
+            treasury: vrfAccounts.treasury,
+            vrfRequest: vrfAccounts.vrfRequest,
             systemProgram: web3.SystemProgram.programId,
+            vrfProgram: vrf.programId,
           })
           .signers([player1])
           .rpc();
@@ -909,9 +944,8 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       } catch (error: any) {
         console.log("✓ Small bet rejected as expected");
         console.log("Error:", error.message);
-        // On devnet, game might be locked, so accept either error
-        const errorOk = error.message.includes("BetTooSmall") || error.message.includes("BetsLocked");
-        expect(errorOk).to.be.true;
+        // Verify it's the right error (bet too small)
+        expect(error.message).to.include("BetTooSmall");
       }
     });
   });

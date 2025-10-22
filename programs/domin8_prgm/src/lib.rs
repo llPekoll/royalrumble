@@ -43,7 +43,7 @@ pub mod domin8_prgm {
     }
 
     /// Select winner using VRF and distribute payouts
-    pub fn select_winner_and_payout(ctx: Context<SelectWinnerAndPayout>) -> Result<()> {
+    pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWinnerAndPayout<'info>>) -> Result<()> {
         instructions::select_winner_and_payout(ctx)
     }
 
