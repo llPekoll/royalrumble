@@ -24,3 +24,6 @@ wallet = "~/work/domin8/solana/7H9uSFKd1h4pvFPFfqzLpSZyLac7F9ax9ZcFtv9B5oDf.json
 
 [scripts]
 test = "NODE_OPTIONS='--loader ts-node/esm' yarn mocha -t 1000000 tests/devnet.test.ts"
+unlock-bets = "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/unlock-bets.ts"
+set-counter = "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/set-counter.ts"
+rotate-force = "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/rotate-force.ts"

@@ -18,6 +18,7 @@ pub struct GameConfig {
     pub treasury: Pubkey,
     pub house_fee_basis_points: u16, // 500 = 5%
     pub min_bet_lamports: u64,       // 10,000,000 = 0.01 SOL
+    pub max_bet_lamports: u64,       // 3,000,000,000 = 3 SOL (prevent whale dominance)
     pub small_game_duration_config: GameDurationConfig,
 
     // Game control flags
@@ -31,11 +32,11 @@ pub struct GameConfig {
 
 impl GameConfig {
     /// Account space calculation:
-    /// 8 (discriminator) + 32 (authority) + 32 (treasury) + 2 (house_fee) + 8 (min_bet)
+    /// 8 (discriminator) + 32 (authority) + 32 (treasury) + 2 (house_fee) + 8 (min_bet) + 8 (max_bet)
     /// + 32 (small_game_config) + 32 (large_game_config)
-    /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (bets_locked) + 32 (force) = 251 bytes
+    /// + 8 (vrf_fee) + 32 (vrf_network_state) + 32 (vrf_treasury) + 1 (bets_locked) + 32 (force) = 259 bytes
     pub const LEN: usize =
-        8 + 32 + 32 + 2 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1 + 32;
+        8 + 32 + 32 + 2 + 8 + 8 + GameDurationConfig::LEN + GameDurationConfig::LEN + 8 + 32 + 32 + 1 + 32;
 
     /// Calculate house fee from pot amount
     pub fn calculate_house_fee(&self, pot_amount: u64) -> u64 {
@@ -52,5 +53,10 @@ impl GameConfig {
     /// Validate if a bet amount meets minimum requirements
     pub fn is_valid_bet_amount(&self, amount: u64) -> bool {
         amount >= self.min_bet_lamports
+    }
+
+    /// Validate if a bet amount is within allowed range (min and max)
+    pub fn is_bet_within_limits(&self, amount: u64) -> bool {
+        amount >= self.min_bet_lamports && amount <= self.max_bet_lamports
     }
 }

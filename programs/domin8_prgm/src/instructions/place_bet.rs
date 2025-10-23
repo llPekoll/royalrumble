@@ -87,6 +87,15 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
     // Validate bet amount meets minimum requirement
     require!(amount >= MIN_BET_LAMPORTS, Domin8Error::BetTooSmall);
 
+    // ⭐ Validate bet amount doesn't exceed maximum (prevent whale dominance)
+    require!(amount <= MAX_BET_LAMPORTS, Domin8Error::BetTooLarge);
+
+    // ⭐ Check if user has sufficient funds (like Risk.fun)
+    require!(
+        ctx.accounts.player.lamports() >= amount,
+        Domin8Error::InsufficientFunds
+    );
+
     // Transfer SOL to vault
     system_program::transfer(
         CpiContext::new(
@@ -140,6 +149,8 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         total_pot: game_round.total_pot,
         end_timestamp: game_round.end_timestamp,
         is_first_bet: false,
+        timestamp: clock.unix_timestamp,
+        bet_index: bet_index as u32,
     });
 
     Ok(())

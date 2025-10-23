@@ -6,6 +6,7 @@ pub mod errors;
 pub mod events;
 pub mod instructions;
 pub mod state;
+pub mod utils;
 
 // Import everything we need for the program
 use instructions::*;
@@ -15,6 +16,7 @@ pub use constants::*;
 pub use errors::*;
 pub use events::*;
 pub use state::*;
+pub use utils::*;
 
 declare_id!("7H8sbK7ySoPgR53GGgriPxrDnPWZW3s8CQJ4pQvbAAra");
 
@@ -47,10 +49,28 @@ pub mod domin8_prgm {
         instructions::select_winner_and_payout(ctx)
     }
 
+    /// Claim winner prize manually (if automatic transfer failed)
+    pub fn claim_winner_prize(ctx: Context<ClaimWinnerPrize>, round_id: u64) -> Result<()> {
+        instructions::claim_winner_prize(ctx, round_id)
+    }
+
     /// Cleanup old game round (backend-triggered after 1 week)
     pub fn cleanup_old_game(ctx: Context<CleanupOldGame>, round_id: u64) -> Result<()> {
         instructions::cleanup_old_game(ctx, round_id)
     }
 
-    // TODO: Add emergency_withdraw instruction for stuck games (24+ hours)
+    /// Emergency unlock bets (admin only, for stuck states)
+    pub fn emergency_unlock(ctx: Context<EmergencyUnlock>) -> Result<()> {
+        instructions::emergency_unlock(ctx)
+    }
+
+    /// Set counter value (admin only, for fixing stuck states)
+    pub fn set_counter(ctx: Context<SetCounter>, new_value: u64) -> Result<()> {
+        instructions::set_counter(ctx, new_value)
+    }
+
+    /// Rotate force field (admin only, for fixing stuck VRF states)
+    pub fn rotate_force(ctx: Context<RotateForce>) -> Result<()> {
+        instructions::rotate_force(ctx)
+    }
 }

@@ -424,16 +424,57 @@ export const useGameContract = () => {
 
         // Derive PDAs
         const { gameConfigPda, gameCounterPda, vaultPda } = derivePDAs();
-        const gameRoundPda = deriveGameRoundPda(currentRoundId);
 
-        // Check if game round exists
-        const gameRoundInfo = await connection.getAccountInfo(gameRoundPda);
+        // Check previous round first (counter increments AFTER game creation, so active game is usually counter - 1)
+        let activeRoundId = currentRoundId;
+        let gameRoundPda = deriveGameRoundPda(currentRoundId);
+        let gameRoundInfo = await connection.getAccountInfo(gameRoundPda);
+
+        // If current round doesn't exist, check previous round
+        if (!gameRoundInfo && currentRoundId > 0) {
+          const prevRoundId = currentRoundId - 1;
+          const prevGameRoundPda = deriveGameRoundPda(prevRoundId);
+          const prevGameRoundInfo = await connection.getAccountInfo(prevGameRoundPda);
+
+          if (prevGameRoundInfo) {
+            // Previous round exists, check if it's still accepting bets
+            const prevGameRound = await program.account.gameRound.fetch(prevGameRoundPda);
+            const prevStatus = Object.keys(prevGameRound.status)[0];
+            console.log(`[placeBet] Previous round ${prevRoundId} exists with status: ${prevStatus}`);
+
+            if (prevStatus === "waiting") {
+              // Previous round is still active, use it!
+              activeRoundId = prevRoundId;
+              gameRoundPda = prevGameRoundPda;
+              gameRoundInfo = prevGameRoundInfo;
+              console.log(`[placeBet] Using active previous round: ${prevRoundId}`);
+            }
+          }
+        }
 
         let tx: string;
 
+        // Check if we need to create a new game (no game OR game is finished)
+        let shouldCreateNewGame = false;
+
         if (!gameRoundInfo) {
-          // No game exists - CREATE a new game with this bet
+          shouldCreateNewGame = true;
           console.log("[placeBet] No game exists, creating new game with first bet");
+        } else {
+          // Game exists - check if it's finished
+          const gameRoundAccount = await program.account.gameRound.fetch(gameRoundPda);
+          const gameStatus = Object.keys(gameRoundAccount.status)[0];
+          console.log("[placeBet] Game exists with status:", gameStatus);
+
+          if (gameStatus === "finished") {
+            shouldCreateNewGame = true;
+            console.log("[placeBet] Game is finished, need to create new round");
+          }
+        }
+
+        if (shouldCreateNewGame) {
+          // No game exists OR game is finished - CREATE a new game with this bet
+          console.log("[placeBet] Creating new game for round", currentRoundId);
 
           // Get config to fetch VRF force field
           const configInfo = await connection.getAccountInfo(gameConfigPda);
@@ -490,15 +531,15 @@ export const useGameContract = () => {
           console.log("[placeBet] Created new game with first bet");
         } else {
           // Game exists - PLACE an additional bet
-          console.log("[placeBet] Game exists, placing additional bet");
+          console.log(`[placeBet] Game exists (round ${activeRoundId}), placing additional bet`);
 
           // Fetch fresh game state using Anchor (more reliable than manual parsing)
           const gameRoundAccount = await program.account.gameRound.fetch(gameRoundPda);
           const betCount = gameRoundAccount.betCount;
           console.log("[placeBet] Current bet count (from Anchor):", betCount);
 
-          // Derive bet entry PDA for this bet
-          const betEntryPda = deriveBetEntryPda(currentRoundId, betCount);
+          // Derive bet entry PDA for this bet (use activeRoundId, not currentRoundId!)
+          const betEntryPda = deriveBetEntryPda(activeRoundId, betCount);
           console.log("[placeBet] Derived bet entry PDA:", betEntryPda.toString());
 
           // Call place_bet instruction with all required accounts

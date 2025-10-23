@@ -5,6 +5,7 @@
 
 /// Financial constants
 pub const MIN_BET_LAMPORTS: u64 = 10_000_000; // 0.01 SOL
+pub const MAX_BET_LAMPORTS: u64 = 3_000_000_000; // 3 SOL (prevent whale dominance)
 pub const HOUSE_FEE_BASIS_POINTS: u16 = 500; // 5%
 
 /// PDA seeds for deterministic account derivation

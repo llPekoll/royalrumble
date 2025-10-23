@@ -3,6 +3,7 @@ use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
 use crate::errors::Domin8Error;
 use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED, VAULT_SEED};
 use crate::events::{WinnerSelected, GameReset};
+use crate::utils::GameUtils;
 use orao_solana_vrf::state::RandomnessAccountData;
 
 #[derive(Accounts)]
@@ -80,8 +81,8 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
         Domin8Error::InvalidGameStatus
     );
 
-    // Select winning bet index using only bet amounts
-    let winning_bet_index = select_weighted_winner_index(
+    // Select winning bet index using utility function
+    let winning_bet_index = GameUtils::select_weighted_winner(
         &game_round.bet_amounts,
         game_round.bet_count as usize,
         randomness
@@ -99,18 +100,27 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
     let winner_wallet = winner_wallet_account.key();
     game_round.winner = winner_wallet;
 
-    msg!("Winner selected: Bet #{} - Wallet: {}", winning_bet_index, winner_wallet);
+    let winning_bet_amount = game_round.bet_amounts[winning_bet_index];
+    msg!("Winner selected: Bet #{} - Wallet: {} - Amount: {}",
+        winning_bet_index, winner_wallet, winning_bet_amount);
 
-    // 3. CALCULATE WINNINGS
+    // 3. CALCULATE WINNINGS USING UTILITY FUNCTIONS
     let total_pot = game_round.total_pot;
-    let house_fee = (total_pot as u128)
-        .checked_mul(ctx.accounts.config.house_fee_basis_points as u128)
-        .ok_or(Domin8Error::ArithmeticOverflow)?
-        .checked_div(10000)
-        .ok_or(Domin8Error::ArithmeticOverflow)? as u64;
+    let house_fee = GameUtils::calculate_house_fee(
+        total_pot,
+        ctx.accounts.config.house_fee_basis_points
+    )?;
     let winner_payout = total_pot.saturating_sub(house_fee);
-    
+
+    // Calculate win probability for logging
+    let win_probability_bps = GameUtils::calculate_win_probability_bps(
+        winning_bet_amount,
+        total_pot
+    )?;
+    let win_probability = GameUtils::bps_to_percentage(win_probability_bps);
+
     msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
+    msg!("Winner's probability: {:.2}%", win_probability);
 
     // 4. DISTRIBUTE WINNINGS
     // Use system program transfer with PDA signing
@@ -120,7 +130,9 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
         &[vault_bump],
     ]];
 
-    // Transfer winner payout using invoke_signed
+    // 4A. ATTEMPT AUTOMATIC WINNER PAYOUT (with graceful failure handling)
+    let mut auto_transfer_success = false;
+
     if winner_payout > 0 {
         let vault_lamports = ctx.accounts.vault.lamports();
         require!(
@@ -135,7 +147,8 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
             winner_payout,
         );
 
-        anchor_lang::solana_program::program::invoke_signed(
+        // Attempt transfer - don't fail entire tx if this fails!
+        let transfer_result = anchor_lang::solana_program::program::invoke_signed(
             &transfer_ix,
             &[
                 ctx.accounts.vault.to_account_info(),
@@ -143,9 +156,24 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
                 ctx.accounts.system_program.to_account_info(),
             ],
             signer_seeds,
-        )?;
+        );
 
-        msg!("Transferred {} lamports to winner {}", winner_payout, winner_wallet);
+        match transfer_result {
+            Ok(_) => {
+                auto_transfer_success = true;
+                game_round.winner_prize_unclaimed = 0;
+                msg!("✓ Automatic transfer succeeded: {} lamports to {}", winner_payout, winner_wallet);
+            }
+            Err(e) => {
+                // Transfer failed - store prize for manual claim
+                game_round.winner_prize_unclaimed = winner_payout;
+                msg!("⚠️ Automatic transfer failed (error: {:?})", e);
+                msg!("   Winner can claim {} lamports manually via claim_winner_prize", winner_payout);
+                msg!("   Game will continue - house fee still distributed");
+            }
+        }
+    } else {
+        game_round.winner_prize_unclaimed = 0;
     }
 
     // Transfer house fee to treasury
@@ -167,14 +195,24 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
     game_round.status = GameStatus::Finished;
     msg!("Game status updated to Finished");
 
-    // 6. EMIT WINNER SELECTED EVENT
+    // 6. EMIT ENHANCED WINNER SELECTED EVENT
+    let clock = Clock::get()?;
+    let vrf_seed_hex = GameUtils::bytes_to_hex(&game_round.vrf_seed);
+
     emit!(WinnerSelected {
         round_id: game_round.round_id,
         winner: winner_wallet,
         winning_bet_index: winning_bet_index as u32,
+        winning_bet_amount,
         total_pot,
         house_fee,
         winner_payout,
+        win_probability_bps,
+        total_bets: game_round.bet_count,
+        auto_transfer_success,
+        vrf_randomness: randomness,
+        vrf_seed_hex,
+        timestamp: clock.unix_timestamp,
     });
 
     // 7. INCREMENT COUNTER FOR NEXT GAME
@@ -234,37 +272,5 @@ fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
     Ok(randomness)
 }
 
-/// Select winner index weighted by bet amounts
-/// Returns winning_bet_index
-fn select_weighted_winner_index(
-    bet_amounts: &[u64; 64],
-    bet_count: usize,
-    randomness: u64
-) -> Result<usize> {
-    if bet_count == 0 {
-        return Err(Domin8Error::NoPlayers.into());
-    }
-
-    // Calculate total weight from active bets only
-    let total_weight: u64 = bet_amounts[..bet_count].iter().sum();
-
-    if total_weight == 0 {
-        return Err(Domin8Error::InvalidBetAmount.into());
-    }
-
-    // Use randomness to select a position in the weight range
-    let selection = randomness % total_weight;
-
-    // Find winner based on cumulative weights
-    let mut cumulative = 0u64;
-    for index in 0..bet_count {
-        cumulative = cumulative.saturating_add(bet_amounts[index]);
-        if selection < cumulative {
-            return Ok(index);
-        }
-    }
-
-    // Fallback to last bet (should never reach here)
-    Ok(bet_count - 1)
-}
+// Winner selection moved to utils::GameUtils::select_weighted_winner
 

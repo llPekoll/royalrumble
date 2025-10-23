@@ -1,9 +1,10 @@
 use crate::constants::*;
 use crate::errors::Domin8Error;
-use crate::events::BetPlaced;
+use crate::events::{BetPlaced, GameCreated};
 use crate::state::{BetEntry, GameConfig, GameCounter, GameRound, GameStatus};
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
+use anchor_lang::solana_program::keccak::hashv;
 use orao_solana_vrf::cpi::accounts::RequestV2;
 use orao_solana_vrf::cpi::request_v2;
 use orao_solana_vrf::program::OraoVrf;
@@ -13,6 +14,7 @@ use orao_solana_vrf::{CONFIG_ACCOUNT_SEED, ID as ORAO_VRF_ID};
 #[derive(Accounts)]
 pub struct CreateGame<'info> {
     #[account(
+        mut,
         seeds = [GAME_CONFIG_SEED],
         bump
     )]
@@ -84,20 +86,36 @@ pub struct CreateGame<'info> {
 /// This instruction is called by the first player to place a bet in a new round
 pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     msg!("Initializing game round creation");
-    let config = &ctx.accounts.config;
-    let counter = &ctx.accounts.counter;
+    let config = &mut ctx.accounts.config;
+    let counter = &mut ctx.accounts.counter;
     let game_round = &mut ctx.accounts.game_round;
     let player_key = ctx.accounts.player.key();
     let clock = Clock::get()?;
 
-    // ⭐ Check if bets are locked (prevents bets during resolution)
+    // ⭐ Check if bets are locked (prevents concurrent game creation)
     require!(!config.bets_locked, Domin8Error::BetsLocked);
 
     // Validate bet amount meets minimum requirement
     require!(amount >= MIN_BET_LAMPORTS, Domin8Error::BetTooSmall);
 
+    // ⭐ Validate bet amount doesn't exceed maximum (prevent whale dominance)
+    require!(amount <= MAX_BET_LAMPORTS, Domin8Error::BetTooLarge);
+
+    // Check if user has sufficient funds (similar to Risk's validation)
+    require!(
+        ctx.accounts.player.lamports() >= amount,
+        Domin8Error::InsufficientFunds
+    );
+
     // Initialize new game round with current counter value
     game_round.round_id = counter.current_round_id;
+
+    // ⭐ Increment counter for next game
+    counter.current_round_id = counter
+        .current_round_id
+        .checked_add(1)
+        .ok_or(Domin8Error::ArithmeticOverflow)?;
+    msg!("Counter incremented to: {}", counter.current_round_id);
     game_round.status = GameStatus::Waiting;
     game_round.start_timestamp = clock.unix_timestamp;
     // ⭐ Set betting window end time (30 seconds from now)
@@ -105,9 +123,11 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
         .unix_timestamp
         .checked_add(DEFAULT_SMALL_GAME_WAITING_DURATION as i64)
         .ok_or(Domin8Error::ArithmeticOverflow)?;
+    // TOD amount also == 0??
     game_round.total_pot = amount;
     game_round.winner = Pubkey::default();
     game_round.winning_bet_index = 0; // Initialize to 0
+    game_round.winner_prize_unclaimed = 0; // No unclaimed prize at start
     game_round.randomness_fulfilled = false;
     msg!("Basci set");
 
@@ -131,7 +151,19 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
 
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     request_v2(cpi_ctx, seed)?;
-    msg!("req2 passed");
+    msg!("VRF requested with force: {:?}", &seed[0..16]);
+
+    // ⭐ CRITICAL: Rotate force IMMEDIATELY after VRF request (prevents PDA collisions on next game)
+    // This mirrors Risk.fun's pattern and prevents reusing the same VRF request PDA
+    let old_force = config.force;
+    let new_force_hash = hashv(&[
+        &old_force,
+        &counter.current_round_id.to_le_bytes(),
+        &clock.unix_timestamp.to_le_bytes(),
+        &clock.slot.to_le_bytes(),
+    ]);
+    config.force.copy_from_slice(&new_force_hash.0);
+    msg!("Force rotated for next game: {:?}", &config.force[0..16]);
 
     // Transfer SOL to vault (AFTER VRF request so player has enough for VRF fee)
     system_program::transfer(
@@ -154,6 +186,7 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     msg!("VRF seed (first 16 bytes): {:?}", &seed[0..16]);
     msg!("VRF request account: {}", ctx.accounts.vrf_request.key());
 
+    // TODO should he initailise here
     // Initialize the first bet entry PDA
     let bet_entry = &mut ctx.accounts.bet_entry;
     bet_entry.game_round_id = game_round.round_id;
@@ -183,6 +216,21 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     msg!("game Len ->{}", game_round.to_account_info().data_len());
     msg!("Rent {}", Rent::get()?.minimum_balance(GameRound::LEN));
 
+    // ⭐ LOCK SYSTEM (prevents concurrent games using same force)
+    config.bets_locked = true;
+    msg!("✓ System locked - game in progress");
+
+    // ⭐ Emit GameCreated event (includes VRF force info for transparency)
+    emit!(GameCreated {
+        round_id: game_round.round_id,
+        creator: player_key,
+        initial_bet: amount,
+        start_time: game_round.start_timestamp,
+        end_time: game_round.end_timestamp,
+        vrf_seed_used: seed,              // Force used for THIS game's VRF
+        next_vrf_seed: config.force,      // Rotated force for NEXT game
+    });
+
     // ⭐ Emit bet placed event
     emit!(BetPlaced {
         round_id: game_round.round_id,
@@ -192,7 +240,15 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
         total_pot: game_round.total_pot,
         end_timestamp: game_round.end_timestamp,
         is_first_bet: true,
+        timestamp: clock.unix_timestamp,
+        bet_index: 0,  // First bet
     });
+
+    msg!("✓ Game round {} created successfully", game_round.round_id);
+    msg!("  Creator: {}", player_key);
+    msg!("  Initial bet: {} lamports", amount);
+    msg!("  VRF seed (hex): {:02x}{:02x}{:02x}{:02x}...", seed[0], seed[1], seed[2], seed[3]);
+    msg!("  Next VRF seed (hex): {:02x}{:02x}{:02x}{:02x}...", config.force[0], config.force[1], config.force[2], config.force[3]);
 
     Ok(())
 }

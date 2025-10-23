@@ -8,9 +8,13 @@ pub mod place_bet;
 // Resolution instructions (ORAO VRF)
 pub mod close_betting_window;
 pub mod select_winner_and_payout;
+pub mod claim_winner_prize;
 
 // Maintenance instructions
 pub mod cleanup_old_game;
+pub mod emergency_unlock;
+pub mod set_counter;
+pub mod rotate_force;
 
 // Re-exports
 pub use initialize::*;
@@ -18,4 +22,8 @@ pub use create_game::*;
 pub use place_bet::*;
 pub use close_betting_window::*;
 pub use select_winner_and_payout::*;
+pub use claim_winner_prize::*;
 pub use cleanup_old_game::*;
+pub use emergency_unlock::*;
+pub use set_counter::*;
+pub use rotate_force::*;

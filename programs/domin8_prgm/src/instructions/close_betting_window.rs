@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameConfig, GameCounter, GameStatus};
+use crate::constants::{GAME_CONFIG_SEED, GAME_COUNTER_SEED, GAME_ROUND_SEED};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED};
 use crate::events::GameLocked;
+use crate::state::{GameConfig, GameCounter, GameRound, GameStatus};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct CloseBettingWindow<'info> {
@@ -26,11 +26,21 @@ pub struct CloseBettingWindow<'info> {
     )]
     pub config: Account<'info, GameConfig>,
 
+    /// CHECK: This is the vault PDA that holds game funds
+    #[account(
+        mut,
+        seeds = [b"vault"],
+        bump
+    )]
+    pub vault: UncheckedAccount<'info>,
+
     /// The crank authority
     #[account(
         constraint = crank.key() == config.authority @ Domin8Error::Unauthorized
     )]
     pub crank: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 /// Close betting window and transition game to winner selection phase
@@ -54,31 +64,59 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     // ⭐ Lock bets to prevent new bets during resolution
     config.bets_locked = true;
 
+    // TODO:why we ask for thatt?
     let bet_count = game_round.bet_count as usize;
-    msg!("Closing betting window: game {} with {} bets", game_round.round_id, bet_count);
+    msg!(
+        "Closing betting window: game {} with {} bets",
+        game_round.round_id,
+        bet_count
+    );
     msg!("Bets locked - no new bets allowed during resolution");
 
     // Handle single bet game (refund scenario)
+    // TODO: it's not single bet it's singel player close the game directly
     if bet_count == 1 {
-        // Single bet - immediate finish with refund
+        // Single bet - immediate finish
+        // Player marked as "winner" so they can claim their full bet back via claim_winnings
         game_round.status = GameStatus::Finished;
         game_round.winning_bet_index = 0;
-        // Winner wallet will be retrieved from BetEntry PDA when needed
-        game_round.winner = Pubkey::default(); // Placeholder, actual winner retrieved via BetEntry
+        // Winner will be set to Pubkey::default() to indicate "refund" (no actual winner)
+        game_round.winner = Pubkey::default();
+
+        let refund_amount = game_round.bet_amounts[0];
+        msg!(
+            "Single bet game - marking for refund: {} lamports",
+            refund_amount
+        );
+        msg!("Player can claim refund via claim_winnings instruction");
+
+        // ⭐ Rotate force field for next game (same logic as select_winner_and_payout)
+        let clock = Clock::get()?;
+        let mut new_force = [0u8; 32];
+
+        // Use hashv directly with multiple slices (no concat needed)
+        use anchor_lang::solana_program::keccak::hashv;
+        let hash = hashv(&[
+            &game_round.round_id.to_le_bytes(),
+            &clock.unix_timestamp.to_le_bytes(),
+            &clock.slot.to_le_bytes(),
+            &config.force,
+        ]);
+        new_force.copy_from_slice(&hash.0);
+        config.force = new_force;
+
+        msg!("New VRF force for next game: {:?}", &new_force[0..16]);
 
         // ⭐ IMPORTANT: Unlock bets immediately for single-bet refunds (no winner selection needed)
         config.bets_locked = false;
 
-        msg!("Single bet game - immediate finish with refund");
+        msg!("Single bet game - immediate finish, ready for refund claims");
         msg!("Bets unlocked - ready for next round");
         return Ok(());
     }
 
     // Validate minimum bets for competitive games
-    require!(
-        bet_count >= 2,
-        Domin8Error::InvalidGameStatus
-    );
+    require!(bet_count >= 2, Domin8Error::InvalidGameStatus);
 
     // Multi-bet game (2+ bets) - VRF was already requested at game creation
     // Just transition to AwaitingWinnerRandomness status
@@ -93,7 +131,10 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     // Update game state to AwaitingWinnerRandomness
     game_round.status = GameStatus::AwaitingWinnerRandomness;
 
-    msg!("Game {} now awaiting winner randomness - VRF already requested at game creation", game_round.round_id);
+    msg!(
+        "Game {} now awaiting winner randomness - VRF already requested at game creation",
+        game_round.round_id
+    );
     msg!("VRF Request: {}", game_round.vrf_request_pubkey);
 
     // ⭐ Emit game locked event

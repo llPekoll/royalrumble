@@ -166,12 +166,62 @@ export function BlockchainDebugDialog() {
           {debug.gameRound && (
             <Section title="Active Game Round">
               <InfoRow label="Round ID" value={debug.gameRound.roundId?.toString() || 'N/A'} />
-              <InfoRow label="Status" value={formatStatus(debug.gameRound.status)}
-                badge={formatStatus(debug.gameRound.status)} />
+
+              {/* All Game Statuses with current highlighted */}
+              <div className="py-2">
+                <span className="text-gray-400 text-base font-medium">Status:</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {['Idle', 'Waiting', 'AwaitingWinnerRandomness', 'Finished'].map((status) => {
+                    const currentStatus = formatStatus(debug.gameRound.status);
+                    const isActive = currentStatus === status;
+                    return (
+                      <span
+                        key={status}
+                        className={`px-3 py-1.5 rounded-lg text-base font-semibold transition-all ${
+                          isActive
+                            ? status === 'Idle' ? 'bg-gray-500 text-white shadow-lg ring-2 ring-gray-300' :
+                              status === 'Waiting' ? 'bg-blue-500 text-white shadow-lg ring-2 ring-blue-300' :
+                              status === 'AwaitingWinnerRandomness' ? 'bg-yellow-500 text-black shadow-lg ring-2 ring-yellow-300' :
+                              status === 'Finished' ? 'bg-green-500 text-white shadow-lg ring-2 ring-green-300' :
+                              'bg-purple-500 text-white shadow-lg ring-2 ring-purple-300'
+                            : 'bg-gray-700/30 text-gray-500 border border-gray-600/50'
+                        }`}
+                      >
+                        {status}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
               <InfoRow label="Start Time" value={formatDate(debug.gameRound.startTimestamp)} />
               <InfoRow label="End Time" value={formatDate(debug.gameRound.endTimestamp)} />
               <InfoRow label="Total Pot" value={formatSOL(debug.gameRound.totalPot)} />
               <InfoRow label="Bet Count" value={debug.gameRound.betCount?.toString() || '0'} />
+
+              {/* Bets List */}
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <h4 className="text-base font-semibold text-purple-300 mb-3">
+                  Bets ({debug.gameRound.betCount || 0})
+                </h4>
+                {debug.gameRound.betCount > 0 ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: debug.gameRound.betCount }).map((_, index) => {
+                      const amount = debug.gameRound.betAmounts?.[index];
+                      return (
+                        <div key={index} className="flex items-center justify-between bg-gray-700/30 rounded-lg px-3 py-2 border border-gray-600/50">
+                          <span className="text-gray-300 text-base font-medium">Bet #{index + 1}</span>
+                          <span className="text-green-400 text-base font-bold">
+                            {amount ? formatSOL(amount) : 'N/A'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm italic">No bets placed yet</p>
+                )}</div>
+
               <InfoRow label="Winner" value={debug.gameRound.winner?.toString() || 'Not determined'} mono />
               <InfoRow label="VRF Request" value={debug.gameRound.vrfRequestPubkey?.toString() || 'N/A'} mono copyable />
               <InfoRow label="Randomness Fulfilled" value={debug.gameRound.randomnessFulfilled ? 'Yes' : 'No'} />
@@ -245,12 +295,12 @@ function InfoRow({
   };
 
   return (
-    <div className="flex items-start justify-between gap-4 py-1">
-      <span className="text-gray-400 text-sm flex-shrink-0">{label}:</span>
+    <div className="flex items-start justify-between gap-4 py-2">
+      <span className="text-gray-400 text-base font-medium flex-shrink-0">{label}:</span>
       <div className="flex items-center gap-2 flex-1 justify-end">
         {icon}
         {badge ? (
-          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+          <span className={`px-3 py-1 rounded-lg text-base font-semibold ${
             badge === 'Waiting' ? 'bg-blue-500/20 text-blue-400' :
             badge === 'AwaitingWinnerRandomness' ? 'bg-yellow-500/20 text-yellow-400' :
             badge === 'Finished' ? 'bg-green-500/20 text-green-400' :
@@ -259,14 +309,14 @@ function InfoRow({
             {badge}
           </span>
         ) : (
-          <span className={`text-gray-200 text-sm text-right break-all ${mono ? 'font-mono' : ''}`}>
+          <span className={`text-gray-200 text-base text-right break-all ${mono ? 'font-mono text-sm' : 'font-medium'}`}>
             {value}
           </span>
         )}
         {copyable && (
           <button
             onClick={handleCopy}
-            className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded transition-colors flex-shrink-0"
+            className="px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded transition-colors flex-shrink-0"
             title="Copy to clipboard"
           >
             {copied ? '✓' : '📋'}

@@ -48,6 +48,7 @@ pub fn initialize(
     config.treasury = treasury;
     config.house_fee_basis_points = HOUSE_FEE_BASIS_POINTS;
     config.min_bet_lamports = MIN_BET_LAMPORTS;
+    config.max_bet_lamports = MAX_BET_LAMPORTS;  // 3 SOL max
 
     // Set default durations for small games
     config.small_game_duration_config = GameDurationConfig {

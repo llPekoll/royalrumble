@@ -13,6 +13,9 @@ pub enum Domin8Error {
     
     #[msg("Bet amount is below minimum required")]
     BetTooSmall,
+
+    #[msg("Bet amount exceeds maximum allowed")]
+    BetTooLarge,
     
     #[msg("Maximum number of players reached")]
     MaxPlayersReached,

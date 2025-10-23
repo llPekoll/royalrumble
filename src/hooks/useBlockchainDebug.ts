@@ -103,11 +103,15 @@ export function useBlockchainDebug(): BlockchainDebugState {
       }
 
       // Derive game round PDA
+      // Try to fetch the current round, if it doesn't exist, try the previous round
       if (currentRoundId !== null) {
-        const roundIdBuffer = Buffer.alloc(8);
-        roundIdBuffer.writeBigUInt64LE(BigInt(currentRoundId), 0);
+        let roundIdToFetch = currentRoundId;
 
-        const [gameRoundPda] = PublicKey.findProgramAddressSync(
+        // Try current round first
+        let roundIdBuffer = Buffer.alloc(8);
+        roundIdBuffer.writeBigUInt64LE(BigInt(roundIdToFetch), 0);
+
+        let [gameRoundPda] = PublicKey.findProgramAddressSync(
           [Buffer.from('game_round'), roundIdBuffer],
           program.programId
         );
@@ -118,8 +122,32 @@ export function useBlockchainDebug(): BlockchainDebugState {
           gameRound = await program.account.gameRound.fetch(gameRoundPda);
           gameExists = true;
         } catch (err) {
-          console.warn('Game round not found:', err);
-          gameExists = false;
+          console.warn(`Game round ${roundIdToFetch} not found, trying previous round...`);
+
+          // Try previous round (counter - 1) if current doesn't exist
+          if (roundIdToFetch > 0) {
+            roundIdToFetch = roundIdToFetch - 1;
+            roundIdBuffer = Buffer.alloc(8);
+            roundIdBuffer.writeBigUInt64LE(BigInt(roundIdToFetch), 0);
+
+            [gameRoundPda] = PublicKey.findProgramAddressSync(
+              [Buffer.from('game_round'), roundIdBuffer],
+              program.programId
+            );
+
+            gameRoundPDA = gameRoundPda.toString();
+
+            try {
+              gameRound = await program.account.gameRound.fetch(gameRoundPda);
+              gameExists = true;
+              console.log(`Found previous round: ${roundIdToFetch}`);
+            } catch (err2) {
+              console.warn(`Previous round ${roundIdToFetch} also not found`);
+              gameExists = false;
+            }
+          } else {
+            gameExists = false;
+          }
         }
       }
 

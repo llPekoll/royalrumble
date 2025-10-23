@@ -484,6 +484,53 @@
       ]
     },
     {
+      "name": "emergency_unlock",
+      "docs": [
+        "Emergency unlock bets (admin only, for stuck states)"
+      ],
+      "discriminator": [
+        17,
+        106,
+        80,
+        63,
+        244,
+        220,
+        225,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize",
       "docs": [
         "Initialize the game with configuration"
@@ -738,6 +785,53 @@
       ]
     },
     {
+      "name": "rotate_force",
+      "docs": [
+        "Rotate force field (admin only, for fixing stuck VRF states)"
+      ],
+      "discriminator": [
+        128,
+        255,
+        188,
+        140,
+        215,
+        206,
+        245,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "select_winner_and_payout",
       "docs": [
         "Select winner using VRF and distribute payouts"
@@ -877,6 +971,82 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "set_counter",
+      "docs": [
+        "Set counter value (admin only, for fixing stuck states)"
+      ],
+      "discriminator": [
+        98,
+        68,
+        192,
+        166,
+        115,
+        7,
+        171,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "counter",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_value",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
