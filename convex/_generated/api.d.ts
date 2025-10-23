@@ -17,6 +17,7 @@ import type * as bets from "../bets.js";
 import type * as characters from "../characters.js";
 import type * as crons from "../crons.js";
 import type * as eventListener from "../eventListener.js";
+import type * as frontend from "../frontend.js";
 import type * as gameActions from "../gameActions.js";
 import type * as gameManager from "../gameManager.js";
 import type * as gameManagerDb from "../gameManagerDb.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   characters: typeof characters;
   crons: typeof crons;
   eventListener: typeof eventListener;
+  frontend: typeof frontend;
   gameActions: typeof gameActions;
   gameManager: typeof gameManager;
   gameManagerDb: typeof gameManagerDb;

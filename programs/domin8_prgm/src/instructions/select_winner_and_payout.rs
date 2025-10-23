@@ -1,7 +1,7 @@
 use crate::constants::{GAME_CONFIG_SEED, GAME_COUNTER_SEED, GAME_ROUND_SEED, VAULT_SEED};
 use crate::errors::Domin8Error;
-use crate::events::{GameReset, WinnerSelected};
-use crate::state::{BetEntry, GameConfig, GameCounter, GameRound, GameStatus};
+use crate::events::WinnerSelected;
+use crate::state::{GameConfig, GameCounter, GameRound, GameStatus};
 use crate::utils::GameUtils;
 use anchor_lang::prelude::*;
 use orao_solana_vrf::state::RandomnessAccountData;
@@ -76,6 +76,9 @@ pub fn select_winner_and_payout<'info>(
     // 1. READ RANDOMNESS FROM ORAO VRF
     let randomness = read_orao_randomness(&ctx.accounts.vrf_request)?;
     msg!("Retrieved ORAO VRF randomness: {}", randomness);
+
+    // Mark randomness as fulfilled
+    game_round.randomness_fulfilled = true;
 
     // 2. SELECT WINNER USING VERIFIED RANDOMNESS
     require!(game_round.bet_count >= 2, Domin8Error::InvalidGameStatus);
@@ -311,5 +314,3 @@ fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
 
     Ok(randomness)
 }
-
-// Winner selection moved to utils::GameUtils::select_weighted_winner

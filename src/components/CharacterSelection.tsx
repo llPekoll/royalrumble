@@ -49,14 +49,20 @@ const CharacterSelection = memo(function CharacterSelection({
   // Get all available characters - only fetch once
   const allCharacters = useQuery(api.characters.getActiveCharacters);
 
-  // TODO: Fetch game state from Solana blockchain
-  // For now, always in demo mode (no game status checks)
-  const gameState: any = null; // TODO: Replace with actual game state from Solana
-  const canPlaceBet = true; // TODO: Replace with actual game state logic
-  const isPlayerInGame = false; // TODO: Replace with actual check
+  // Get current game state from Convex (SINGLE SOURCE OF TRUTH)
+  const currentGame = useQuery(api.frontend.getCurrentGame);
+  const isPlayerInGame = useQuery(
+    api.frontend.isWalletInGame,
+    walletAddress ? { walletAddress } : "skip"
+  );
+  const playerParticipants = useQuery(
+    api.frontend.getPlayerParticipants,
+    walletAddress ? { walletAddress } : "skip"
+  );
 
-  // Check how many participants this player already has
-  const playerParticipantCount = 0; // Disabled until Solana integration
+  // Derive game state from Convex
+  const canPlaceBet = currentGame?.canJoin ?? false;
+  const playerParticipantCount = playerParticipants?.length ?? 0;
 
   // Initialize with random character when characters load
   useEffect(() => {
@@ -92,9 +98,9 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
-    // Check if player can place bet based on game state
-    if (!canPlaceBet) {
-      const status = gameState?.gameState?.status;
+    // Check if player can place bet based on Convex game state
+    if (!canPlaceBet && currentGame) {
+      const status = currentGame.status;
       if (status === "awaitingWinnerRandomness") {
         toast.error("Game is determining winner, please wait...");
       } else if (status === "finished") {
@@ -102,12 +108,6 @@ const CharacterSelection = memo(function CharacterSelection({
       } else {
         toast.error("Cannot place bet at this time");
       }
-      return;
-    }
-
-    // Check if player is already in the current game
-    if (isPlayerInGame) {
-      toast.error("You are already participating in the current game");
       return;
     }
 
@@ -181,8 +181,7 @@ const CharacterSelection = memo(function CharacterSelection({
     currentCharacter,
     betAmount,
     canPlaceBet,
-    isPlayerInGame,
-    gameState,
+    currentGame,
     placeBet,
     validateBet,
     placeEntryBet,

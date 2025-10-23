@@ -33,6 +33,8 @@ export const checkGameRecovery = internalAction({
 
       const solanaClient = new SolanaClient(rpcEndpoint, authorityKey);
       const gameRound = await solanaClient.getGameRound();
+      console.log("saooooooooooooooo----------------");
+      console.log({ gameRound });
 
       if (!gameRound) {
         // No game on blockchain, nothing to recover
@@ -50,8 +52,39 @@ export const checkGameRecovery = internalAction({
         randomnessFulfilled: gameRound.randomnessFulfilled,
       });
 
-      // Ignore if game is idle or finished
-      if (status === GameStatus.Idle || status === GameStatus.Finished) {
+      // Get or ensure game record exists in Convex
+      const roundId = Number(gameRound.roundId);
+      const existingGame = await ctx.runQuery(internal.gameManagerDb.getGameByRoundId, {
+        roundId,
+      });
+
+      // Sync finished games to Convex
+      if (status === GameStatus.Finished) {
+        if (!existingGame) {
+          console.log(`📝 Creating Convex record for finished game round ${roundId}`);
+          await ensureGameRecord(ctx, gameRound);
+        } else if (existingGame.status !== "finished") {
+          console.log(`🏁 Syncing finished status to Convex for round ${roundId}`);
+          console.log(
+            `   Blockchain: betCount=${gameRound.betCount}, totalPot=${gameRound.totalPot}, winner=${gameRound.winner}`
+          );
+          await ctx.runMutation(internal.gameManagerDb.updateGame, {
+            gameId: existingGame._id,
+            status: "finished",
+            winner: gameRound.winner || undefined,
+            totalPot: gameRound.totalPot,
+            playersCount: gameRound.betCount,
+            vrfRequestPubkey: gameRound.vrfRequestPubkey || undefined,
+            randomnessFulfilled: gameRound.randomnessFulfilled,
+            lastUpdated: Date.now(),
+          });
+          console.log(`   ✅ Convex updated to finished`);
+        }
+        return;
+      }
+
+      // Ignore idle games
+      if (status === GameStatus.Idle) {
         return;
       }
 

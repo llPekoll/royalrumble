@@ -1,8 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { BN } from "bn.js";
-import { expect } from "chai";
-import { assert } from "chai";
+import { expect, assert } from "chai";
 import {
   Orao,
   networkStateAccountAddress,
@@ -50,6 +49,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
   // Test parameters
   const MIN_BET = 10_000_000; // 0.01 SOL
+  const MAX_BET = 3_000_000_000; // 3 SOL
   const HOUSE_FEE_BPS = 500; // 5%
 
   // Round tracking
@@ -227,7 +227,10 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         console.log("House Fee (bps):", configAccount.houseFeeBasisPoints);
         console.log("Min Bet (lamports):", configAccount.minBetLamports.toString());
         console.log("Max Bet (lamports):", configAccount.maxBetLamports.toString());
-        console.log("Max Bet (SOL):", configAccount.maxBetLamports.toNumber() / web3.LAMPORTS_PER_SOL);
+        console.log(
+          "Max Bet (SOL):",
+          configAccount.maxBetLamports.toNumber() / web3.LAMPORTS_PER_SOL
+        );
         console.log("Bets Locked:", configAccount.betsLocked);
         console.log(
           "Waiting Duration:",
@@ -465,7 +468,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       const gameBeforeBet = await program.account.gameRound.fetch(gameRoundPda);
 
       // Skip if bets are locked (game already in progress on devnet)
-      if (Object.keys(gameBeforeBet.status)[0] !== 'waiting') {
+      if (Object.keys(gameBeforeBet.status)[0] !== "waiting") {
         console.log("ℹ Game already in progress, bets locked (devnet state)");
         console.log("✓ Skipping bet placement test");
         return;
@@ -523,7 +526,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       const gameBeforeBet = await program.account.gameRound.fetch(gameRoundPda);
 
       // Skip if bets are locked
-      if (Object.keys(gameBeforeBet.status)[0] !== 'waiting') {
+      if (Object.keys(gameBeforeBet.status)[0] !== "waiting") {
         console.log("ℹ Game already in progress, bets locked (devnet state)");
         console.log("✓ Skipping bet placement test");
         return;
@@ -575,7 +578,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       const gameBeforeBet = await program.account.gameRound.fetch(gameRoundPda);
 
       // Skip if bets are locked
-      if (Object.keys(gameBeforeBet.status)[0] !== 'waiting') {
+      if (Object.keys(gameBeforeBet.status)[0] !== "waiting") {
         console.log("ℹ Game already in progress, bets locked (devnet state)");
         console.log("✓ Skipping bet placement test");
         return;
@@ -650,9 +653,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       for (let i = 0; i < gameAccount.betCount; i++) {
         const betAmount = new BN(gameAccount.betAmounts[i]);
         const solAmount = (betAmount.toNumber() / web3.LAMPORTS_PER_SOL).toFixed(4);
-        console.log(
-          `Bet ${i}: ${betAmount.toString()} lamports (${solAmount} SOL)`
-        );
+        console.log(`Bet ${i}: ${betAmount.toString()} lamports (${solAmount} SOL)`);
         totalCheck = totalCheck.add(betAmount);
       }
 
@@ -707,7 +708,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       const gameAccount = await program.account.gameRound.fetch(gameRoundPda);
 
       // Skip if already closed (devnet state)
-      if (Object.keys(gameAccount.status)[0] !== 'waiting') {
+      if (Object.keys(gameAccount.status)[0] !== "waiting") {
         console.log("ℹ Betting window already closed (devnet state)");
         console.log("Game Status:", Object.keys(gameAccount.status)[0]);
         console.log("✓ Skipping close betting window test");
@@ -741,7 +742,9 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
           });
         }
 
-        console.log(`\n✓ Passing ${remainingAccounts.length} BetEntry accounts to check unique players`);
+        console.log(
+          `\n✓ Passing ${remainingAccounts.length} BetEntry accounts to check unique players`
+        );
 
         const tx = await program.methods
           .closeBettingWindow()
@@ -901,8 +904,16 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
         // Check unclaimed fields (should be 0 if auto-transfer succeeded)
         console.log("\n=== Payout Status ===");
-        console.log("Winner prize unclaimed:", gameAfterPayout.winnerPrizeUnclaimed.toString(), "lamports");
-        console.log("House fee unclaimed:", gameAfterPayout.houseFeeUnclaimed.toString(), "lamports");
+        console.log(
+          "Winner prize unclaimed:",
+          gameAfterPayout.winnerPrizeUnclaimed.toString(),
+          "lamports"
+        );
+        console.log(
+          "House fee unclaimed:",
+          gameAfterPayout.houseFeeUnclaimed.toString(),
+          "lamports"
+        );
 
         if (gameAfterPayout.winnerPrizeUnclaimed.toNumber() === 0) {
           console.log("✓ Winner paid automatically");

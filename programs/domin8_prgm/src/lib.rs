@@ -18,7 +18,7 @@ pub use events::*;
 pub use state::*;
 pub use utils::*;
 
-declare_id!("7H8sbK7ySoPgR53GGgriPxrDnPWZW3s8CQJ4pQvbAAra");
+declare_id!("EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT");
 
 #[program]
 pub mod domin8_prgm {

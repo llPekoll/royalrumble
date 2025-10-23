@@ -58,6 +58,12 @@ export function calculateGamePhase(
     return 'IDLE';
   }
 
+  // If blockchain says finished, always return FINISHED (regardless of time)
+  // This handles viewing old finished games
+  if (blockchainStatus === 'finished') {
+    return 'FINISHED';
+  }
+
   // Calculate elapsed time since game start
   const elapsed = currentTime - startTimestamp;
 
@@ -85,35 +91,17 @@ export function calculateGamePhase(
       return 'FIGHTING';
     }
 
-    // If blockchain says finished but we're still in fighting window, show results early
-    if (blockchainStatus === 'finished' && hasWinner) {
-      return 'RESULTS';
-    }
-
     return 'FIGHTING';
   }
 
   // Phase 4: RESULTS (40s - 45s)
   // Winner determined, show celebration
   if (elapsed < PHASE_DURATIONS.WAITING + PHASE_DURATIONS.FIGHTING + PHASE_DURATIONS.RESULTS) {
-    // If no winner yet, something went wrong
-    if (!hasWinner) {
-      return 'VRF_DELAYED';
-    }
     return 'RESULTS';
   }
 
   // Phase 5: FINISHED (45s+)
   // Game complete, ready for next round
-  if (blockchainStatus === 'finished' && hasWinner) {
-    return 'FINISHED';
-  }
-
-  // Fallback: if game is taking too long, show error
-  if (elapsed > TOTAL_GAME_DURATION + 30) {
-    return 'ERROR';
-  }
-
   return 'FINISHED';
 }
 

@@ -110,12 +110,10 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     // Initialize new game round with current counter value
     game_round.round_id = counter.current_round_id;
 
-    // ⭐ Increment counter for next game
-    counter.current_round_id = counter
-        .current_round_id
-        .checked_add(1)
-        .ok_or(Domin8Error::ArithmeticOverflow)?;
-    msg!("Counter incremented to: {}", counter.current_round_id);
+    // ⭐ Note: Counter is NOT incremented here - it stays at current round
+    // Counter will be incremented in select_winner_and_payout after game finishes
+    // This allows place_bet to reference the game using counter.current_round_id
+    msg!("Creating game for round: {}", counter.current_round_id);
     game_round.status = GameStatus::Waiting;
     game_round.start_timestamp = clock.unix_timestamp;
     // ⭐ Set betting window end time (30 seconds from now)
@@ -123,7 +121,7 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
         .unix_timestamp
         .checked_add(DEFAULT_SMALL_GAME_WAITING_DURATION as i64)
         .ok_or(Domin8Error::ArithmeticOverflow)?;
-    // TOD amount also == 0??
+
     game_round.total_pot = amount;
     game_round.winner = Pubkey::default();
     game_round.winning_bet_index = 0; // Initialize to 0
@@ -159,7 +157,7 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     let old_force = config.force;
     let new_force_hash = hashv(&[
         &old_force,
-        &counter.current_round_id.to_le_bytes(),
+        &game_round.round_id.to_le_bytes(),
         &clock.unix_timestamp.to_le_bytes(),
         &clock.slot.to_le_bytes(),
     ]);
@@ -178,7 +176,7 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
         amount,
     )?;
 
-    msg!("New game round created: {}", counter.current_round_id);
+    msg!("New game round created: {}", game_round.round_id);
     msg!(
         "Game started by first bet - betting window closes at {}",
         game_round.end_timestamp

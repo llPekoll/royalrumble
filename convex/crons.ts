@@ -10,6 +10,16 @@ import { internal } from "./_generated/api";
 const crons = cronJobs();
 
 /**
+ * Event listener - monitors blockchain for new bets and game events
+ * Runs every 5 seconds to detect on-chain transactions
+ */
+crons.interval(
+  "blockchain-event-listener",
+  { seconds: 5 },
+  internal.eventListener.listenToBlockchainEvents
+);
+
+/**
  * Game recovery - self-healing system that catches overdue actions
  * Runs every 30 seconds to check if blockchain is ahead of expected state
  */

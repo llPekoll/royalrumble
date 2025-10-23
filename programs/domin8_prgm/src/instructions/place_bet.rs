@@ -69,8 +69,9 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount: u64) -> Result<()> {
         Domin8Error::InvalidGameStatus
     );
 
-    // ⭐ Check if bets are locked (prevents bets during resolution)
-    require!(!config.bets_locked, Domin8Error::BetsLocked);
+    // ⭐ Note: We do NOT check config.bets_locked here
+    // bets_locked prevents creating NEW games (concurrent games)
+    // but additional bets on the CURRENT game are allowed while game.status allows it
 
     // Validate game state - must be Idle or Waiting
     require!(game_round.can_accept_bets(), Domin8Error::InvalidGameStatus);

@@ -1,12 +1,10 @@
 /**
- * Hook for debugging blockchain state
- * Shows all program accounts and their current state
+ * Hook for debugging game state from Convex (single source of truth)
+ * Shows Convex's view of the game which orchestrates blockchain
  */
 
-import { useEffect, useState, useCallback } from 'react';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
-import { Domin8PrgmIDL, DOMIN8_PROGRAM_ID, type Domin8Prgm } from '../programs/domin8';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 export interface BlockchainDebugState {
   // Connection info
@@ -14,7 +12,7 @@ export interface BlockchainDebugState {
   rpcEndpoint: string;
   programId: string;
 
-  // Account states
+  // Account states (now from Convex)
   gameConfig: any | null;
   gameCounter: any | null;
   gameRound: any | null;
@@ -34,175 +32,70 @@ export interface BlockchainDebugState {
 }
 
 export function useBlockchainDebug(): BlockchainDebugState {
-  const [state, setState] = useState<Omit<BlockchainDebugState, 'refresh'>>({
-    connected: false,
-    rpcEndpoint: '',
-    programId: '',
-    gameConfig: null,
-    gameCounter: null,
-    gameRound: null,
-    vault: null,
-    currentRoundId: 0,
-    gameRoundPDA: '',
-    gameExists: false,
-    isLoading: true,
-    error: null,
-  });
+  // Query game stats from Convex (single source of truth)
+  const gameStats = useQuery(api.frontend.getGameStats);
+  const currentGame = useQuery(api.frontend.getCurrentGame);
 
-  const fetchBlockchainState = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+  const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+  const programId = import.meta.env.VITE_GAME_PROGRAM_ID || 'EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT';
 
-    try {
-      const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-      const connection = new Connection(rpcUrl, 'confirmed');
+  // Transform Convex data to match the debug interface
+  const isLoading = gameStats === undefined || currentGame === undefined;
+  const error = null;
 
-      // Create a read-only provider (no wallet needed)
-      const provider = new AnchorProvider(
-        connection,
-        {} as any, // No wallet for read-only
-        { commitment: 'confirmed' }
-      );
+  // Build game round object from Convex data
+  // Convert Convex status string to Anchor enum format (e.g., "waiting" -> { waiting: {} })
+  const formatStatusForAnchor = (status: string) => {
+    const statusMap: Record<string, any> = {
+      'idle': { idle: {} },
+      'waiting': { waiting: {} },
+      'awaitingWinnerRandomness': { awaitingWinnerRandomness: {} },
+      'finished': { finished: {} },
+    };
+    return statusMap[status] || { idle: {} };
+  };
 
-      const program = new Program<Domin8Prgm>(Domin8PrgmIDL as any, provider);
+  const gameRound = currentGame?.game ? {
+    roundId: currentGame.game.roundId,
+    status: formatStatusForAnchor(currentGame.game.status),
+    startTimestamp: currentGame.game.startTimestamp ? currentGame.game.startTimestamp / 1000 : 0,
+    endTimestamp: currentGame.game.endTimestamp ? currentGame.game.endTimestamp / 1000 : 0,
+    betCount: currentGame.participantCount,
+    totalPot: currentGame.game.totalPot,
+    betAmounts: currentGame.participants.map(p => p.amount * 1e9), // Convert SOL to lamports
+    winner: currentGame.game.winner || 'Not determined',
+    vrfRequestPubkey: currentGame.game.vrfRequestPubkey || 'N/A',
+    randomnessFulfilled: currentGame.game.randomnessFulfilled || false,
+  } : null;
 
-      // Derive all PDAs
-      const [gameConfigPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('game_config')],
-        program.programId
-      );
-
-      const [gameCounterPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('game_counter')],
-        program.programId
-      );
-
-      const [vaultPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('vault')],
-        program.programId
-      );
-
-      // Fetch accounts
-      let gameConfig = null;
-      let gameCounter = null;
-      let gameRound = null;
-      let currentRoundId = 0;
-      let gameRoundPDA = '';
-      let gameExists = false;
-
-      try {
-        gameConfig = await program.account.gameConfig.fetch(gameConfigPda);
-      } catch (err) {
-        console.warn('Game config not found:', err);
-      }
-
-      try {
-        gameCounter = await program.account.gameCounter.fetch(gameCounterPda);
-        currentRoundId = Number(gameCounter.currentRoundId);
-      } catch (err) {
-        console.warn('Game counter not found:', err);
-      }
-
-      // Derive game round PDA
-      // Try to fetch the current round, if it doesn't exist, try the previous round
-      if (currentRoundId !== null) {
-        let roundIdToFetch = currentRoundId;
-
-        // Try current round first
-        let roundIdBuffer = Buffer.alloc(8);
-        roundIdBuffer.writeBigUInt64LE(BigInt(roundIdToFetch), 0);
-
-        let [gameRoundPda] = PublicKey.findProgramAddressSync(
-          [Buffer.from('game_round'), roundIdBuffer],
-          program.programId
-        );
-
-        gameRoundPDA = gameRoundPda.toString();
-
-        try {
-          gameRound = await program.account.gameRound.fetch(gameRoundPda);
-          gameExists = true;
-        } catch (err) {
-          console.warn(`Game round ${roundIdToFetch} not found, trying previous round...`);
-
-          // Try previous round (counter - 1) if current doesn't exist
-          if (roundIdToFetch > 0) {
-            roundIdToFetch = roundIdToFetch - 1;
-            roundIdBuffer = Buffer.alloc(8);
-            roundIdBuffer.writeBigUInt64LE(BigInt(roundIdToFetch), 0);
-
-            [gameRoundPda] = PublicKey.findProgramAddressSync(
-              [Buffer.from('game_round'), roundIdBuffer],
-              program.programId
-            );
-
-            gameRoundPDA = gameRoundPda.toString();
-
-            try {
-              gameRound = await program.account.gameRound.fetch(gameRoundPda);
-              gameExists = true;
-              console.log(`Found previous round: ${roundIdToFetch}`);
-            } catch (err2) {
-              console.warn(`Previous round ${roundIdToFetch} also not found`);
-              gameExists = false;
-            }
-          } else {
-            gameExists = false;
-          }
-        }
-      }
-
-      // Get vault balance
-      let vault = null;
-      try {
-        const vaultInfo = await connection.getAccountInfo(vaultPda);
-        vault = {
-          balance: (vaultInfo?.lamports || 0) / 1e9,
-          address: vaultPda.toString(),
-        };
-      } catch (err) {
-        console.warn('Vault info not found:', err);
-      }
-
-      setState({
-        connected: true,
-        rpcEndpoint: rpcUrl,
-        programId: program.programId.toString(),
-        gameConfig,
-        gameCounter,
-        gameRound,
-        vault,
-        currentRoundId,
-        gameRoundPDA,
-        gameExists,
-        isLoading: false,
-        error: null,
-      });
-    } catch (err: any) {
-      console.error('Failed to fetch blockchain state:', err);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: err.message || 'Failed to fetch blockchain state',
-      }));
-    }
-  }, []);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchBlockchainState();
-  }, [fetchBlockchainState]);
-
-  // Auto-refresh every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchBlockchainState();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [fetchBlockchainState]);
+  // Mock game config (from environment or defaults)
+  const gameConfig = {
+    authority: 'Backend Wallet',
+    treasury: 'Treasury Wallet',
+    minBetLamports: 10_000_000, // 0.01 SOL
+    houseFeeBasisPoints: 500, // 5%
+    betsLocked: currentGame?.game.status !== 'waiting',
+    smallGameDurationConfig: {
+      waitingPhaseDuration: 30,
+    },
+  };
 
   return {
-    ...state,
-    refresh: fetchBlockchainState,
+    connected: true,
+    rpcEndpoint: rpcUrl,
+    programId,
+    gameConfig,
+    gameCounter: { currentRoundId: gameStats?.currentRound || 0 },
+    gameRound,
+    vault: { balance: 0, address: 'Vault PDA' }, // Vault balance not tracked in Convex yet
+    currentRoundId: gameStats?.currentRound || 0,
+    gameRoundPDA: 'Convex-managed',
+    gameExists: currentGame !== null,
+    isLoading,
+    error,
+    refresh: async () => {
+      // Convex queries auto-refresh, so this is a no-op
+      console.log('Convex queries auto-refresh every few seconds');
+    },
   };
 }
