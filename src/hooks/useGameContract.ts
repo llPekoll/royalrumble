@@ -39,6 +39,7 @@ import {
 } from "@solana/web3.js";
 import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
 import { Buffer } from "buffer";
+import bs58 from "bs58";
 import { Domin8PrgmIDL, DOMIN8_PROGRAM_ID, type Domin8Prgm } from "../programs/domin8";
 
 // Use the program ID from the IDL (or environment override)
@@ -79,8 +80,10 @@ class PrivyWalletAdapter {
     ]);
 
     // Store the signature for later retrieval
+    // Convert Uint8Array to base58 string for Convex compatibility
     if (result && result.length > 0 && result[0].signature) {
-      this.lastSignature = result[0].signature;
+      const signatureBytes = result[0].signature;
+      this.lastSignature = bs58.encode(signatureBytes);
     }
 
     // Return the transaction (already sent by Privy)
@@ -106,8 +109,10 @@ class PrivyWalletAdapter {
     );
 
     // Store the last signature
+    // Convert Uint8Array to base58 string for Convex compatibility
     if (results && results.length > 0 && results[results.length - 1].signature) {
-      this.lastSignature = results[results.length - 1].signature;
+      const signatureBytes = results[results.length - 1].signature;
+      this.lastSignature = bs58.encode(signatureBytes);
     }
 
     return txs;
@@ -486,13 +491,13 @@ export const useGameContract = () => {
 
           // Call createGame instruction (camelCase, not snake_case)
           // Note: Most accounts are auto-resolved by Anchor from the IDL
-          // We only need to provide: player (signer), treasury (ORAO), vrf_request (ORAO)
+          // We only need to provide: player (signer), treasury (ORAO), vrfRequest (ORAO)
           tx = await program.methods
             .createGame(amountBN)
             .accounts({
               player: publicKey,
               treasury: vrfTreasury,
-              vrf_request: vrfRequest,
+              vrfRequest: vrfRequest,
             })
             .rpc();
 

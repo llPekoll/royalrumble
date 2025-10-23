@@ -18,92 +18,42 @@ export const PHASE_DURATIONS = {
 export const TOTAL_GAME_DURATION =
   PHASE_DURATIONS.WAITING + PHASE_DURATIONS.FIGHTING + PHASE_DURATIONS.RESULTS;
 
-// Game phases enum
-export type GamePhase =
-  | "WAITING" // Betting window open (0-30s)
-  | "BETTING_CLOSED" // Transitioning to fighting
-  | "FIGHTING" // Characters fighting, waiting for VRF (30-40s)
-  | "VRF_DELAYED" // VRF taking longer than expected
-  | "RESULTS" // Winner announced (40-45s)
-  | "FINISHED" // Game complete, ready for next round
-  | "ERROR"; // Something went wrong
+// Game phases - now matching blockchain states exactly!
+// This eliminates confusion and sync issues between frontend and blockchain
+export type GamePhase = "waiting" | "awaitingWinnerRandomness" | "finished";
 
-// Blockchain status mapping (no idle - games start in waiting)
-export type BlockchainGameStatus = "waiting" | "awaitingWinnerRandomness" | "finished";
+// Blockchain status mapping (same as GamePhase now)
+export type BlockchainGameStatus = GamePhase;
 
 /**
- * Calculate current game phase from timestamps
- * Pure function - can be called from anywhere (frontend/backend)
+ * Calculate current game phase - now simplified to match blockchain exactly!
+ * No more complex timestamp calculations that can drift out of sync.
+ * The blockchain is the single source of truth.
  */
 export function calculateGamePhase(
   blockchainStatus: BlockchainGameStatus,
-  startTimestamp: number, // Unix timestamp (seconds)
-  currentTime: number = Date.now() / 1000 // Unix timestamp (seconds)
+  _startTimestamp?: number, // Kept for backwards compatibility but not used
+  _currentTime?: number // Kept for backwards compatibility but not used
 ): GamePhase {
-  // If blockchain says finished, always return FINISHED (regardless of time)
-  // This handles viewing old finished games
-  if (blockchainStatus === "finished") {
-    return "FINISHED";
-  }
-
-  // Games start in waiting status (no idle state)
-
-  // Calculate elapsed time since game start
-  const elapsed = currentTime - startTimestamp;
-
-  // Phase 1: WAITING (0 - 30s)
-  // Betting window is open, players can join
-  if (elapsed < PHASE_DURATIONS.WAITING) {
-    return "WAITING";
-  }
-
-  // Phase 2: BETTING_CLOSED (brief transition)
-  // Betting window just closed, about to request VRF
-  if (elapsed < PHASE_DURATIONS.WAITING + 2) {
-    return "BETTING_CLOSED";
-  }
-
-  // Phase 3: FIGHTING (30s - 40s)
-  // VRF requested, characters fighting, waiting for random number
-  if (elapsed < PHASE_DURATIONS.WAITING + PHASE_DURATIONS.FIGHTING) {
-    // Check blockchain status for VRF
-    if (blockchainStatus === "awaitingWinnerRandomness") {
-      // If we're past the expected VRF time (8+ seconds), show delay message
-      if (elapsed > PHASE_DURATIONS.WAITING + 8) {
-        return "VRF_DELAYED";
-      }
-      return "FIGHTING";
-    }
-
-    return "FIGHTING";
-  }
-
-  // Phase 4: RESULTS (40s - 45s)
-  // Winner determined, show celebration
-  if (elapsed < PHASE_DURATIONS.WAITING + PHASE_DURATIONS.FIGHTING + PHASE_DURATIONS.RESULTS) {
-    return "RESULTS";
-  }
-
-  // Phase 5: FINISHED (45s+)
-  // Game complete, ready for next round
-  return "FINISHED";
+  // Simply return the blockchain status - it's already the correct phase!
+  return blockchainStatus;
 }
 
 /**
  * Get the timestamp when a specific phase starts
+ * Note: With blockchain-driven phases, this is less relevant
+ * but kept for countdown timers in the waiting phase
  */
 export function getPhaseStartTime(phase: GamePhase, gameStartTimestamp: number): number {
   switch (phase) {
-    case "WAITING":
+    case "waiting":
       return gameStartTimestamp;
 
-    case "FIGHTING":
+    case "awaitingWinnerRandomness":
       return gameStartTimestamp + PHASE_DURATIONS.WAITING;
 
-    case "RESULTS":
-      return gameStartTimestamp + PHASE_DURATIONS.WAITING + PHASE_DURATIONS.FIGHTING;
-
-    case "FINISHED":
+    case "finished":
+      // Finished time is determined by blockchain, not predictable
       return gameStartTimestamp + TOTAL_GAME_DURATION;
 
     default:
@@ -113,6 +63,7 @@ export function getPhaseStartTime(phase: GamePhase, gameStartTimestamp: number):
 
 /**
  * Get time remaining in current phase (in seconds)
+ * Only really useful for the waiting phase - other phases are blockchain-driven
  */
 export function getPhaseTimeRemaining(
   currentPhase: GamePhase,
@@ -122,14 +73,17 @@ export function getPhaseTimeRemaining(
   const elapsed = currentTime - startTimestamp;
 
   switch (currentPhase) {
-    case "WAITING":
+    case "waiting":
+      // Show countdown during waiting phase
       return Math.max(0, PHASE_DURATIONS.WAITING - elapsed);
 
-    case "FIGHTING":
-      return Math.max(0, PHASE_DURATIONS.WAITING + PHASE_DURATIONS.FIGHTING - elapsed);
+    case "awaitingWinnerRandomness":
+      // VRF timing is unpredictable, typically 3-8 seconds
+      return 0;
 
-    case "RESULTS":
-      return Math.max(0, TOTAL_GAME_DURATION - elapsed);
+    case "finished":
+      // Game is over
+      return 0;
 
     default:
       return 0;
@@ -169,20 +123,12 @@ export function shouldExecuteAction(
  */
 export function getPhaseDescription(phase: GamePhase): string {
   switch (phase) {
-    case "WAITING":
+    case "waiting":
       return "Betting open! Place your bets!";
-    case "BETTING_CLOSED":
-      return "Betting closed! Get ready to fight!";
-    case "FIGHTING":
-      return "Battle in progress! Waiting for winner...";
-    case "VRF_DELAYED":
-      return "Random number generation taking longer than expected...";
-    case "RESULTS":
-      return "Winner announced!";
-    case "FINISHED":
+    case "awaitingWinnerRandomness":
+      return "Battle in progress! Determining winner...";
+    case "finished":
       return "Game finished! Place bet to start new round!";
-    case "ERROR":
-      return "Game error - please refresh";
     default:
       return "Unknown phase";
   }

@@ -60,6 +60,37 @@ export const checkGameRecovery = internalAction({
 
       // Sync finished games to Convex
       if (status === GameStatus.Finished) {
+        // Check if counter was properly incremented after this game finished
+        const currentCounter = await solanaClient.getCurrentRoundId();
+        const expectedNextRound = roundId + 1;
+
+        if (currentCounter === roundId) {
+          console.log(`⚠️ Game ${roundId} is finished but counter wasn't incremented!`);
+          console.log(`   Counter is still at ${currentCounter}, should be ${expectedNextRound}`);
+          console.log(`   This suggests selectWinnerAndPayout didn't complete properly`);
+
+          // Check if VRF was fulfilled
+          if (gameRound.vrfRequestPubkey && gameRound.randomnessFulfilled) {
+            console.log(`   VRF was fulfilled, attempting to complete payout now...`);
+            const gameId = await ensureGameRecord(ctx, gameRound);
+
+            try {
+              // Call checkVrfAndComplete which internally calls selectWinnerAndPayout
+              await ctx.runAction(internal.gameActions.checkVrfAndComplete, {
+                gameId,
+                retryCount: 0,
+              });
+              console.log(`   ✅ Payout completed, counter should now be incremented`);
+            } catch (error) {
+              console.error(`   ❌ Failed to complete payout:`, error);
+              console.log(`   Manual intervention may be required`);
+            }
+          } else {
+            console.log(`   VRF not fulfilled yet, cannot complete payout`);
+          }
+        }
+
+        // Sync to Convex database
         if (!existingGame) {
           console.log(`📝 Creating Convex record for finished game round ${roundId}`);
           await ensureGameRecord(ctx, gameRound);
@@ -79,11 +110,6 @@ export const checkGameRecovery = internalAction({
             lastUpdated: Date.now(),
           });
           console.log(`   ✅ Convex updated to finished`);
-        } else {
-          // Game is already synced as finished in Convex
-          // No need to do anything - frontend will show finished state
-          // Next bet from a player will automatically create round 4 on blockchain
-          // and the event listener will detect it and create a new Convex game
         }
         return;
       }
