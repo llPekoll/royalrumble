@@ -134,8 +134,17 @@ pub fn close_betting_window<'info>(ctx: Context<'_, '_, '_, 'info, CloseBettingW
         // ⭐ IMPORTANT: Unlock bets immediately for single-bet refunds (no winner selection needed)
         config.bets_locked = false;
 
+        // ⭐ INCREMENT COUNTER FOR NEXT GAME (was missing!)
+        let counter = &mut ctx.accounts.counter;
+        let new_round_id = counter
+            .current_round_id
+            .checked_add(1)
+            .ok_or(Domin8Error::ArithmeticOverflow)?;
+        counter.current_round_id = new_round_id;
+
         msg!("Single player game - immediate finish, ready for refund claim");
         msg!("Bets unlocked - ready for next round");
+        msg!("✓ Counter incremented to {}", new_round_id);
         return Ok(());
     }
 

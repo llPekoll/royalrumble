@@ -34,8 +34,8 @@ async function main() {
   console.log("Authority:", authorityKey.publicKey.toString());
   console.log("Program ID:", programId.toString());
 
-  // Set counter to 4
-  const newValue = 4;
+  // Set counter to 5 (next round after finished game 4)
+  const newValue = 5;
 
   try {
     console.log(`\nSetting counter to ${newValue}...`);

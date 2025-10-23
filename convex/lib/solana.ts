@@ -254,6 +254,25 @@ export class SolanaClient {
       throw new Error("Failed to derive game round PDA");
     }
 
+    // Fetch current game round to get bet count
+    const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
+    const betCount = gameRoundAccount.betCount;
+
+    // Fetch BetEntry PDAs for all bets (needed to count unique players)
+    const remainingAccounts = [];
+    for (let i = 0; i < betCount; i++) {
+      const { betEntry } = this.getPDAs(currentRoundId, i);
+      if (betEntry) {
+        remainingAccounts.push({
+          pubkey: betEntry,
+          isWritable: false, // Read-only for validation
+          isSigner: false,
+        });
+      }
+    }
+
+    console.log(`Closing betting window for round ${currentRoundId} with ${betCount} bets`);
+
     const tx = await this.program.methods
       .closeBettingWindow()
       .accounts({
@@ -261,7 +280,8 @@ export class SolanaClient {
         gameRound: gameRound,
         config: gameConfig,
         crank: this.authority.publicKey,
-      } as any) // Temporary until TypeScript types are properly generated
+      } as any)
+      .remainingAccounts(remainingAccounts)
       .rpc();
 
     return tx;
