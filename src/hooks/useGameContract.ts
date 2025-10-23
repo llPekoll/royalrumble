@@ -327,6 +327,12 @@ export const useGameContract = () => {
    */
   const placeBet = useCallback(
     async (amount: number): Promise<TransactionSignature> => {
+      console.log("[placeBet] Starting placeBet function");
+      console.log("[placeBet] Connected:", connected);
+      console.log("[placeBet] PublicKey:", publicKey?.toString());
+      console.log("[placeBet] Program:", program ? "initialized" : "null");
+      console.log("[placeBet] WalletAdapter:", walletAdapter ? "initialized" : "null");
+
       if (!connected || !publicKey || !program) {
         throw new Error("Wallet not connected or program not initialized");
       }
@@ -341,39 +347,65 @@ export const useGameContract = () => {
         // Convert SOL to lamports
         const amountLamports = Math.floor(amount * LAMPORTS_PER_SOL);
         const amountBN = new BN(amountLamports);
+        console.log("[placeBet] Amount in lamports:", amountLamports);
 
         // Fetch current round ID
+        console.log("[placeBet] Fetching current round ID...");
         const currentRoundId = await fetchCurrentRoundId();
         console.log("[placeBet] Current round ID:", currentRoundId);
 
         // Derive PDAs
+        console.log("[placeBet] Deriving PDAs...");
         const { gameConfigPda } = derivePDAs();
+        console.log("[placeBet] Game config PDA:", gameConfigPda.toString());
 
         // Check previous round first (counter increments AFTER game creation, so active game is usually counter - 1)
         let activeRoundId = currentRoundId;
         let gameRoundPda = deriveGameRoundPda(currentRoundId);
+        console.log("[placeBet] Current game round PDA:", gameRoundPda.toString());
+
+        console.log("[placeBet] Fetching game round account info...");
         let gameRoundInfo = await connection.getAccountInfo(gameRoundPda);
+        console.log("[placeBet] Current game round exists:", !!gameRoundInfo);
 
         // If current round doesn't exist, check previous round
         if (!gameRoundInfo && currentRoundId > 0) {
+          console.log("[placeBet] Current round doesn't exist, checking previous round...");
           const prevRoundId = currentRoundId - 1;
           const prevGameRoundPda = deriveGameRoundPda(prevRoundId);
+          console.log("[placeBet] Previous game round PDA:", prevGameRoundPda.toString());
+
           const prevGameRoundInfo = await connection.getAccountInfo(prevGameRoundPda);
+          console.log("[placeBet] Previous game round exists:", !!prevGameRoundInfo);
 
           if (prevGameRoundInfo) {
             // Previous round exists, check if it's still accepting bets
-            const prevGameRound = await program.account.GameRound.fetch(prevGameRoundPda);
-            const prevStatus = Object.keys(prevGameRound.status)[0];
-            console.log(
-              `[placeBet] Previous round ${prevRoundId} exists with status: ${prevStatus}`
-            );
+            console.log("[placeBet] Fetching previous game round data...");
+            console.log("[placeBet] Program.account:", program.account);
+            console.log("[placeBet] Program.account.gameRound:", program.account.gameRound);
 
-            if (prevStatus === "waiting") {
-              // Previous round is still active, use it!
-              activeRoundId = prevRoundId;
-              gameRoundPda = prevGameRoundPda;
-              gameRoundInfo = prevGameRoundInfo;
-              console.log(`[placeBet] Using active previous round: ${prevRoundId}`);
+            try {
+              const prevGameRound = await program.account.gameRound.fetchNullable(prevGameRoundPda);
+              console.log("[placeBet] Fetched previous game round:", prevGameRound);
+
+              if (prevGameRound) {
+                const prevStatus = Object.keys(prevGameRound.status)[0];
+                console.log(
+                  `[placeBet] Previous round ${prevRoundId} exists with status: ${prevStatus}`
+                );
+
+                if (prevStatus === "waiting") {
+                  // Previous round is still active, use it!
+                  activeRoundId = prevRoundId;
+                  gameRoundPda = prevGameRoundPda;
+                  gameRoundInfo = prevGameRoundInfo;
+                  console.log(`[placeBet] Using active previous round: ${prevRoundId}`);
+                }
+              } else {
+                console.log("[placeBet] Previous round exists but can't be deserialized");
+              }
+            } catch (fetchError) {
+              console.error("[placeBet] Error fetching previous game round:", fetchError);
             }
           }
         }
@@ -388,19 +420,38 @@ export const useGameContract = () => {
           console.log("[placeBet] No game exists, creating new game with first bet");
         } else {
           // Game exists - check if it's finished
-          const gameRoundAccount = await program.account.GameRound.fetch(gameRoundPda);
-          const gameStatus = Object.keys(gameRoundAccount.status)[0];
-          console.log("[placeBet] Game exists with status:", gameStatus);
+          console.log("[placeBet] Game round exists, fetching status...");
+          console.log("[placeBet] Program.account:", program.account);
+          console.log("[placeBet] Program.account.gameRound:", program.account.gameRound);
 
-          if (gameStatus === "finished") {
+          try {
+            const gameRoundAccount = await program.account.gameRound.fetchNullable(gameRoundPda);
+            console.log("[placeBet] Fetched game round account:", gameRoundAccount);
+
+            if (!gameRoundAccount) {
+              // Account exists but can't be deserialized - treat as need new game
+              console.log("[placeBet] Game round account exists but can't be fetched, creating new game");
+              shouldCreateNewGame = true;
+            } else {
+              const gameStatus = Object.keys(gameRoundAccount.status)[0];
+              console.log("[placeBet] Game exists with status:", gameStatus);
+
+              if (gameStatus === "finished") {
+                shouldCreateNewGame = true;
+                console.log("[placeBet] Game is finished, need to create new round");
+              }
+            }
+          } catch (fetchError) {
+            console.error("[placeBet] Error fetching game round:", fetchError);
+            console.log("[placeBet] Treating as need new game due to fetch error");
             shouldCreateNewGame = true;
-            console.log("[placeBet] Game is finished, need to create new round");
           }
         }
 
         if (shouldCreateNewGame) {
           // No game exists OR game is finished - CREATE a new game with this bet
           console.log("[placeBet] Creating new game for round", currentRoundId);
+          console.log("[placeBet] Available methods:", Object.keys(program.methods));
 
           // Get config to fetch VRF force field
           const configInfo = await connection.getAccountInfo(gameConfigPda);
@@ -409,7 +460,7 @@ export const useGameContract = () => {
           }
 
           // Parse force field from config using Anchor deserialization
-          const configAccountParsed = await program.account.GameConfig.fetch(gameConfigPda);
+          const configAccountParsed = await program.account.gameConfig.fetch(gameConfigPda);
           const force = Buffer.from(configAccountParsed.force);
 
           // Derive VRF accounts using ORAO VRF SDK
@@ -433,11 +484,11 @@ export const useGameContract = () => {
             treasury: vrfTreasury.toString(),
           });
 
-          // Call create_game instruction
+          // Call createGame instruction (camelCase, not snake_case)
           // Note: Most accounts are auto-resolved by Anchor from the IDL
           // We only need to provide: player (signer), treasury (ORAO), vrf_request (ORAO)
           tx = await program.methods
-            .create_game(amountBN)
+            .createGame(amountBN)
             .accounts({
               player: publicKey,
               treasury: vrfTreasury,
@@ -451,15 +502,15 @@ export const useGameContract = () => {
           console.log(`[placeBet] Game exists (round ${activeRoundId}), placing additional bet`);
 
           // Fetch fresh game state using Anchor (more reliable than manual parsing)
-          const gameRoundAccount = await program.account.GameRound.fetch(gameRoundPda);
+          const gameRoundAccount = await program.account.gameRound.fetch(gameRoundPda);
           const betCount = gameRoundAccount.bet_count;
           console.log("[placeBet] Current bet count (from Anchor):", betCount);
 
-          // Call place_bet instruction
+          // Call placeBet instruction (camelCase, not snake_case)
           // Note: All accounts are auto-resolved by Anchor from the IDL
           // We only need to provide: player (signer)
           tx = await program.methods
-            .place_bet(amountBN)
+            .placeBet(amountBN)
             .accounts({
               player: publicKey,
             })
