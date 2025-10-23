@@ -40,7 +40,7 @@ pub mod domin8_prgm {
     }
 
     /// Close betting window and lock game for winner selection
-    pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
+    pub fn close_betting_window<'info>(ctx: Context<'_, '_, '_, 'info, CloseBettingWindow<'info>>) -> Result<()> {
         instructions::close_betting_window(ctx)
     }
 

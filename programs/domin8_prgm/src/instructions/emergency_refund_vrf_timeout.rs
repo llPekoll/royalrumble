@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameConfig, GameCounter, GameStatus};
+use crate::constants::{GAME_CONFIG_SEED, GAME_COUNTER_SEED, GAME_ROUND_SEED, VAULT_SEED};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED, VAULT_SEED};
+use crate::state::{GameConfig, GameCounter, GameRound, GameStatus};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct EmergencyRefundVrfTimeout<'info> {
@@ -58,7 +58,7 @@ pub struct EmergencyRefundVrfTimeout<'info> {
 /// - Unlocks the system for next game
 /// - Resets game to Idle state
 pub fn emergency_refund_vrf_timeout<'info>(
-    ctx: Context<'_, '_, '_, 'info, EmergencyRefundVrfTimeout<'info>>
+    ctx: Context<'_, '_, '_, 'info, EmergencyRefundVrfTimeout<'info>>,
 ) -> Result<()> {
     let game_round = &mut ctx.accounts.game_round;
     let config = &mut ctx.accounts.config;
@@ -87,7 +87,11 @@ pub fn emergency_refund_vrf_timeout<'info>(
     msg!("  Round ID: {}", game_round.round_id);
     msg!("  Bet count: {}", game_round.bet_count);
     msg!("  Total pot: {} lamports", game_round.total_pot);
-    msg!("  Time waiting for VRF: {} seconds ({} minutes)", time_waiting, time_waiting / 60);
+    msg!(
+        "  Time waiting for VRF: {} seconds ({} minutes)",
+        time_waiting,
+        time_waiting / 60
+    );
     msg!("  VRF request: {}", game_round.vrf_request_pubkey);
 
     // Refund each player from remaining_accounts
@@ -97,14 +101,14 @@ pub fn emergency_refund_vrf_timeout<'info>(
     );
 
     let vault_bump = ctx.bumps.vault;
-    let signer_seeds: &[&[&[u8]]] = &[&[
-        VAULT_SEED,
-        &[vault_bump],
-    ]];
+    let signer_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, &[vault_bump]]];
 
     let mut total_refunded = 0u64;
 
-    for (index, player_account) in ctx.remaining_accounts[..game_round.bet_count as usize].iter().enumerate() {
+    for (index, player_account) in ctx.remaining_accounts[..game_round.bet_count as usize]
+        .iter()
+        .enumerate()
+    {
         let refund_amount = game_round.bet_amounts[index];
 
         if refund_amount > 0 {
@@ -128,7 +132,11 @@ pub fn emergency_refund_vrf_timeout<'info>(
                 .checked_add(refund_amount)
                 .ok_or(Domin8Error::ArithmeticOverflow)?;
 
-            msg!("  ✓ Refunded {} lamports to player {}", refund_amount, player_account.key);
+            msg!(
+                "  ✓ Refunded {} lamports to player {}",
+                refund_amount,
+                player_account.key
+            );
         }
     }
 

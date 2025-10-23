@@ -44,7 +44,9 @@ pub struct CloseBettingWindow<'info> {
 }
 
 /// Close betting window and transition game to winner selection phase
-pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
+///
+/// Requires remaining_accounts: All BetEntry PDAs for the game (to count unique players)
+pub fn close_betting_window<'info>(ctx: Context<'_, '_, '_, 'info, CloseBettingWindow<'info>>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     let game_round = &mut ctx.accounts.game_round;
     let clock = Clock::get()?;
@@ -64,7 +66,6 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     // ⭐ Lock bets to prevent new bets during resolution
     config.bets_locked = true;
 
-    // TODO:why we ask for thatt?
     let bet_count = game_round.bet_count as usize;
     msg!(
         "Closing betting window: game {} with {} bets",
@@ -73,22 +74,45 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
     );
     msg!("Bets locked - no new bets allowed during resolution");
 
-    // Handle single bet game (refund scenario)
-    // TODO: it's not single bet it's singel player close the game directly
-    if bet_count == 1 {
-        // Single bet - immediate finish
-        // Player marked as "winner" so they can claim their full bet back via claim_winnings
+    // ⭐ CRITICAL: Count unique players (not just bet count!)
+    // A single player could place multiple bets - we need at least 2 different wallets
+    require!(
+        ctx.remaining_accounts.len() >= bet_count,
+        Domin8Error::InvalidBetEntry
+    );
+
+    // Extract unique player wallets from BetEntry accounts
+    use crate::state::BetEntry;
+    let mut unique_wallets: Vec<Pubkey> = Vec::new();
+
+    for account_info in ctx.remaining_accounts[..bet_count].iter() {
+        let bet_entry_data = account_info.try_borrow_data()?;
+        let bet_entry = BetEntry::try_deserialize(&mut &bet_entry_data[..])?;
+
+        if !unique_wallets.contains(&bet_entry.wallet) {
+            unique_wallets.push(bet_entry.wallet);
+        }
+    }
+
+    let unique_player_count = unique_wallets.len();
+    msg!("Unique players: {} (from {} total bets)", unique_player_count, bet_count);
+
+    // ⭐ Handle single player game (refund scenario)
+    // This happens when only ONE unique wallet placed all the bets
+    if unique_player_count == 1 {
+        // Single player - immediate finish (no competition)
+        // Player marked as "winner" so they can claim their full pot back via claim_winner_prize
         game_round.status = GameStatus::Finished;
         game_round.winning_bet_index = 0;
-        // Winner will be set to Pubkey::default() to indicate "refund" (no actual winner)
-        game_round.winner = Pubkey::default();
+        game_round.winner = unique_wallets[0]; // Set to the actual player wallet for claim
 
-        let refund_amount = game_round.bet_amounts[0];
+        let total_refund = game_round.total_pot;
         msg!(
-            "Single bet game - marking for refund: {} lamports",
-            refund_amount
+            "Single player game - marking for refund: {} lamports (from {} bets)",
+            total_refund,
+            bet_count
         );
-        msg!("Player can claim refund via claim_winnings instruction");
+        msg!("Player {} can claim full refund via claim_winner_prize", unique_wallets[0]);
 
         // ⭐ Rotate force field for next game (same logic as select_winner_and_payout)
         let clock = Clock::get()?;
@@ -110,17 +134,17 @@ pub fn close_betting_window(ctx: Context<CloseBettingWindow>) -> Result<()> {
         // ⭐ IMPORTANT: Unlock bets immediately for single-bet refunds (no winner selection needed)
         config.bets_locked = false;
 
-        msg!("Single bet game - immediate finish, ready for refund claims");
+        msg!("Single player game - immediate finish, ready for refund claim");
         msg!("Bets unlocked - ready for next round");
         return Ok(());
     }
 
-    // Validate minimum bets for competitive games
-    require!(bet_count >= 2, Domin8Error::InvalidGameStatus);
+    // Validate minimum unique players for competitive games (need at least 2 different wallets)
+    require!(unique_player_count >= 2, Domin8Error::InvalidGameStatus);
 
-    // Multi-bet game (2+ bets) - VRF was already requested at game creation
+    // Multi-player game (2+ unique players) - VRF was already requested at game creation
     // Just transition to AwaitingWinnerRandomness status
-    // No upper limit - unlimited bets supported via dynamic reallocation
+    // Multiple bets per player allowed - winner selected based on total bet amounts
 
     // Verify VRF was requested during game creation
     require!(

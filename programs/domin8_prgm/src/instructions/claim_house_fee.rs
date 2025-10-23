@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameConfig, GameStatus};
+use crate::constants::{GAME_CONFIG_SEED, GAME_ROUND_SEED, VAULT_SEED};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, VAULT_SEED};
+use crate::state::{GameConfig, GameRound, GameStatus};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(round_id: u64)]
@@ -58,10 +58,7 @@ pub fn claim_house_fee(ctx: Context<ClaimHouseFee>, round_id: u64) -> Result<()>
 
     // Verify there's an unclaimed house fee
     let unclaimed_fee = game_round.house_fee_unclaimed;
-    require!(
-        unclaimed_fee > 0,
-        Domin8Error::AlreadyClaimed
-    );
+    require!(unclaimed_fee > 0, Domin8Error::AlreadyClaimed);
 
     msg!("Processing manual house fee claim for round {}", round_id);
     msg!("Treasury: {}", ctx.accounts.treasury.key());
@@ -76,10 +73,7 @@ pub fn claim_house_fee(ctx: Context<ClaimHouseFee>, round_id: u64) -> Result<()>
 
     // Transfer fee to treasury
     let vault_bump = ctx.bumps.vault;
-    let signer_seeds: &[&[&[u8]]] = &[&[
-        VAULT_SEED,
-        &[vault_bump],
-    ]];
+    let signer_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, &[vault_bump]]];
 
     let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
         &ctx.accounts.vault.key(),
@@ -101,7 +95,11 @@ pub fn claim_house_fee(ctx: Context<ClaimHouseFee>, round_id: u64) -> Result<()>
     game_round.house_fee_unclaimed = 0;
 
     msg!("✓ House fee claimed successfully!");
-    msg!("✓ Transferred {} lamports to treasury {}", unclaimed_fee, ctx.accounts.treasury.key());
+    msg!(
+        "✓ Transferred {} lamports to treasury {}",
+        unclaimed_fee,
+        ctx.accounts.treasury.key()
+    );
 
     Ok(())
 }

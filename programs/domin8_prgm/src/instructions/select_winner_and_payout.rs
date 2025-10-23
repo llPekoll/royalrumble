@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameConfig, GameCounter, GameStatus, BetEntry};
+use crate::constants::{GAME_CONFIG_SEED, GAME_COUNTER_SEED, GAME_ROUND_SEED, VAULT_SEED};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_CONFIG_SEED, GAME_COUNTER_SEED, VAULT_SEED};
-use crate::events::{WinnerSelected, GameReset};
+use crate::events::{GameReset, WinnerSelected};
+use crate::state::{BetEntry, GameConfig, GameCounter, GameRound, GameStatus};
 use crate::utils::GameUtils;
+use anchor_lang::prelude::*;
 use orao_solana_vrf::state::RandomnessAccountData;
 
 #[derive(Accounts)]
@@ -28,7 +28,7 @@ pub struct SelectWinnerAndPayout<'info> {
         bump
     )]
     pub config: Account<'info, GameConfig>,
-    
+
     /// The vault PDA that holds game funds
     #[account(
         mut,
@@ -36,56 +36,55 @@ pub struct SelectWinnerAndPayout<'info> {
         bump
     )]
     pub vault: SystemAccount<'info>,
-    
+
     /// The crank authority
     #[account(
         constraint = crank.key() == config.authority @ Domin8Error::Unauthorized
     )]
     pub crank: Signer<'info>,
-    
+
     /// VRF Request Account containing fulfilled randomness
     /// CHECK: This account was created by ORAO VRF program
     pub vrf_request: AccountInfo<'info>,
-    
+
     /// Treasury account for receiving house fees
     #[account(
         mut,
         constraint = treasury.key() == config.treasury @ Domin8Error::InvalidTreasury
     )]
     pub treasury: SystemAccount<'info>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
 /// Select winner using VRF randomness and distribute payouts
-pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWinnerAndPayout<'info>>) -> Result<()> {
+pub fn select_winner_and_payout<'info>(
+    ctx: Context<'_, '_, '_, 'info, SelectWinnerAndPayout<'info>>,
+) -> Result<()> {
     let game_round = &mut ctx.accounts.game_round;
-    
+
     require!(
         game_round.status == GameStatus::AwaitingWinnerRandomness,
         Domin8Error::InvalidGameStatus
     );
-    
+
     require!(
         ctx.accounts.vrf_request.key() == game_round.vrf_request_pubkey,
         Domin8Error::InvalidVrfAccount
     );
-    
+
     // 1. READ RANDOMNESS FROM ORAO VRF
     let randomness = read_orao_randomness(&ctx.accounts.vrf_request)?;
     msg!("Retrieved ORAO VRF randomness: {}", randomness);
-    
+
     // 2. SELECT WINNER USING VERIFIED RANDOMNESS
-    require!(
-        game_round.bet_count >= 2,
-        Domin8Error::InvalidGameStatus
-    );
+    require!(game_round.bet_count >= 2, Domin8Error::InvalidGameStatus);
 
     // Select winning bet index using utility function
     let winning_bet_index = GameUtils::select_weighted_winner(
         &game_round.bet_amounts,
         game_round.bet_count as usize,
-        randomness
+        randomness,
     )?;
 
     game_round.winning_bet_index = winning_bet_index as u32;
@@ -101,34 +100,35 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
     game_round.winner = winner_wallet;
 
     let winning_bet_amount = game_round.bet_amounts[winning_bet_index];
-    msg!("Winner selected: Bet #{} - Wallet: {} - Amount: {}",
-        winning_bet_index, winner_wallet, winning_bet_amount);
+    msg!(
+        "Winner selected: Bet #{} - Wallet: {} - Amount: {}",
+        winning_bet_index,
+        winner_wallet,
+        winning_bet_amount
+    );
 
     // 3. CALCULATE WINNINGS USING UTILITY FUNCTIONS
     let total_pot = game_round.total_pot;
-    let house_fee = GameUtils::calculate_house_fee(
-        total_pot,
-        ctx.accounts.config.house_fee_basis_points
-    )?;
+    let house_fee =
+        GameUtils::calculate_house_fee(total_pot, ctx.accounts.config.house_fee_basis_points)?;
     let winner_payout = total_pot.saturating_sub(house_fee);
 
     // Calculate win probability for logging
-    let win_probability_bps = GameUtils::calculate_win_probability_bps(
-        winning_bet_amount,
-        total_pot
-    )?;
+    let win_probability_bps =
+        GameUtils::calculate_win_probability_bps(winning_bet_amount, total_pot)?;
     let win_probability = GameUtils::bps_to_percentage(win_probability_bps);
 
-    msg!("Distributing: {} to winner, {} to house", winner_payout, house_fee);
+    msg!(
+        "Distributing: {} to winner, {} to house",
+        winner_payout,
+        house_fee
+    );
     msg!("Winner's probability: {:.2}%", win_probability);
 
     // 4. DISTRIBUTE WINNINGS
     // Use system program transfer with PDA signing
     let vault_bump = ctx.bumps.vault;
-    let signer_seeds: &[&[&[u8]]] = &[&[
-        VAULT_SEED,
-        &[vault_bump],
-    ]];
+    let signer_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, &[vault_bump]]];
 
     // 4A. ATTEMPT AUTOMATIC WINNER PAYOUT (with graceful failure handling)
     let mut auto_transfer_success = false;
@@ -162,13 +162,20 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
             Ok(_) => {
                 auto_transfer_success = true;
                 game_round.winner_prize_unclaimed = 0;
-                msg!("✓ Automatic transfer succeeded: {} lamports to {}", winner_payout, winner_wallet);
+                msg!(
+                    "✓ Automatic transfer succeeded: {} lamports to {}",
+                    winner_payout,
+                    winner_wallet
+                );
             }
             Err(e) => {
                 // Transfer failed - store prize for manual claim
                 game_round.winner_prize_unclaimed = winner_payout;
                 msg!("⚠️ Automatic transfer failed (error: {:?})", e);
-                msg!("   Winner can claim {} lamports manually via claim_winner_prize", winner_payout);
+                msg!(
+                    "   Winner can claim {} lamports manually via claim_winner_prize",
+                    winner_payout
+                );
                 msg!("   Game will continue - house fee still distributed");
             }
         }
@@ -196,13 +203,19 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
             Ok(_) => {
                 house_fee_success = true;
                 game_round.house_fee_unclaimed = 0;
-                msg!("✓ House fee transferred: {} lamports to treasury", house_fee);
+                msg!(
+                    "✓ House fee transferred: {} lamports to treasury",
+                    house_fee
+                );
             }
             Err(e) => {
                 // Transfer failed - store fee for manual claim
                 game_round.house_fee_unclaimed = house_fee;
                 msg!("⚠️ House fee transfer failed (error: {:?})", e);
-                msg!("   Treasury can claim {} lamports manually via claim_house_fee", house_fee);
+                msg!(
+                    "   Treasury can claim {} lamports manually via claim_house_fee",
+                    house_fee
+                );
                 msg!("   Game will continue - winner payout already processed");
             }
         }
@@ -210,7 +223,7 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
         game_round.house_fee_unclaimed = 0;
         house_fee_success = true;
     }
-    
+
     // 5. MARK GAME AS FINISHED
     game_round.status = GameStatus::Finished;
     msg!("Game status updated to Finished");
@@ -238,7 +251,8 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
 
     // 7. INCREMENT COUNTER FOR NEXT GAME
     let counter = &mut ctx.accounts.counter;
-    let new_round_id = counter.current_round_id
+    let new_round_id = counter
+        .current_round_id
         .checked_add(1)
         .ok_or(Domin8Error::ArithmeticOverflow)?;
     counter.current_round_id = new_round_id;
@@ -251,7 +265,8 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
         &randomness.to_le_bytes()[..],
         &clock.slot.to_le_bytes()[..],
         &clock.unix_timestamp.to_le_bytes()[..],
-    ].concat();
+    ]
+    .concat();
 
     // Hash to get new force
     use anchor_lang::solana_program::keccak::hashv;
@@ -265,7 +280,11 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
     config.bets_locked = false;
 
     msg!("✓ Game {} completed successfully", game_round.round_id);
-    msg!("✓ Winner: {} - Prize: {} lamports", winner_wallet, winner_payout);
+    msg!(
+        "✓ Winner: {} - Prize: {} lamports",
+        winner_wallet,
+        winner_payout
+    );
     msg!("✓ House fee: {} lamports", house_fee);
     msg!("✓ Counter incremented to {}", new_round_id);
     msg!("✓ Bets unlocked for next round");
@@ -294,4 +313,3 @@ fn read_orao_randomness(vrf_account: &AccountInfo) -> Result<u64> {
 }
 
 // Winner selection moved to utils::GameUtils::select_weighted_winner
-

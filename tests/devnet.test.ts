@@ -728,14 +728,32 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       }
 
       try {
+        // Fetch BetEntry accounts to pass as remaining_accounts (needed to count unique players)
+        const betCount = gameAccount.betCount;
+        const remainingAccounts = [];
+
+        for (let i = 0; i < betCount; i++) {
+          const betEntryPda = deriveBetEntryPda(currentRoundId, i);
+          remainingAccounts.push({
+            pubkey: betEntryPda,
+            isWritable: false,
+            isSigner: false,
+          });
+        }
+
+        console.log(`\n✓ Passing ${remainingAccounts.length} BetEntry accounts to check unique players`);
+
         const tx = await program.methods
           .closeBettingWindow()
           .accounts({
             counter: gameCounterPda,
             gameRound: gameRoundPda,
             config: gameConfigPda,
+            vault: vaultPda,
             crank: provider.wallet.publicKey,
+            systemProgram: web3.SystemProgram.programId,
           })
+          .remainingAccounts(remainingAccounts)
           .rpc();
 
         console.log("✓ Close betting window transaction:", tx);

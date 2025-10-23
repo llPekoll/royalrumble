@@ -3,8 +3,8 @@ use crate::errors::Domin8Error;
 use crate::events::{BetPlaced, GameCreated};
 use crate::state::{BetEntry, GameConfig, GameCounter, GameRound, GameStatus};
 use anchor_lang::prelude::*;
-use anchor_lang::system_program;
 use anchor_lang::solana_program::keccak::hashv;
+use anchor_lang::system_program;
 use orao_solana_vrf::cpi::accounts::RequestV2;
 use orao_solana_vrf::cpi::request_v2;
 use orao_solana_vrf::program::OraoVrf;
@@ -130,7 +130,7 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     game_round.winner_prize_unclaimed = 0; // No unclaimed prize at start
     game_round.house_fee_unclaimed = 0; // No unclaimed house fee at start
     game_round.randomness_fulfilled = false;
-    msg!("Basci set");
+    msg!("Basic set");
 
     // ⭐ REQUEST VRF FIRST (before transferring bet) - gives ORAO 30 seconds to fulfill during waiting period
     // Use force field from config for VRF seed (like riskdotfun)
@@ -228,8 +228,8 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
         initial_bet: amount,
         start_time: game_round.start_timestamp,
         end_time: game_round.end_timestamp,
-        vrf_seed_used: seed,              // Force used for THIS game's VRF
-        next_vrf_seed: config.force,      // Rotated force for NEXT game
+        vrf_seed_used: seed,         // Force used for THIS game's VRF
+        next_vrf_seed: config.force, // Rotated force for NEXT game
     });
 
     // ⭐ Emit bet placed event
@@ -242,14 +242,26 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
         end_timestamp: game_round.end_timestamp,
         is_first_bet: true,
         timestamp: clock.unix_timestamp,
-        bet_index: 0,  // First bet
+        bet_index: 0, // First bet
     });
 
     msg!("✓ Game round {} created successfully", game_round.round_id);
     msg!("  Creator: {}", player_key);
     msg!("  Initial bet: {} lamports", amount);
-    msg!("  VRF seed (hex): {:02x}{:02x}{:02x}{:02x}...", seed[0], seed[1], seed[2], seed[3]);
-    msg!("  Next VRF seed (hex): {:02x}{:02x}{:02x}{:02x}...", config.force[0], config.force[1], config.force[2], config.force[3]);
+    msg!(
+        "  VRF seed (hex): {:02x}{:02x}{:02x}{:02x}...",
+        seed[0],
+        seed[1],
+        seed[2],
+        seed[3]
+    );
+    msg!(
+        "  Next VRF seed (hex): {:02x}{:02x}{:02x}{:02x}...",
+        config.force[0],
+        config.force[1],
+        config.force[2],
+        config.force[3]
+    );
 
     Ok(())
 }

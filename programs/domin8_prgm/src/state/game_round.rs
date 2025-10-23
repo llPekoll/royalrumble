@@ -25,11 +25,11 @@ pub struct GameRound {
     pub end_timestamp: i64, // When betting window closes
 
     // Bet tracking
-    pub bet_count: u32,     // Number of bets placed
-    pub total_pot: u64,     // Sum of all bet amounts
+    pub bet_count: u32, // Number of bets placed
+    pub total_pot: u64, // Sum of all bet amounts
 
     // Bet amounts array for efficient winner selection (max 64 bets)
-    pub bet_amounts: [u64; 64],  // Amount for each bet
+    pub bet_amounts: [u64; 64], // Amount for each bet
     // Wallet details stored in separate BetEntry PDAs
 
     // Winner

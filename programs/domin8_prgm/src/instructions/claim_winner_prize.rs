@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
-use crate::state::{GameRound, GameCounter, GameStatus};
+use crate::constants::{GAME_ROUND_SEED, VAULT_SEED};
 use crate::errors::Domin8Error;
-use crate::constants::{GAME_ROUND_SEED, GAME_COUNTER_SEED, VAULT_SEED};
+use crate::state::{GameRound, GameStatus};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(round_id: u64)]
@@ -52,10 +52,7 @@ pub fn claim_winner_prize(ctx: Context<ClaimWinnerPrize>, round_id: u64) -> Resu
 
     // Verify there's an unclaimed prize
     let unclaimed_prize = game_round.winner_prize_unclaimed;
-    require!(
-        unclaimed_prize > 0,
-        Domin8Error::AlreadyClaimed
-    );
+    require!(unclaimed_prize > 0, Domin8Error::AlreadyClaimed);
 
     msg!("Processing manual prize claim for round {}", round_id);
     msg!("Winner: {}", ctx.accounts.winner.key());
@@ -70,10 +67,7 @@ pub fn claim_winner_prize(ctx: Context<ClaimWinnerPrize>, round_id: u64) -> Resu
 
     // Transfer prize to winner
     let vault_bump = ctx.bumps.vault;
-    let signer_seeds: &[&[&[u8]]] = &[&[
-        VAULT_SEED,
-        &[vault_bump],
-    ]];
+    let signer_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, &[vault_bump]]];
 
     let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
         &ctx.accounts.vault.key(),
@@ -95,7 +89,11 @@ pub fn claim_winner_prize(ctx: Context<ClaimWinnerPrize>, round_id: u64) -> Resu
     game_round.winner_prize_unclaimed = 0;
 
     msg!("✓ Prize claimed successfully!");
-    msg!("✓ Transferred {} lamports to winner {}", unclaimed_prize, ctx.accounts.winner.key());
+    msg!(
+        "✓ Transferred {} lamports to winner {}",
+        unclaimed_prize,
+        ctx.accounts.winner.key()
+    );
 
     Ok(())
 }
