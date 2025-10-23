@@ -128,6 +128,7 @@ pub fn create_game(ctx: Context<CreateGame>, amount: u64) -> Result<()> {
     game_round.winner = Pubkey::default();
     game_round.winning_bet_index = 0; // Initialize to 0
     game_round.winner_prize_unclaimed = 0; // No unclaimed prize at start
+    game_round.house_fee_unclaimed = 0; // No unclaimed house fee at start
     game_round.randomness_fulfilled = false;
     msg!("Basci set");
 

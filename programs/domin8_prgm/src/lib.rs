@@ -54,6 +54,11 @@ pub mod domin8_prgm {
         instructions::claim_winner_prize(ctx, round_id)
     }
 
+    /// Claim house fee manually (if automatic transfer failed)
+    pub fn claim_house_fee(ctx: Context<ClaimHouseFee>, round_id: u64) -> Result<()> {
+        instructions::claim_house_fee(ctx, round_id)
+    }
+
     /// Cleanup old game round (backend-triggered after 1 week)
     pub fn cleanup_old_game(ctx: Context<CleanupOldGame>, round_id: u64) -> Result<()> {
         instructions::cleanup_old_game(ctx, round_id)
@@ -62,6 +67,11 @@ pub mod domin8_prgm {
     /// Emergency unlock bets (admin only, for stuck states)
     pub fn emergency_unlock(ctx: Context<EmergencyUnlock>) -> Result<()> {
         instructions::emergency_unlock(ctx)
+    }
+
+    /// Emergency refund if VRF timeout (10+ minutes with no randomness)
+    pub fn emergency_refund_vrf_timeout<'info>(ctx: Context<'_, '_, '_, 'info, EmergencyRefundVrfTimeout<'info>>) -> Result<()> {
+        instructions::emergency_refund_vrf_timeout(ctx)
     }
 
     /// Set counter value (admin only, for fixing stuck states)

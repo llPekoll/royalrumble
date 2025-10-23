@@ -36,6 +36,7 @@ pub struct GameRound {
     pub winner: Pubkey,
     pub winning_bet_index: u32, // Index of the winning bet (for UI display)
     pub winner_prize_unclaimed: u64, // Prize amount if automatic transfer failed
+    pub house_fee_unclaimed: u64, // House fee if automatic transfer failed
 
     // ORAO VRF integration
     pub vrf_request_pubkey: Pubkey, // ORAO VRF request account
@@ -47,9 +48,9 @@ impl GameRound {
     // 8 (discriminator) + 8 (round_id) + 1 (status) + 8 (start) + 8 (end)
     // + 4 (bet_count) + 8 (total_pot)
     // + (8 * 64) (bet_amounts) - removed bet_wallets array
-    // + 32 (winner) + 4 (winning_bet_index) + 8 (winner_prize_unclaimed)
+    // + 32 (winner) + 4 (winning_bet_index) + 8 (winner_prize_unclaimed) + 8 (house_fee_unclaimed)
     // + 32 (vrf_request_pubkey) + 32 (vrf_seed) + 1 (randomness_fulfilled)
-    pub const LEN: usize = 8 + 8 + 1 + 8 + 8 + 4 + 8 + (8 * 64) + 32 + 4 + 8 + 32 + 32 + 1; // 666 bytes
+    pub const LEN: usize = 8 + 8 + 1 + 8 + 8 + 4 + 8 + (8 * 64) + 32 + 4 + 8 + 8 + 32 + 32 + 1; // 674 bytes
 
     /// Check if the game is in a state where bets can be placed
     pub fn can_accept_bets(&self) -> bool {

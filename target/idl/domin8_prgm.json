@@ -8,6 +8,203 @@
   },
   "instructions": [
     {
+      "name": "claim_house_fee",
+      "docs": [
+        "Claim house fee manually (if automatic transfer failed)"
+      ],
+      "discriminator": [
+        180,
+        5,
+        102,
+        97,
+        75,
+        143,
+        204,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_round",
+          "docs": [
+            "The game round where house fee needs to be claimed"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "The vault PDA that holds unclaimed funds"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "docs": [
+            "The treasury claiming the house fee"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim_winner_prize",
+      "docs": [
+        "Claim winner prize manually (if automatic transfer failed)"
+      ],
+      "discriminator": [
+        188,
+        250,
+        72,
+        170,
+        173,
+        90,
+        110,
+        201
+      ],
+      "accounts": [
+        {
+          "name": "game_round",
+          "docs": [
+            "The game round where winner needs to claim"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "The vault PDA that holds unclaimed funds"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner",
+          "docs": [
+            "The winner claiming their prize"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "cleanup_old_game",
       "docs": [
         "Cleanup old game round (backend-triggered after 1 week)"
@@ -210,11 +407,33 @@
           }
         },
         {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "crank",
           "docs": [
             "The crank authority"
           ],
           "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -237,6 +456,7 @@
       "accounts": [
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -482,6 +702,133 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "emergency_refund_vrf_timeout",
+      "docs": [
+        "Emergency refund if VRF timeout (10+ minutes with no randomness)"
+      ],
+      "discriminator": [
+        110,
+        59,
+        80,
+        228,
+        36,
+        158,
+        137,
+        208
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "counter",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_round",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101,
+                  95,
+                  114,
+                  111,
+                  117,
+                  110,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "counter.current_round_id",
+                "account": "GameCounter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "The vault PDA that holds bet funds to refund"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "The authority (backend crank or admin)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "emergency_unlock",
@@ -1131,6 +1478,32 @@
       ]
     },
     {
+      "name": "GameCleaned",
+      "discriminator": [
+        69,
+        18,
+        9,
+        249,
+        93,
+        112,
+        186,
+        255
+      ]
+    },
+    {
+      "name": "GameCreated",
+      "discriminator": [
+        218,
+        25,
+        150,
+        94,
+        177,
+        112,
+        96,
+        2
+      ]
+    },
+    {
       "name": "GameInitialized",
       "discriminator": [
         82,
@@ -1206,181 +1579,186 @@
     },
     {
       "code": 6004,
+      "name": "BetTooLarge",
+      "msg": "Bet amount exceeds maximum allowed"
+    },
+    {
+      "code": 6005,
       "name": "MaxPlayersReached",
       "msg": "Maximum number of players reached"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "PlayerNotFound",
       "msg": "Player not found in current game"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "RandomnessNotResolved",
       "msg": "Switchboard randomness value is not yet available for the committed slot"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "InvalidRandomnessAccount",
       "msg": "The provided Switchboard randomness account is not valid for the current game round"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "CommitSlotNotElapsed",
       "msg": "The committed slot has not elapsed yet"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "NotASpectator",
       "msg": "A finalist cannot place a spectator bet"
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "FinalistNotFound",
       "msg": "Target finalist not found"
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "InsufficientFunds",
       "msg": "Insufficient funds for bet"
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "MathOverflow",
       "msg": "Mathematical overflow occurred"
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "NoWinnerDetermined",
       "msg": "No winner has been determined yet"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "InvalidGameType",
       "msg": "Invalid game type for this operation"
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "NoWinnerSet",
       "msg": "No winner has been set"
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "NoFinalistsSet",
       "msg": "No finalists have been set"
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "PayoutExceedsAvailableFunds",
       "msg": "Payout amount exceeds available funds"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "AlreadyClaimed",
       "msg": "Winnings have already been claimed"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "NoWinningsFound",
       "msg": "No winnings found for this wallet"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "HouseFeeAlreadyCollected",
       "msg": "House fee has already been collected"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "GameAlreadyReset",
       "msg": "Game has already been reset"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "InvalidVrfAccount",
       "msg": "VRF account is invalid"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "RandomnessNotFulfilled",
       "msg": "Randomness not yet fulfilled"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "VrfRequestFailed",
       "msg": "VRF request failed"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "InvalidVrfSeed",
       "msg": "Invalid VRF seed"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "InvalidWinnerAccount",
       "msg": "Invalid winner account"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "InvalidTreasury",
       "msg": "Invalid treasury account"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "NoPlayers",
       "msg": "No players in game"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "InvalidBetAmount",
       "msg": "Invalid bet amount"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow occurred"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "EmergencyTimeNotElapsed",
       "msg": "Emergency time threshold not yet elapsed"
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "NoFundsToRefund",
       "msg": "No funds available to refund"
     },
     {
-      "code": 6033,
+      "code": 6034,
       "name": "BettingWindowClosed",
       "msg": "Betting window has closed"
     },
     {
-      "code": 6034,
+      "code": 6035,
       "name": "BettingWindowStillOpen",
       "msg": "Betting window is still open"
     },
     {
-      "code": 6035,
+      "code": 6036,
       "name": "BetsLocked",
       "msg": "Bets are locked during resolution"
     },
     {
-      "code": 6036,
+      "code": 6037,
       "name": "CannotCleanupActiveGame",
       "msg": "Cannot cleanup active or current game"
     },
     {
-      "code": 6037,
+      "code": 6038,
       "name": "GameTooRecentToCleanup",
       "msg": "Game is too recent to cleanup (must be older than 1 week)"
     },
     {
-      "code": 6038,
+      "code": 6039,
       "name": "MaxBetsReached",
       "msg": "Maximum number of bets reached (64 max)"
     },
     {
-      "code": 6039,
+      "code": 6040,
       "name": "InvalidBetEntry",
       "msg": "Invalid bet entry account"
     }
@@ -1457,6 +1835,53 @@
           {
             "name": "is_first_bet",
             "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bet_index",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameCleaned",
+      "docs": [
+        "Event emitted when old game is cleaned up and closed"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "game_age_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "rent_reclaimed",
+            "type": "u64"
+          },
+          {
+            "name": "had_unclaimed_prize",
+            "type": "bool"
+          },
+          {
+            "name": "unclaimed_amount",
+            "type": "u64"
+          },
+          {
+            "name": "crank_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1484,6 +1909,10 @@
           },
           {
             "name": "min_bet_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "max_bet_lamports",
             "type": "u64"
           },
           {
@@ -1522,6 +1951,55 @@
           {
             "name": "current_round_id",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameCreated",
+      "docs": [
+        "Event emitted when a new game is created (first bet)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "initial_bet",
+            "type": "u64"
+          },
+          {
+            "name": "start_time",
+            "type": "i64"
+          },
+          {
+            "name": "end_time",
+            "type": "i64"
+          },
+          {
+            "name": "vrf_seed_used",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "next_vrf_seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         ]
       }
@@ -1664,6 +2142,14 @@
           {
             "name": "winning_bet_index",
             "type": "u32"
+          },
+          {
+            "name": "winner_prize_unclaimed",
+            "type": "u64"
+          },
+          {
+            "name": "house_fee_unclaimed",
+            "type": "u64"
           },
           {
             "name": "vrf_request_pubkey",
@@ -1820,6 +2306,10 @@
             "type": "u32"
           },
           {
+            "name": "winning_bet_amount",
+            "type": "u64"
+          },
+          {
             "name": "total_pot",
             "type": "u64"
           },
@@ -1830,6 +2320,34 @@
           {
             "name": "winner_payout",
             "type": "u64"
+          },
+          {
+            "name": "win_probability_bps",
+            "type": "u64"
+          },
+          {
+            "name": "total_bets",
+            "type": "u32"
+          },
+          {
+            "name": "auto_transfer_success",
+            "type": "bool"
+          },
+          {
+            "name": "house_fee_transfer_success",
+            "type": "bool"
+          },
+          {
+            "name": "vrf_randomness",
+            "type": "u64"
+          },
+          {
+            "name": "vrf_seed_hex",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }

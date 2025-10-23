@@ -176,9 +176,11 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
         game_round.winner_prize_unclaimed = 0;
     }
 
-    // Transfer house fee to treasury
+    // 4B. ATTEMPT House Fee Transfer (with graceful failure handling)
+    let mut house_fee_success = false;
+
     if house_fee > 0 {
-        anchor_lang::system_program::transfer(
+        let house_fee_result = anchor_lang::system_program::transfer(
             CpiContext::new_with_signer(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
@@ -188,7 +190,25 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
                 signer_seeds,
             ),
             house_fee,
-        )?;
+        );
+
+        match house_fee_result {
+            Ok(_) => {
+                house_fee_success = true;
+                game_round.house_fee_unclaimed = 0;
+                msg!("✓ House fee transferred: {} lamports to treasury", house_fee);
+            }
+            Err(e) => {
+                // Transfer failed - store fee for manual claim
+                game_round.house_fee_unclaimed = house_fee;
+                msg!("⚠️ House fee transfer failed (error: {:?})", e);
+                msg!("   Treasury can claim {} lamports manually via claim_house_fee", house_fee);
+                msg!("   Game will continue - winner payout already processed");
+            }
+        }
+    } else {
+        game_round.house_fee_unclaimed = 0;
+        house_fee_success = true;
     }
     
     // 5. MARK GAME AS FINISHED
@@ -210,6 +230,7 @@ pub fn select_winner_and_payout<'info>(ctx: Context<'_, '_, '_, 'info, SelectWin
         win_probability_bps,
         total_bets: game_round.bet_count,
         auto_transfer_success,
+        house_fee_transfer_success: house_fee_success,
         vrf_randomness: randomness,
         vrf_seed_hex,
         timestamp: clock.unix_timestamp,

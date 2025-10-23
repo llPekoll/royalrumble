@@ -226,6 +226,8 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         console.log("Treasury:", configAccount.treasury.toString());
         console.log("House Fee (bps):", configAccount.houseFeeBasisPoints);
         console.log("Min Bet (lamports):", configAccount.minBetLamports.toString());
+        console.log("Max Bet (lamports):", configAccount.maxBetLamports.toString());
+        console.log("Max Bet (SOL):", configAccount.maxBetLamports.toNumber() / web3.LAMPORTS_PER_SOL);
         console.log("Bets Locked:", configAccount.betsLocked);
         console.log(
           "Waiting Duration:",
@@ -238,6 +240,7 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         expect(configAccount.treasury.toString()).to.equal(treasuryKeypair.publicKey.toString());
         expect(configAccount.houseFeeBasisPoints).to.equal(HOUSE_FEE_BPS);
         expect(configAccount.minBetLamports.toString()).to.equal(MIN_BET.toString());
+        expect(configAccount.maxBetLamports.toString()).to.equal("3000000000"); // 3 SOL
         expect(configAccount.betsLocked).to.equal(false);
 
         console.log("✓ All config assertions passed");
@@ -392,6 +395,11 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         // Verify status is Waiting
         expect(Object.keys(gameRoundAccount.status)[0]).to.equal("waiting");
 
+        // Verify new unclaimed fields initialized to 0
+        expect(gameRoundAccount.winnerPrizeUnclaimed.toString()).to.equal("0");
+        expect(gameRoundAccount.houseFeeUnclaimed.toString()).to.equal("0");
+        console.log("✓ Unclaimed fields initialized to 0");
+
         // Verify player balance decreased
         const playerBalanceAfter = await connection.getBalance(playerWallet);
         const balanceDiff = playerBalanceBefore - playerBalanceAfter;
@@ -522,12 +530,18 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       }
 
       const totalBefore = gameBeforeBet.totalPot;
+      const betIndex = gameBeforeBet.betCount;
+
+      // Derive BetEntry PDA for this bet
+      const betEntryPda = deriveBetEntryPda(currentRoundId, betIndex);
 
       const tx = await program.methods
         .placeBet(new BN(bet3Amount))
         .accounts({
           config: gameConfigPda,
+          counter: gameCounterPda,
           gameRound: gameRoundPda,
+          betEntry: betEntryPda,
           vault: vaultPda,
           player: player3.publicKey,
           systemProgram: web3.SystemProgram.programId,
@@ -568,12 +582,18 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
       }
 
       const totalBefore = gameBeforeBet.totalPot;
+      const betIndex = gameBeforeBet.betCount;
+
+      // Derive BetEntry PDA for this bet
+      const betEntryPda = deriveBetEntryPda(currentRoundId, betIndex);
 
       const tx = await program.methods
         .placeBet(new BN(additionalBet))
         .accounts({
           config: gameConfigPda,
+          counter: gameCounterPda,
           gameRound: gameRoundPda,
+          betEntry: betEntryPda,
           vault: vaultPda,
           player: player1.publicKey,
           systemProgram: web3.SystemProgram.programId,
@@ -837,12 +857,13 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
         const tx = await program.methods
           .selectWinnerAndPayout()
           .accounts({
-            config: gameConfigPda,
+            counter: gameCounterPda,
             gameRound: gameRoundPda,
+            config: gameConfigPda,
             vault: vaultPda,
-            treasury: actualTreasury,
             crank: provider.wallet.publicKey,
             vrfRequest: vrfAccounts.vrfRequest,
+            treasury: actualTreasury,
             systemProgram: web3.SystemProgram.programId,
           })
           .remainingAccounts(remainingAccounts)
@@ -859,6 +880,23 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
         // Verify status is Finished
         expect(Object.keys(gameAfterPayout.status)[0]).to.equal("finished");
+
+        // Check unclaimed fields (should be 0 if auto-transfer succeeded)
+        console.log("\n=== Payout Status ===");
+        console.log("Winner prize unclaimed:", gameAfterPayout.winnerPrizeUnclaimed.toString(), "lamports");
+        console.log("House fee unclaimed:", gameAfterPayout.houseFeeUnclaimed.toString(), "lamports");
+
+        if (gameAfterPayout.winnerPrizeUnclaimed.toNumber() === 0) {
+          console.log("✓ Winner paid automatically");
+        } else {
+          console.log("⚠️ Winner needs to claim manually via claim_winner_prize");
+        }
+
+        if (gameAfterPayout.houseFeeUnclaimed.toNumber() === 0) {
+          console.log("✓ House fee paid automatically");
+        } else {
+          console.log("⚠️ Treasury needs to claim manually via claim_house_fee");
+        }
 
         // Get balances after
         const treasuryBalanceAfter = await connection.getBalance(treasuryKeypair.publicKey);
