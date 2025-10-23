@@ -1487,9 +1487,6 @@ export type Domin8Prgm = {
         kind: "enum";
         variants: [
           {
-            name: "Idle";
-          },
-          {
             name: "Waiting";
           },
           {

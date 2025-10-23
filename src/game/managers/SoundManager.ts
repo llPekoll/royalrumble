@@ -153,6 +153,13 @@ export class SoundManager {
   }
 
   /**
+   * Play insert coin sound (for betting UI)
+   */
+  static playInsertCoin(scene: Scene, baseVolume: number = 0.7) {
+    this.playSound(scene, "insert-coin", baseVolume);
+  }
+
+  /**
    * Set global volume (0.0 to 1.0)
    */
   static setGlobalVolume(volume: number) {

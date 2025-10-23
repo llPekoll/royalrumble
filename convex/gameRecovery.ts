@@ -33,8 +33,7 @@ export const checkGameRecovery = internalAction({
 
       const solanaClient = new SolanaClient(rpcEndpoint, authorityKey);
       const gameRound = await solanaClient.getGameRound();
-      console.log("saooooooooooooooo----------------");
-      console.log({ gameRound });
+      console.log("--------------MAMADOu------", gameRound);
 
       if (!gameRound) {
         // No game on blockchain, nothing to recover
@@ -50,6 +49,7 @@ export const checkGameRecovery = internalAction({
         elapsed: currentTime - startTimestamp,
         vrfRequest: gameRound.vrfRequestPubkey,
         randomnessFulfilled: gameRound.randomnessFulfilled,
+        roundId: gameRound.roundId,
       });
 
       // Get or ensure game record exists in Convex
@@ -79,14 +79,16 @@ export const checkGameRecovery = internalAction({
             lastUpdated: Date.now(),
           });
           console.log(`   ✅ Convex updated to finished`);
+        } else {
+          // Game is already synced as finished in Convex
+          // No need to do anything - frontend will show finished state
+          // Next bet from a player will automatically create round 4 on blockchain
+          // and the event listener will detect it and create a new Convex game
         }
         return;
       }
 
-      // Ignore idle games
-      if (status === GameStatus.Idle) {
-        return;
-      }
+      // No idle state anymore - games start in Waiting status
 
       // Check if we should have closed betting by now
       if (
@@ -177,11 +179,18 @@ async function ensureGameRecord(ctx: any, gameRound: any): Promise<any> {
   const maps = await ctx.runQuery(internal.gameManagerDb.getMaps, {});
   const randomMap = maps[Math.floor(Math.random() * maps.length)];
 
-  // Create game record
+  // Create game record (use default values if gameConfig is null)
   const gameId = await ctx.runMutation(internal.gameManagerDb.createGameRecord, {
     roundId,
     gameRound,
-    gameConfig: gameConfig || {},
+    gameConfig: gameConfig || {
+      authority: "",
+      treasury: "",
+      houseFeeBasisPoints: 500,
+      minBetLamports: 10_000_000,
+      smallGameDurationConfig: { waitingPhaseDuration: 30 },
+      betsLocked: false,
+    },
     mapId: randomMap._id,
   });
 

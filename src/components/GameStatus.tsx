@@ -32,20 +32,11 @@ export function GameStatus() {
         dotColor: "bg-orange-500",
         icon: "🔒",
         text: "Game Locked - Drawing Winner",
-        description: "VRF in progress..."
+        description: "VRF in progress...",
       };
     }
 
     switch (gameState.status) {
-      case "Idle":
-        return {
-          color: "bg-gray-500/20 border-gray-500/50",
-          dotColor: "bg-gray-500",
-          icon: "⏳",
-          text: "Waiting for Players",
-          description: "Be the first to join!"
-        };
-
       case "Waiting":
         if (timeExpired) {
           return {
@@ -53,7 +44,7 @@ export function GameStatus() {
             dotColor: "bg-yellow-500",
             icon: "⏰",
             text: "Betting Closed",
-            description: "Game starting soon..."
+            description: "Game starting soon...",
           };
         }
         return {
@@ -61,7 +52,7 @@ export function GameStatus() {
           dotColor: "bg-green-500 animate-pulse",
           icon: "🟢",
           text: "Betting Open",
-          description: `${gameState.bets.length} players joined`
+          description: `${gameState.bets.length} players joined`,
         };
 
       case "AwaitingWinnerRandomness":
@@ -70,7 +61,7 @@ export function GameStatus() {
           dotColor: "bg-blue-500 animate-pulse",
           icon: "🎲",
           text: "Drawing Winner",
-          description: "Blockchain randomness..."
+          description: "Blockchain randomness...",
         };
 
       case "Finished":
@@ -79,7 +70,7 @@ export function GameStatus() {
           dotColor: "bg-purple-500",
           icon: "🏆",
           text: "Game Complete",
-          description: "Winner selected!"
+          description: "Winner selected!",
         };
 
       default:
@@ -88,7 +79,7 @@ export function GameStatus() {
           dotColor: "bg-gray-500",
           icon: "❓",
           text: "Unknown Status",
-          description: ""
+          description: "",
         };
     }
   };
@@ -96,7 +87,9 @@ export function GameStatus() {
   const status = getStatusInfo();
 
   return (
-    <div className={`inline-flex flex-col gap-1 backdrop-blur-sm px-4 py-2 rounded-lg border ${status.color}`}>
+    <div
+      className={`inline-flex flex-col gap-1 backdrop-blur-sm px-4 py-2 rounded-lg border ${status.color}`}
+    >
       <div className="flex items-center gap-2">
         <div className={`w-2 h-2 rounded-full ${status.dotColor}`} />
         <span className="text-sm font-medium">
@@ -104,9 +97,7 @@ export function GameStatus() {
         </span>
       </div>
       {status.description && (
-        <span className="text-xs text-gray-400 pl-4">
-          {status.description}
-        </span>
+        <span className="text-xs text-gray-400 pl-4">{status.description}</span>
       )}
     </div>
   );

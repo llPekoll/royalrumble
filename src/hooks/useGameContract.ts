@@ -29,8 +29,15 @@
 import { useCallback, useMemo } from "react";
 import { usePrivyWallet } from "./usePrivyWallet";
 import { useWallets } from "@privy-io/react-auth/solana";
-import { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, TransactionSignature, Transaction, VersionedTransaction } from "@solana/web3.js";
-import { Program, AnchorProvider, BN, web3, Wallet } from "@coral-xyz/anchor";
+import {
+  Connection,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  TransactionSignature,
+  Transaction,
+  VersionedTransaction,
+} from "@solana/web3.js";
+import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
 import { Buffer } from "buffer";
 import { Domin8PrgmIDL, DOMIN8_PROGRAM_ID, type Domin8Prgm } from "../programs/domin8";
 
@@ -39,8 +46,13 @@ const PROGRAM_ID = import.meta.env.VITE_GAME_PROGRAM_ID
   ? new PublicKey(import.meta.env.VITE_GAME_PROGRAM_ID)
   : DOMIN8_PROGRAM_ID;
 
-// Simple Wallet implementation for Privy
-class PrivyWalletAdapter implements Wallet {
+// Simple Wallet adapter for Privy
+// NOTE: Privy's signAndSendAllTransactions both signs AND sends the transaction
+// So we can't use Anchor's .rpc() method which also tries to send
+// Instead, we'll use .transaction() to build, then sign+send with Privy
+class PrivyWalletAdapter {
+  public lastSignature: string | null = null; // Store last transaction signature
+
   constructor(
     public publicKey: PublicKey,
     private privyWallet: any,
@@ -58,23 +70,27 @@ class PrivyWalletAdapter implements Wallet {
       serialized = tx.message.serialize();
     }
 
-    // Sign with Privy
+    // Sign and send with Privy (Privy doesn't have sign-only method)
     const result = await this.privyWallet.signAndSendAllTransactions([
       {
         chain: chainId,
         transaction: serialized,
-      }
+      },
     ]);
 
-    // Note: Privy sends the transaction, so we just return the signed tx
-    // This is a limitation - we can't get back the signed tx without sending
+    // Store the signature for later retrieval
+    if (result && result.length > 0 && result[0].signature) {
+      this.lastSignature = result[0].signature;
+    }
+
+    // Return the transaction (already sent by Privy)
     return tx;
   }
 
   async signAllTransactions<T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> {
     const chainId = `solana:${this.network}` as `${string}:${string}`;
 
-    const serializedTxs = txs.map(tx => {
+    const serializedTxs = txs.map((tx) => {
       if (tx instanceof Transaction) {
         return tx.serialize({ requireAllSignatures: false, verifySignatures: false });
       } else {
@@ -82,12 +98,17 @@ class PrivyWalletAdapter implements Wallet {
       }
     });
 
-    await this.privyWallet.signAndSendAllTransactions(
-      serializedTxs.map(transaction => ({
+    const results = await this.privyWallet.signAndSendAllTransactions(
+      serializedTxs.map((transaction) => ({
         chain: chainId,
         transaction,
       }))
     );
+
+    // Store the last signature
+    if (results && results.length > 0 && results[results.length - 1].signature) {
+      this.lastSignature = results[results.length - 1].signature;
+    }
 
     return txs;
   }
@@ -107,7 +128,7 @@ const VAULT_SEED = "vault";
 // Type definitions
 export interface GameRound {
   roundId: BN;
-  status: "idle" | "waiting" | "awaitingWinnerRandomness" | "finished";
+  status: "waiting" | "awaitingWinnerRandomness" | "finished";
   startTimestamp: BN;
   endTimestamp: BN;
   betCount: number;
@@ -159,16 +180,14 @@ export const useGameContract = () => {
     return import.meta.env.VITE_SOLANA_NETWORK || "devnet";
   }, []);
 
-  const rpcUrl = useMemo(() => {
-    return network === "mainnet"
-      ? "https://api.mainnet-beta.solana.com"
-      : "https://api.devnet.solana.com";
-  }, [network]);
-
   // Create Anchor Provider and Program
-  const { provider, program } = useMemo<{ provider: AnchorProvider | null; program: Program<Domin8Prgm> | null }>(() => {
+  const { provider, program, walletAdapter } = useMemo<{
+    provider: AnchorProvider | null;
+    program: Program<Domin8Prgm> | null;
+    walletAdapter: PrivyWalletAdapter | null;
+  }>(() => {
     if (!connected || !publicKey || !selectedWallet) {
-      return { provider: null, program: null };
+      return { provider: null, program: null, walletAdapter: null };
     }
 
     try {
@@ -178,10 +197,10 @@ export const useGameContract = () => {
       });
 
       const program = new Program<Domin8Prgm>(Domin8PrgmIDL as any, provider);
-      return { provider, program };
+      return { provider, program, walletAdapter: wallet };
     } catch (error) {
       console.error("Failed to create Anchor program:", error);
-      return { provider: null, program: null };
+      return { provider: null, program: null, walletAdapter: null };
     }
   }, [connected, publicKey, selectedWallet, connection, network]);
 
@@ -301,103 +320,8 @@ export const useGameContract = () => {
   // Smart contract instruction functions
 
   /**
-   * Create a new game with the first bet
-   * @param amount - Bet amount in SOL
-   * @returns Transaction signature
-   */
-  const createGame = useCallback(
-    async (amount: number): Promise<TransactionSignature> => {
-      if (!connected || !publicKey || !selectedWallet) {
-        throw new Error("Wallet not connected");
-      }
-
-      if (amount < MIN_BET_LAMPORTS / LAMPORTS_PER_SOL) {
-        throw new Error(`Minimum bet is ${MIN_BET_LAMPORTS / LAMPORTS_PER_SOL} SOL`);
-      }
-
-      try {
-        const { gameConfigPda, vaultPda } = derivePDAs();
-        const currentRoundId = await fetchCurrentRoundId();
-        const gameRoundPda = deriveGameRoundPda(currentRoundId);
-
-        // Convert SOL to lamports
-        const amountLamports = Math.floor(amount * LAMPORTS_PER_SOL);
-
-        // Create instruction data: [discriminator (8 bytes), amount (8 bytes)]
-        const instructionData = new Uint8Array(16);
-
-        // Discriminator for create_game instruction (from IDL)
-        // create_game: [124, 69, 75, 66, 184, 220, 72, 206]
-        const discriminator = new Uint8Array([124, 69, 75, 66, 184, 220, 72, 206]);
-        instructionData.set(discriminator, 0);
-
-        // Write amount as little-endian u64
-        const view = new DataView(instructionData.buffer);
-        view.setBigUint64(8, BigInt(amountLamports), true);
-
-        // Create deposit_bet instruction in @solana/kit format
-        const depositBetInstruction = {
-          programAddress: address(PROGRAM_ID.toString()),
-          accounts: [
-            { address: address(gameConfigPda.toString()), role: 0 }, // readonly
-            { address: address(gameRoundPda.toString()), role: 1 }, // writable
-            { address: address(vaultPda.toString()), role: 1 }, // writable
-            { address: address(selectedWallet.address), role: 3 }, // signer + writable
-            { address: address(SystemProgram.programId.toString()), role: 0 }, // readonly
-          ],
-          data: instructionData,
-        };
-
-        // Get latest blockhash
-        const { getLatestBlockhash } = createSolanaRpc(rpcUrl);
-        const { value: latestBlockhash } = await getLatestBlockhash().send();
-
-        // Create transaction using @solana/kit
-        const transaction = pipe(
-          createTransactionMessage({ version: 0 }),
-          (tx) => setTransactionMessageFeePayer(address(selectedWallet.address), tx),
-          (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-          (tx) => appendTransactionMessageInstructions([depositBetInstruction], tx),
-          (tx) => compileTransaction(tx),
-          (tx) => new Uint8Array(getTransactionEncoder().encode(tx))
-        );
-
-        // Send the transaction with explicit chain specification
-        const chainId = `solana:${network}` as `${string}:${string}`;
-        const receipts = await selectedWallet.signAndSendAllTransactions([
-          {
-            chain: chainId,
-            transaction,
-          },
-        ]);
-
-        // Convert signature to hex string
-        const signature = receipts[0].signature;
-        const signatureHex = Array.from(signature as Uint8Array)
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-
-        return signatureHex;
-      } catch (error) {
-        console.error("Error creating game:", error);
-        throw error;
-      }
-    },
-    [
-      connected,
-      publicKey,
-      selectedWallet,
-      connection,
-      derivePDAs,
-      deriveGameRoundPda,
-      fetchCurrentRoundId,
-      rpcUrl,
-      network,
-    ]
-  );
-
-  /**
    * Place a bet in the current game using Anchor Program
+   * This function handles both creating a new game (if needed) and placing additional bets
    * @param amount - Bet amount in SOL
    * @returns Transaction signature
    */
@@ -423,7 +347,7 @@ export const useGameContract = () => {
         console.log("[placeBet] Current round ID:", currentRoundId);
 
         // Derive PDAs
-        const { gameConfigPda, gameCounterPda, vaultPda } = derivePDAs();
+        const { gameConfigPda } = derivePDAs();
 
         // Check previous round first (counter increments AFTER game creation, so active game is usually counter - 1)
         let activeRoundId = currentRoundId;
@@ -438,9 +362,11 @@ export const useGameContract = () => {
 
           if (prevGameRoundInfo) {
             // Previous round exists, check if it's still accepting bets
-            const prevGameRound = await program.account.gameRound.fetch(prevGameRoundPda);
+            const prevGameRound = await program.account.GameRound.fetch(prevGameRoundPda);
             const prevStatus = Object.keys(prevGameRound.status)[0];
-            console.log(`[placeBet] Previous round ${prevRoundId} exists with status: ${prevStatus}`);
+            console.log(
+              `[placeBet] Previous round ${prevRoundId} exists with status: ${prevStatus}`
+            );
 
             if (prevStatus === "waiting") {
               // Previous round is still active, use it!
@@ -462,7 +388,7 @@ export const useGameContract = () => {
           console.log("[placeBet] No game exists, creating new game with first bet");
         } else {
           // Game exists - check if it's finished
-          const gameRoundAccount = await program.account.gameRound.fetch(gameRoundPda);
+          const gameRoundAccount = await program.account.GameRound.fetch(gameRoundPda);
           const gameStatus = Object.keys(gameRoundAccount.status)[0];
           console.log("[placeBet] Game exists with status:", gameStatus);
 
@@ -483,13 +409,13 @@ export const useGameContract = () => {
           }
 
           // Parse force field from config using Anchor deserialization
-          const configAccountParsed = await program.account.gameConfig.fetch(gameConfigPda);
+          const configAccountParsed = await program.account.GameConfig.fetch(gameConfigPda);
           const force = Buffer.from(configAccountParsed.force);
 
           // Derive VRF accounts using ORAO VRF SDK
-          const { Orao, networkStateAccountAddress, randomnessAccountAddress } = await import('@orao-network/solana-vrf');
-
-          const ORAO_VRF_PROGRAM_ID = new PublicKey("VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y");
+          const { Orao, networkStateAccountAddress, randomnessAccountAddress } = await import(
+            "@orao-network/solana-vrf"
+          );
 
           // Use ORAO SDK methods for correct PDA derivation
           const networkState = networkStateAccountAddress();
@@ -507,24 +433,15 @@ export const useGameContract = () => {
             treasury: vrfTreasury.toString(),
           });
 
-          // Derive first bet entry PDA (index 0)
-          const betEntryPda = deriveBetEntryPda(currentRoundId, 0);
-
           // Call create_game instruction
+          // Note: Most accounts are auto-resolved by Anchor from the IDL
+          // We only need to provide: player (signer), treasury (ORAO), vrf_request (ORAO)
           tx = await program.methods
-            .createGame(amountBN)
+            .create_game(amountBN)
             .accounts({
-              config: gameConfigPda,
-              counter: gameCounterPda,
-              gameRound: gameRoundPda,
-              betEntry: betEntryPda,
-              vault: vaultPda,
               player: publicKey,
-              networkState,
               treasury: vrfTreasury,
-              vrfRequest,
-              systemProgram: SystemProgram.programId,
-              vrfProgram: ORAO_VRF_PROGRAM_ID,
+              vrf_request: vrfRequest,
             })
             .rpc();
 
@@ -534,45 +451,49 @@ export const useGameContract = () => {
           console.log(`[placeBet] Game exists (round ${activeRoundId}), placing additional bet`);
 
           // Fetch fresh game state using Anchor (more reliable than manual parsing)
-          const gameRoundAccount = await program.account.gameRound.fetch(gameRoundPda);
-          const betCount = gameRoundAccount.betCount;
+          const gameRoundAccount = await program.account.GameRound.fetch(gameRoundPda);
+          const betCount = gameRoundAccount.bet_count;
           console.log("[placeBet] Current bet count (from Anchor):", betCount);
 
-          // Derive bet entry PDA for this bet (use activeRoundId, not currentRoundId!)
-          const betEntryPda = deriveBetEntryPda(activeRoundId, betCount);
-          console.log("[placeBet] Derived bet entry PDA:", betEntryPda.toString());
-
-          // Call place_bet instruction with all required accounts
+          // Call place_bet instruction
+          // Note: All accounts are auto-resolved by Anchor from the IDL
+          // We only need to provide: player (signer)
           tx = await program.methods
-            .placeBet(amountBN)
+            .place_bet(amountBN)
             .accounts({
-              config: gameConfigPda,
-              counter: gameCounterPda,
-              gameRound: gameRoundPda,
-              betEntry: betEntryPda,
-              vault: vaultPda,
               player: publicKey,
-              systemProgram: SystemProgram.programId,
             })
             .rpc();
         }
 
-        console.log("[placeBet] Transaction successful:", tx);
-        return tx;
+        // Get the actual signature from Privy wallet adapter
+        // (since Privy signs+sends, the tx variable from .rpc() might not be accurate)
+        const actualSignature = walletAdapter?.lastSignature || tx;
+        console.log("[placeBet] Transaction successful:", actualSignature);
+        return actualSignature;
       } catch (error: any) {
         console.error("[placeBet] Error:", error);
 
         // WORKAROUND: Privy signing sometimes throws "signature verification failed"
         // but the transaction actually succeeds on-chain. Check if it's just a signing error.
         if (error.message && error.message.includes("Signature verification")) {
-          console.log("[placeBet] Signature verification error (Privy quirk) - transaction likely succeeded");
+          console.log(
+            "[placeBet] Signature verification error (Privy quirk) - transaction likely succeeded"
+          );
+          // Check if Privy wallet has the signature
+          if (walletAdapter?.lastSignature) {
+            console.log("[placeBet] Returning signature from Privy:", walletAdapter.lastSignature);
+            return walletAdapter.lastSignature;
+          }
           // Return a placeholder - the UI should refresh to show the updated game state
           return "transaction_pending";
         }
 
         // Try to extract useful error message
         if (error.error) {
-          throw new Error(`Smart contract error: ${error.error.errorMessage || error.error.errorCode?.code || "Unknown error"}`);
+          throw new Error(
+            `Smart contract error: ${error.error.errorMessage || error.error.errorCode?.code || "Unknown error"}`
+          );
         } else if (error.message) {
           throw new Error(error.message);
         } else {
@@ -580,7 +501,16 @@ export const useGameContract = () => {
         }
       }
     },
-    [connected, publicKey, program, fetchCurrentRoundId, derivePDAs, deriveGameRoundPda, deriveBetEntryPda, connection]
+    [
+      connected,
+      publicKey,
+      program,
+      fetchCurrentRoundId,
+      derivePDAs,
+      deriveGameRoundPda,
+      deriveBetEntryPda,
+      connection,
+    ]
   );
 
   /**

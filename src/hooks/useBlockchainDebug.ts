@@ -3,8 +3,8 @@
  * Shows Convex's view of the game which orchestrates blockchain
  */
 
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export interface BlockchainDebugState {
   // Connection info
@@ -36,8 +36,9 @@ export function useBlockchainDebug(): BlockchainDebugState {
   const gameStats = useQuery(api.frontend.getGameStats);
   const currentGame = useQuery(api.frontend.getCurrentGame);
 
-  const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-  const programId = import.meta.env.VITE_GAME_PROGRAM_ID || 'EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT';
+  const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+  const programId =
+    import.meta.env.VITE_GAME_PROGRAM_ID || "EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT";
 
   // Transform Convex data to match the debug interface
   const isLoading = gameStats === undefined || currentGame === undefined;
@@ -47,34 +48,37 @@ export function useBlockchainDebug(): BlockchainDebugState {
   // Convert Convex status string to Anchor enum format (e.g., "waiting" -> { waiting: {} })
   const formatStatusForAnchor = (status: string) => {
     const statusMap: Record<string, any> = {
-      'idle': { idle: {} },
-      'waiting': { waiting: {} },
-      'awaitingWinnerRandomness': { awaitingWinnerRandomness: {} },
-      'finished': { finished: {} },
+      waiting: { waiting: {} },
+      awaitingWinnerRandomness: { awaitingWinnerRandomness: {} },
+      finished: { finished: {} },
     };
-    return statusMap[status] || { idle: {} };
+    return statusMap[status] || { waiting: {} };
   };
 
-  const gameRound = currentGame?.game ? {
-    roundId: currentGame.game.roundId,
-    status: formatStatusForAnchor(currentGame.game.status),
-    startTimestamp: currentGame.game.startTimestamp ? currentGame.game.startTimestamp / 1000 : 0,
-    endTimestamp: currentGame.game.endTimestamp ? currentGame.game.endTimestamp / 1000 : 0,
-    betCount: currentGame.participantCount,
-    totalPot: currentGame.game.totalPot,
-    betAmounts: currentGame.participants.map(p => p.amount * 1e9), // Convert SOL to lamports
-    winner: currentGame.game.winner || 'Not determined',
-    vrfRequestPubkey: currentGame.game.vrfRequestPubkey || 'N/A',
-    randomnessFulfilled: currentGame.game.randomnessFulfilled || false,
-  } : null;
+  const gameRound = currentGame?.game
+    ? {
+        roundId: currentGame.game.roundId,
+        status: formatStatusForAnchor(currentGame.game.status),
+        startTimestamp: currentGame.game.startTimestamp
+          ? currentGame.game.startTimestamp / 1000
+          : 0,
+        endTimestamp: currentGame.game.endTimestamp ? currentGame.game.endTimestamp / 1000 : 0,
+        betCount: currentGame.participantCount,
+        totalPot: currentGame.game.totalPot,
+        betAmounts: currentGame.participants.map((p) => p.amount * 1e9), // Convert SOL to lamports
+        winner: currentGame.game.winner || "Not determined",
+        vrfRequestPubkey: currentGame.game.vrfRequestPubkey || "N/A",
+        randomnessFulfilled: currentGame.game.randomnessFulfilled || false,
+      }
+    : null;
 
   // Mock game config (from environment or defaults)
   const gameConfig = {
-    authority: 'Backend Wallet',
-    treasury: 'Treasury Wallet',
+    authority: "Backend Wallet",
+    treasury: "Treasury Wallet",
     minBetLamports: 10_000_000, // 0.01 SOL
     houseFeeBasisPoints: 500, // 5%
-    betsLocked: currentGame?.game.status !== 'waiting',
+    betsLocked: currentGame?.game.status !== "waiting",
     smallGameDurationConfig: {
       waitingPhaseDuration: 30,
     },
@@ -87,15 +91,15 @@ export function useBlockchainDebug(): BlockchainDebugState {
     gameConfig,
     gameCounter: { currentRoundId: gameStats?.currentRound || 0 },
     gameRound,
-    vault: { balance: 0, address: 'Vault PDA' }, // Vault balance not tracked in Convex yet
+    vault: { balance: 0, address: "Vault PDA" }, // Vault balance not tracked in Convex yet
     currentRoundId: gameStats?.currentRound || 0,
-    gameRoundPDA: 'Convex-managed',
+    gameRoundPDA: "Convex-managed",
     gameExists: currentGame !== null,
     isLoading,
     error,
     refresh: async () => {
       // Convex queries auto-refresh, so this is a no-op
-      console.log('Convex queries auto-refresh every few seconds');
+      console.log("Convex queries auto-refresh every few seconds");
     },
   };
 }

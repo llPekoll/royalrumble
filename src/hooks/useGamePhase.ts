@@ -3,15 +3,15 @@
  * Uses time-based calculation from timestamps (no polling needed!)
  */
 
-import { useMemo, useEffect, useState } from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { useMemo, useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   calculateGamePhase,
   getPhaseTimeRemaining,
   getPhaseDescription,
   type GamePhase,
-} from '../../convex/lib/gamePhases';
+} from "../../convex/lib/gamePhases";
 
 export interface GamePhaseState {
   phase: GamePhase;
@@ -39,14 +39,14 @@ export function useGamePhase(): GamePhaseState {
   }, []);
 
   const isDemo = useMemo(() => {
-    return !gameState || !gameState.game || gameState.game.status === 'idle';
+    return !gameState || !gameState.game || gameState.game.status === "finished";
   }, [gameState]);
 
   const currentPhase = useMemo(() => {
-    if (isDemo) return 'IDLE';
+    if (isDemo) return "finished";
 
     const game = gameState.game;
-    if (!game.startTimestamp || !game.endTimestamp) return 'IDLE';
+    if (!game.startTimestamp || !game.endTimestamp) return "finished";
 
     return calculateGamePhase(
       game.status,
@@ -60,11 +60,7 @@ export function useGamePhase(): GamePhaseState {
   const timeRemaining = useMemo(() => {
     if (isDemo || !gameState?.game?.startTimestamp) return 0;
 
-    return getPhaseTimeRemaining(
-      currentPhase,
-      gameState.game.startTimestamp / 1000,
-      currentTime
-    );
+    return getPhaseTimeRemaining(currentPhase, gameState.game.startTimestamp / 1000, currentTime);
   }, [currentPhase, gameState, isDemo, currentTime]);
 
   return {

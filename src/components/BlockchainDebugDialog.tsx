@@ -218,7 +218,7 @@ export function BlockchainDebugDialog() {
               <div className="py-2">
                 <span className="text-gray-400 text-base font-medium">Status:</span>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {["Idle", "Waiting", "AwaitingWinnerRandomness", "Finished"].map((status) => {
+                  {["Waiting", "AwaitingWinnerRandomness", "Finished"].map((status) => {
                     const currentStatus = formatStatus(debug.gameRound.status);
                     const isActive = currentStatus.toLowerCase() === status.toLowerCase();
                     return (
@@ -226,15 +226,13 @@ export function BlockchainDebugDialog() {
                         key={status}
                         className={`px-3 py-1.5 rounded-lg text-base font-semibold transition-all ${
                           isActive
-                            ? status === "Idle"
-                              ? "bg-gray-500 text-white shadow-lg ring-2 ring-gray-300"
-                              : status === "Waiting"
-                                ? "bg-blue-500 text-white shadow-lg ring-2 ring-blue-300"
-                                : status === "AwaitingWinnerRandomness"
-                                  ? "bg-yellow-500 text-black shadow-lg ring-2 ring-yellow-300"
-                                  : status === "Finished"
-                                    ? "bg-green-500 text-white shadow-lg ring-2 ring-green-300"
-                                    : "bg-purple-500 text-white shadow-lg ring-2 ring-purple-300"
+                            ? status === "Waiting"
+                              ? "bg-blue-500 text-white shadow-lg ring-2 ring-blue-300"
+                              : status === "AwaitingWinnerRandomness"
+                                ? "bg-yellow-500 text-black shadow-lg ring-2 ring-yellow-300"
+                                : status === "Finished"
+                                  ? "bg-green-500 text-white shadow-lg ring-2 ring-green-300"
+                                  : "bg-purple-500 text-white shadow-lg ring-2 ring-purple-300"
                             : "bg-gray-700/30 text-gray-500 border border-gray-600/50"
                         }`}
                       >

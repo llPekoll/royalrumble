@@ -7,11 +7,12 @@ The game now uses a **time-based phase calculation system** instead of polling t
 ## How It Works
 
 ### Core Principle
+
 Game phases are calculated from timestamps, not from repeated blockchain queries. Both frontend and backend use the same pure function to determine the current phase.
 
 ```typescript
 calculateGamePhase(
-  blockchainStatus: 'idle' | 'waiting' | 'awaitingWinnerRandomness' | 'finished',
+  blockchainStatus:  'waiting' | 'awaitingWinnerRandomness' | 'finished',
   startTimestamp: number,    // Unix timestamp in seconds
   endTimestamp: number,      // Unix timestamp in seconds
   winner?: string | null,
@@ -23,10 +24,10 @@ calculateGamePhase(
 
 ```typescript
 const PHASE_DURATIONS = {
-  WAITING: 30,        // Betting window open (0-30s)
-  FIGHTING: 10,       // VRF requested, animations playing (30-40s)
-  RESULTS: 5,         // Winner announced, celebration (40-45s)
-}
+  WAITING: 30, // Betting window open (0-30s)
+  FIGHTING: 10, // VRF requested, animations playing (30-40s)
+  RESULTS: 5, // Winner announced, celebration (40-45s)
+};
 ```
 
 ### Game Phases
@@ -73,6 +74,7 @@ await ctx.scheduler.runAfter(
 ```
 
 **Benefits:**
+
 - ✅ No cron running every 3 seconds
 - ✅ Actions execute at exact times
 - ✅ Automatic retry logic for VRF
@@ -81,6 +83,7 @@ await ctx.scheduler.runAfter(
 ### Frontend (`src/hooks/useGamePhase.ts`)
 
 React hook that:
+
 - Fetches game state from Convex
 - Calculates current phase from timestamps
 - Updates every second for smooth countdowns
@@ -91,6 +94,7 @@ const { phase, timeRemaining, description, isDemo } = useGamePhase();
 ```
 
 **Benefits:**
+
 - ✅ No polling needed
 - ✅ Always in sync (deterministic)
 - ✅ Works offline (until timestamps expire)
@@ -112,7 +116,7 @@ useEffect(() => {
 
 // Show blockchain dialog during FIGHTING phase
 useEffect(() => {
-  const shouldShowDialog = phase === 'FIGHTING' || phase === 'VRF_DELAYED';
+  const shouldShowDialog = phase === "FIGHTING" || phase === "VRF_DELAYED";
   setShowBlockchainDialog(shouldShowDialog);
 }, [phase]);
 ```
@@ -186,26 +190,32 @@ Total: 45 seconds from start to finish
 ## Key Benefits
 
 ### 1. No Polling
+
 **Before:** Cron runs every 3 seconds to check blockchain
 **After:** One-time scheduled actions + time-based UI updates
 
 ### 2. Predictable Timing
+
 **Before:** Phases could vary based on cron timing
 **After:** Phases always start at exact timestamps
 
 ### 3. Consistent UI
+
 **Before:** Frontend and backend could show different phases
 **After:** Same calculation logic everywhere (deterministic)
 
 ### 4. Smooth Countdowns
+
 **Before:** Timer jumps every time Convex updates
 **After:** Frontend updates every second independently
 
 ### 5. VRF Flexibility
+
 **Before:** Fixed 10-second window, might be too short
 **After:** FIGHTING phase extends naturally, VRF_DELAYED if needed
 
 ### 6. Better UX
+
 **Before:** User sees "waiting" while VRF processes
 **After:** Clear "Fighting" phase with visual feedback
 
@@ -227,6 +237,7 @@ This gives VRF up to 20 seconds to complete while keeping users informed.
 ### Check Current Phase
 
 Open the **Blockchain Debug Dialog** (purple `?` button) and look at:
+
 - `currentRoundId`: Which game round
 - `startTimestamp`: When game started
 - `endTimestamp`: When betting closes
@@ -234,6 +245,7 @@ Open the **Blockchain Debug Dialog** (purple `?` button) and look at:
 - `winner`: Has winner been determined?
 
 Then check the browser console for:
+
 ```
 { gameData, phase, timeRemaining, description }
 ```
@@ -241,6 +253,7 @@ Then check the browser console for:
 ### Verify Phase Transitions
 
 Watch console logs as game progresses:
+
 ```
 [GamePhaseManager] Phase: WAITING, Changed: true, Time: 30s
 [GamePhaseManager] Phase: BETTING_CLOSED, Changed: true, Time: 0s
@@ -253,6 +266,7 @@ Watch console logs as game progresses:
 ### Test VRF Delay
 
 If VRF takes longer than 8 seconds:
+
 ```
 [GamePhaseManager] Phase: VRF_DELAYED, Changed: true, Time: 2s
 [GamePhaseManager] VRF taking longer than expected...
@@ -261,6 +275,7 @@ If VRF takes longer than 8 seconds:
 ## Known Issues & TODOs
 
 ### Current State
+
 - ✅ Time-based phase calculation implemented
 - ✅ Backend uses scheduler (not polling)
 - ✅ Frontend hook calculates phases
@@ -268,6 +283,7 @@ If VRF takes longer than 8 seconds:
 - ✅ Blockchain dialog shows during FIGHTING
 
 ### Future Improvements
+
 - [ ] UIManager.updatePhase() implementation (timer display)
 - [ ] Better VRF delay visuals (loading spinner, progress bar)
 - [ ] Phase-based sound effects (battle music during FIGHTING)
@@ -298,6 +314,7 @@ npx ts-node scripts/create-game.ts
 ## Summary
 
 The time-based phase system is a brilliant architectural improvement that:
+
 - Eliminates unnecessary blockchain polling
 - Provides smooth, predictable UI updates
 - Handles VRF timing gracefully

@@ -8,6 +8,7 @@ import { v } from "convex/values";
 /**
  * Get current game state for frontend
  * Returns the most recent game (any status)
+ * If latest game is finished, returns null to indicate ready for new game
  */
 export const getCurrentGame = query({
   args: {},
@@ -21,6 +22,10 @@ export const getCurrentGame = query({
     if (!latestGame) {
       return null;
     }
+
+    // If game is finished, return it with canJoin=false
+    // Frontend will show results and "Place bet to start new game"
+    // When player bets, blockchain creates new round, event listener creates new Convex game
 
     // Get all participants (self bets) for this game
     const participants = await ctx.db
@@ -40,7 +45,8 @@ export const getCurrentGame = query({
       participantCount: participants.length,
       totalPot: latestGame.totalPot,
       status: latestGame.status,
-      canJoin: latestGame.status === "waiting",
+      canJoin: latestGame.status === "waiting", // Only allow joining if waiting
+      isFinished: latestGame.status === "finished", // Flag for UI to show "game over"
     };
   },
 });

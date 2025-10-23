@@ -304,7 +304,7 @@ export const placeEntryBet = mutation({
       .query("games")
       .withIndex("by_last_checked")
       .order("desc")
-      .filter((q) => q.or(q.eq(q.field("status"), "waiting"), q.eq(q.field("status"), "idle")))
+      .filter((q) => q.eq(q.field("status"), "waiting"))
       .first();
 
     // If no active game exists, create one
@@ -348,7 +348,7 @@ export const placeEntryBet = mutation({
     }
 
     // Check if game is accepting participants
-    if (game.status !== "waiting" && game.status !== "idle") {
+    if (game.status !== "waiting") {
       throw new Error("Game is not accepting new participants");
     }
 
@@ -412,8 +412,7 @@ export const placeEntryBet = mutation({
     await ctx.db.patch(game._id, {
       playersCount: uniquePlayers.size,
       totalPot: game.totalPot + args.betAmount,
-      status: "waiting", // Move to waiting if was idle
-      phaseStartTime: game.status === "idle" ? Date.now() : game.phaseStartTime, // Reset countdown on first bet
+      status: "waiting",
       lastUpdated: Date.now(),
     });
 

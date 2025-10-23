@@ -76,11 +76,10 @@ export const closeBettingWindow = internalAction({
         });
 
         // Schedule VRF check after 5 seconds
-        await ctx.scheduler.runAfter(
-          5000,
-          internal.gameActions.checkVrfAndComplete,
-          { gameId, retryCount: 0 }
-        );
+        await ctx.scheduler.runAfter(5000, internal.gameActions.checkVrfAndComplete, {
+          gameId,
+          retryCount: 0,
+        });
 
         console.log(`Betting window closed for round ${game.roundId}, VRF check scheduled`);
       } else {
@@ -163,7 +162,7 @@ export const checkVrfAndComplete = internalAction({
             transactionHash: txHash,
             transactionType: TRANSACTION_TYPES.SELECT_WINNER_AND_PAYOUT,
             fromStatus: GameStatus.AwaitingWinnerRandomness,
-            toStatus: GameStatus.Idle,
+            toStatus: GameStatus.Finished,
           },
         });
 
@@ -182,7 +181,7 @@ export const checkVrfAndComplete = internalAction({
           // Mark game as completed
           await ctx.runMutation(internal.gameManagerDb.updateGame, {
             gameId: game._id,
-            status: "idle",
+            status: "finished",
             lastUpdated: now,
           });
 
@@ -198,11 +197,10 @@ export const checkVrfAndComplete = internalAction({
           );
 
           // Schedule another check after 5 seconds
-          await ctx.scheduler.runAfter(
-            5000,
-            internal.gameActions.checkVrfAndComplete,
-            { gameId, retryCount: retryCount + 1 }
-          );
+          await ctx.scheduler.runAfter(5000, internal.gameActions.checkVrfAndComplete, {
+            gameId,
+            retryCount: retryCount + 1,
+          });
         } else {
           // Max retries exceeded
           console.error(

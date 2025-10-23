@@ -4,8 +4,7 @@ use anchor_lang::prelude::*;
 #[repr(u8)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Debug)]
 pub enum GameStatus {
-    Idle,                     // Waiting for first player
-    Waiting,                  // Accepting bets
+    Waiting,                  // Accepting bets (starts from first bet)
     AwaitingWinnerRandomness, // Waiting for ORAO VRF for winner selection
     Finished,                 // Game concluded, winner selected
 }
@@ -54,7 +53,7 @@ impl GameRound {
 
     /// Check if the game is in a state where bets can be placed
     pub fn can_accept_bets(&self) -> bool {
-        matches!(self.status, GameStatus::Idle | GameStatus::Waiting)
+        matches!(self.status, GameStatus::Waiting)
     }
 
     /// Check if the game is a small game (2+ bets) - all games are small games in MVP

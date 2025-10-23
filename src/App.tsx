@@ -47,9 +47,7 @@ export default function App() {
     if (!phaserRef.current?.scene) return;
 
     const scene = phaserRef.current.scene;
-    const hasRealGame =
-      gameData?.game &&
-      gameData.game.status !== "idle";
+    const hasRealGame = gameData?.game && gameData.game.status !== "finished";
 
     // If real game starts and we're in demo scene, switch to game scene
     if (hasRealGame && scene.scene.key === "DemoScene") {
@@ -77,7 +75,7 @@ export default function App() {
 
   // Show blockchain dialog during FIGHTING and VRF_DELAYED phases
   useEffect(() => {
-    const shouldShowDialog = phase === 'FIGHTING' || phase === 'VRF_DELAYED';
+    const shouldShowDialog = phase === "FIGHTING" || phase === "VRF_DELAYED";
     setShowBlockchainDialog(shouldShowDialog);
   }, [phase]);
 

@@ -43,9 +43,7 @@ graph TB
     NextGame -->|24h later<br/>if settled| Cleanup24[cleanup_old_game<br/>24h minimum]
     NextGame -->|30d later<br/>if unclaimed| Cleanup30[cleanup_old_game<br/>30d minimum]
 
-    Cleanup24 --> Idle
     Cleanup30 --> WarningLog[⚠️ Unclaimed prize lost]
-    WarningLog --> Idle
 ```
 
 ---
@@ -538,23 +536,23 @@ Additional Protection:
 
 ## 🎯 Smart Contract Capabilities Matrix
 
-| Feature | Can Do? | Quality | Notes |
-|---------|---------|---------|-------|
-| **Game Creation** | ✅ Yes | ⭐⭐⭐⭐⭐ | Force rotation, validation, events |
-| **Force Rotation** | ✅ Yes | ⭐⭐⭐⭐⭐ | Better than Risk (auto in create_game) |
-| **Multiple Bets** | ✅ Yes | ⭐⭐⭐⭐⭐ | Up to 64 players, validated |
-| **VRF Winner Selection** | ✅ Yes | ⭐⭐⭐⭐⭐ | Provably fair, weighted |
-| **Auto Payout** | ✅ Yes | ⭐⭐⭐⭐⭐ | 95% success rate expected |
-| **Graceful Transfer Failure** | ✅ Yes | ⭐⭐⭐⭐⭐ | Innovation! Better than Risk |
-| **Manual Claim** | ✅ Yes | ⭐⭐⭐⭐⭐ | 30-day window |
-| **Win Probability** | ✅ Yes | ⭐⭐⭐⭐⭐ | Great UX feature |
-| **Prize-Aware Cleanup** | ✅ Yes | ⭐⭐⭐⭐⭐ | Innovation! Better than Risk |
-| **Event Logging** | ✅ Yes | ⭐⭐⭐⭐⭐ | Comprehensive transparency |
-| **Concurrent Games** | ✅ Yes | ⭐⭐⭐⭐⭐ | Force rotation prevents collisions |
-| **VRF Timeout Handling** | ⚠️ Partial | ⭐⭐ | Emergency unlock but no refund |
-| **House Fee Failure** | ❌ No | ⭐ | Needs graceful handling |
-| **Whale Prevention** | ✅ Yes | ⭐⭐⭐⭐⭐ | 3 SOL max bet |
-| **Funds Validation** | ✅ Yes | ⭐⭐⭐⭐⭐ | Checks before transfer |
+| Feature                       | Can Do?    | Quality    | Notes                                  |
+| ----------------------------- | ---------- | ---------- | -------------------------------------- |
+| **Game Creation**             | ✅ Yes     | ⭐⭐⭐⭐⭐ | Force rotation, validation, events     |
+| **Force Rotation**            | ✅ Yes     | ⭐⭐⭐⭐⭐ | Better than Risk (auto in create_game) |
+| **Multiple Bets**             | ✅ Yes     | ⭐⭐⭐⭐⭐ | Up to 64 players, validated            |
+| **VRF Winner Selection**      | ✅ Yes     | ⭐⭐⭐⭐⭐ | Provably fair, weighted                |
+| **Auto Payout**               | ✅ Yes     | ⭐⭐⭐⭐⭐ | 95% success rate expected              |
+| **Graceful Transfer Failure** | ✅ Yes     | ⭐⭐⭐⭐⭐ | Innovation! Better than Risk           |
+| **Manual Claim**              | ✅ Yes     | ⭐⭐⭐⭐⭐ | 30-day window                          |
+| **Win Probability**           | ✅ Yes     | ⭐⭐⭐⭐⭐ | Great UX feature                       |
+| **Prize-Aware Cleanup**       | ✅ Yes     | ⭐⭐⭐⭐⭐ | Innovation! Better than Risk           |
+| **Event Logging**             | ✅ Yes     | ⭐⭐⭐⭐⭐ | Comprehensive transparency             |
+| **Concurrent Games**          | ✅ Yes     | ⭐⭐⭐⭐⭐ | Force rotation prevents collisions     |
+| **VRF Timeout Handling**      | ⚠️ Partial | ⭐⭐       | Emergency unlock but no refund         |
+| **House Fee Failure**         | ❌ No      | ⭐         | Needs graceful handling                |
+| **Whale Prevention**          | ✅ Yes     | ⭐⭐⭐⭐⭐ | 3 SOL max bet                          |
+| **Funds Validation**          | ✅ Yes     | ⭐⭐⭐⭐⭐ | Checks before transfer                 |
 
 ---
 
@@ -655,6 +653,7 @@ Annual Cost (1000 games):
 **Confidence Score: 93/100**
 
 **What Works (93%):**
+
 - ✅ All normal flows (game creation → winner payout → cleanup)
 - ✅ Graceful winner transfer failures (innovation!)
 - ✅ Force rotation (better than Risk!)
@@ -664,15 +663,18 @@ Annual Cost (1000 games):
 - ✅ Event transparency
 
 **What Needs Improvement (7%):**
+
 - ⚠️ VRF timeout refund (edge case, low probability)
 - ⚠️ House fee graceful failure (should match winner transfer logic)
 
 **Recommended Actions:**
+
 1. Implement house fee graceful failure ✅ Easy
 2. Add VRF timeout refund instruction ✅ Medium
 3. Frontend monitoring for stuck games ✅ Easy
 
 **Production Readiness: 90%**
+
 - Current state: Safe for testnet/devnet
 - After 2 improvements: Production-ready
 

@@ -1,12 +1,12 @@
-import { Scene } from 'phaser';
-import { PlayerManager } from './PlayerManager';
-import { AnimationManager } from './AnimationManager';
+import { Scene } from "phaser";
+import { PlayerManager } from "./PlayerManager";
+import { AnimationManager } from "./AnimationManager";
 
 export class GamePhaseManager {
   private scene: Scene;
   private playerManager: PlayerManager;
   private animationManager: AnimationManager;
-  private currentPhase: string = '';
+  private currentPhase: string = "";
   private isSmallGame: boolean = false;
   private hasWinner: boolean = false;
 
@@ -27,7 +27,7 @@ export class GamePhaseManager {
     this.currentPhase = gameState.status;
 
     // Update participants with latest data from backend (elimination status, etc.)
-    if (gameState.status !== 'waiting') {
+    if (gameState.status !== "waiting") {
       this.playerManager.updateParticipants(participants);
     }
 
@@ -39,16 +39,25 @@ export class GamePhaseManager {
     const now = Date.now();
     const bettingWindowClosed = gameState.endTimestamp ? now > gameState.endTimestamp : false;
     const hasWinner = !!gameState.winnerId;
-    const blockchainCallCompleted = gameState.blockchainCallStatus === 'completed';
+    const blockchainCallCompleted = gameState.blockchainCallStatus === "completed";
 
     const blockchainCallJustCompleted = blockchainCallCompleted && !this.hasWinner;
     const canShowWinnerAnimation = bettingWindowClosed && hasWinner && blockchainCallCompleted;
 
-    if (blockchainCallJustCompleted && this.isSmallGame && gameState.status === 'arena' && canShowWinnerAnimation) {
-      console.log('✅ Conditions met for winner animation:');
-      console.log('  - Betting window closed:', bettingWindowClosed, `(now: ${now}, end: ${gameState.endTimestamp})`);
-      console.log('  - Winner determined:', gameState.winnerId);
-      console.log('  - Blockchain call completed');
+    if (
+      blockchainCallJustCompleted &&
+      this.isSmallGame &&
+      gameState.status === "arena" &&
+      canShowWinnerAnimation
+    ) {
+      console.log("✅ Conditions met for winner animation:");
+      console.log(
+        "  - Betting window closed:",
+        bettingWindowClosed,
+        `(now: ${now}, end: ${gameState.endTimestamp})`
+      );
+      console.log("  - Winner determined:", gameState.winnerId);
+      console.log("  - Blockchain call completed");
 
       this.hasWinner = true;
       // Trigger explosion after a short delay
@@ -58,9 +67,14 @@ export class GamePhaseManager {
       });
     } else if (blockchainCallJustCompleted && (!bettingWindowClosed || !hasWinner)) {
       // Log why animation is blocked
-      console.log('⏳ Winner animation blocked - waiting for:');
-      if (!bettingWindowClosed) console.log('  - Betting window to close (remaining:', (gameState.endTimestamp - now) / 1000, 'seconds)');
-      if (!hasWinner) console.log('  - Winner to be determined');
+      console.log("⏳ Winner animation blocked - waiting for:");
+      if (!bettingWindowClosed)
+        console.log(
+          "  - Betting window to close (remaining:",
+          (gameState.endTimestamp - now) / 1000,
+          "seconds)"
+        );
+      if (!hasWinner) console.log("  - Winner to be determined");
     }
 
     // Update hasWinner flag
@@ -68,28 +82,28 @@ export class GamePhaseManager {
 
     // Update participants based on game phase
     switch (gameState.status) {
-      case 'waiting':
+      case "waiting":
         this.handleWaitingPhase(participants, gameState.map);
         break;
-      case 'selection':
+      case "selection":
         this.handleSelectionPhase();
         break;
-      case 'arena':
+      case "arena":
         this.handleArenaPhase(phaseChanged);
         break;
-      case 'elimination':
+      case "elimination":
         this.handleEliminationPhase(phaseChanged);
         break;
-      case 'betting':
+      case "betting":
         this.handleBettingPhase(gameState.survivorIds || [], phaseChanged);
         break;
-      case 'battle':
+      case "battle":
         this.handleBattlePhase(phaseChanged);
         break;
-      case 'results':
+      case "results":
         this.handleResultsPhase(gameState, phaseChanged);
         break;
-      case 'completed':
+      case "completed":
         this.handleCompletedPhase();
         break;
     }
@@ -113,7 +127,7 @@ export class GamePhaseManager {
     // This is mainly handled by React UI, but we can add visual effects here
 
     // Highlight all participants to show they're in selection mode
-    this.playerManager.getParticipants().forEach(participant => {
+    this.playerManager.getParticipants().forEach((participant) => {
       if (!participant.isBot) {
         // Add subtle glow to human participants
         this.scene.tweens.add({
@@ -121,7 +135,7 @@ export class GamePhaseManager {
           alpha: { from: 1, to: 0.8 },
           duration: 800,
           yoyo: true,
-          repeat: -1
+          repeat: -1,
         });
       }
     });
@@ -137,13 +151,13 @@ export class GamePhaseManager {
 
       if (this.isSmallGame) {
         // Small games: start blockchain call after players move to center
-        console.log('Small game: starting blockchain call after players move...');
+        console.log("Small game: starting blockchain call after players move...");
 
         // Trigger blockchain call after 2.5 seconds (after players finish moving)
         this.scene.time.delayedCall(2500, () => {
           // Emit event to trigger blockchain call
           // This will be handled by the App component
-          this.scene.events.emit('triggerBlockchainCall');
+          this.scene.events.emit("triggerBlockchainCall");
         });
       } else {
         // Large games: prepare for elimination
@@ -202,9 +216,9 @@ export class GamePhaseManager {
       const hasWinner = !!gameState.winnerId;
 
       if (!bettingWindowClosed || !hasWinner) {
-        console.log('⚠️ Cannot show results - conditions not met:');
-        if (!bettingWindowClosed) console.log('  - Betting window still open');
-        if (!hasWinner) console.log('  - No winner determined yet');
+        console.log("⚠️ Cannot show results - conditions not met:");
+        if (!bettingWindowClosed) console.log("  - Betting window still open");
+        if (!hasWinner) console.log("  - No winner determined yet");
         return;
       }
 
@@ -230,14 +244,14 @@ export class GamePhaseManager {
     this.scene.time.removeAllEvents();
 
     // Fade out all participants
-    this.playerManager.getParticipants().forEach(participant => {
+    this.playerManager.getParticipants().forEach((participant) => {
       this.scene.tweens.add({
         targets: participant.container,
         alpha: 0,
         duration: 2000,
         onComplete: () => {
           participant.container.setVisible(false);
-        }
+        },
       });
     });
 
@@ -259,7 +273,7 @@ export class GamePhaseManager {
 
   // Reset manager state for new game
   reset() {
-    this.currentPhase = '';
+    this.currentPhase = "";
     this.isSmallGame = false;
     this.hasWinner = false;
     this.scene.tweens.killAll();
@@ -275,44 +289,44 @@ export class GamePhaseManager {
     const phaseChanged = this.currentPhase !== phase;
     this.currentPhase = phase;
 
-    console.log(`[GamePhaseManager] Phase: ${phase}, Changed: ${phaseChanged}, Time: ${timeRemaining}s`);
+    console.log(
+      `[GamePhaseManager] Phase: ${phase}, Changed: ${phaseChanged}, Time: ${timeRemaining}s`
+    );
 
     switch (phase) {
-      case 'IDLE':
-        // No active game, should show demo scene instead
-        break;
+      // No active game, should show demo scene instead
 
-      case 'WAITING':
+      case "WAITING":
         // Betting window open - participants being spawned
         // Handled by real-time participant spawning
         console.log(`[GamePhaseManager] WAITING phase - ${timeRemaining}s remaining`);
         break;
 
-      case 'BETTING_CLOSED':
+      case "BETTING_CLOSED":
         if (phaseChanged) {
-          console.log('[GamePhaseManager] Betting window closed, preparing to fight...');
+          console.log("[GamePhaseManager] Betting window closed, preparing to fight...");
         }
         break;
 
-      case 'FIGHTING':
+      case "FIGHTING":
         if (phaseChanged) {
-          console.log('[GamePhaseManager] FIGHTING phase started - moving participants to center');
+          console.log("[GamePhaseManager] FIGHTING phase started - moving participants to center");
           // Move all participants to center for battle
           this.playerManager.moveParticipantsToCenter();
         }
         // Show "Waiting for VRF..." message (handled by BlockchainRandomnessDialog)
         break;
 
-      case 'VRF_DELAYED':
+      case "VRF_DELAYED":
         if (phaseChanged) {
-          console.log('[GamePhaseManager] VRF taking longer than expected...');
+          console.log("[GamePhaseManager] VRF taking longer than expected...");
           // Could add visual indicator here (spinning loader, etc.)
         }
         break;
 
-      case 'RESULTS':
+      case "RESULTS":
         if (phaseChanged) {
-          console.log('[GamePhaseManager] RESULTS phase - showing winner');
+          console.log("[GamePhaseManager] RESULTS phase - showing winner");
           // Trigger explosion of eliminated participants
           const participants = this.playerManager.getParticipants();
           this.animationManager.explodeParticipantsOutward(participants);
@@ -324,16 +338,16 @@ export class GamePhaseManager {
         }
         break;
 
-      case 'FINISHED':
+      case "FINISHED":
         if (phaseChanged) {
-          console.log('[GamePhaseManager] Game finished, preparing for next round');
+          console.log("[GamePhaseManager] Game finished, preparing for next round");
           this.handleCompletedPhase();
         }
         break;
 
-      case 'ERROR':
+      case "ERROR":
         if (phaseChanged) {
-          console.error('[GamePhaseManager] Game error - should trigger refunds');
+          console.error("[GamePhaseManager] Game error - should trigger refunds");
         }
         break;
     }

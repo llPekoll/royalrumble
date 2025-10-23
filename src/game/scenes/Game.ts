@@ -54,6 +54,11 @@ export class Game extends Scene {
 
     EventBus.emit('current-scene-ready', this);
 
+    // Listen for insert coin event from React UI
+    EventBus.on("play-insert-coin-sound", () => {
+      SoundManager.playInsertCoin(this);
+    });
+
     // Play intro sound when real game starts
     this.playIntroSound();
   }

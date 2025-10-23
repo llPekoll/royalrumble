@@ -1,6 +1,7 @@
 # Domin8 Frontend Implementation Guide
 
 ## Overview
+
 This guide shows you how to use the provided hooks and backend functions to build the Domin8 frontend MVP.
 
 ---
@@ -8,9 +9,11 @@ This guide shows you how to use the provided hooks and backend functions to buil
 ## 📁 Files Created
 
 ### Frontend Hook
+
 - **`src/hooks/useGameContract.ts`** - React hook for smart contract interactions
 
 ### Backend (Convex)
+
 - **`convex/lib/solana.ts`** - Solana smart contract integration (SolanaClient class with IDL)
 - **`convex/gameManager.ts`** - Main game loop (cron handler)
 - **`convex/gameManagerDb.ts`** - Database operations for games
@@ -18,6 +21,7 @@ This guide shows you how to use the provided hooks and backend functions to buil
 - **`convex/transactions.ts`** - Transaction cleanup
 
 ### Documentation
+
 - **`docs/MAINNET_CRITICAL_TODOS.md`** - Critical features needed before mainnet
 - **`docs/IMPLEMENTATION_GUIDE.md`** - This file
 
@@ -38,6 +42,7 @@ bun install @coral-xyz/anchor
 ### 2. Set Environment Variables
 
 Add to `.env.local`:
+
 ```bash
 # Solana
 VITE_SOLANA_NETWORK=devnet
@@ -140,6 +145,7 @@ function GameComponent() {
 ## 🔧 Important Implementation Notes
 
 ### Hook Implementation
+
 The `useGameContract.ts` hook uses **@solana/kit** for transaction building (NOT Anchor Program methods):
 
 ```typescript
@@ -172,13 +178,16 @@ const transaction = pipe(
 );
 
 // Sign and send with Privy
-const receipts = await wallet.signAndSendAllTransactions([{
-  chain: `solana:${network}`,
-  transaction,
-}]);
+const receipts = await wallet.signAndSendAllTransactions([
+  {
+    chain: `solana:${network}`,
+    transaction,
+  },
+]);
 ```
 
 ### Get Instruction Discriminators
+
 ```bash
 # After building your smart contract
 anchor build
@@ -192,7 +201,9 @@ anchor build
 ```
 
 ### Hook is Production-Ready
+
 The hook already implements:
+
 1. ✅ Privy wallet integration via `usePrivyWallet()`
 2. ✅ Manual instruction building with @solana/kit
 3. ✅ Transaction signing with `signAndSendAllTransactions()`
@@ -204,6 +215,7 @@ The hook already implements:
 ## 🔄 Backend Integration (Convex)
 
 ### The cron jobs automatically handle:
+
 - ✅ Sync game state from blockchain (every 5s)
 - ✅ Close betting window when timeout expires (every 10s)
 - ✅ Check VRF fulfillment (every 5s)
@@ -211,16 +223,20 @@ The hook already implements:
 - ✅ Cleanup old records (daily)
 
 ### No manual intervention needed!
+
 The backend runs autonomously once deployed.
 
 ### Deploy Convex:
+
 ```bash
 npx convex dev  # Development
 npx convex deploy  # Production
 ```
 
 ### Monitor Convex:
+
 Visit https://dashboard.convex.dev to see:
+
 - Cron job execution logs
 - Database queries
 - Function performance
@@ -230,6 +246,7 @@ Visit https://dashboard.convex.dev to see:
 ## 📊 Frontend Data Flow
 
 ### 1. User Places Bet
+
 ```
 User clicks "Bet"
   → useGameContract.placeBet()
@@ -240,6 +257,7 @@ User clicks "Bet"
 ```
 
 ### 2. Backend Syncs State
+
 ```
 Cron runs (every 5s)
   → convex/solana.syncGameState()
@@ -249,6 +267,7 @@ Cron runs (every 5s)
 ```
 
 ### 3. Betting Window Closes
+
 ```
 Cron runs (every 10s)
   → convex/solana.closeBettingWindow()
@@ -258,6 +277,7 @@ Cron runs (every 10s)
 ```
 
 ### 4. Winner Selected
+
 ```
 Cron runs (every 5s)
   → convex/solana.checkVrfFulfillment()
@@ -272,6 +292,7 @@ Cron runs (every 5s)
 ## 🎨 UI Components to Build
 
 ### 1. Wallet Connection (Privy)
+
 ```typescript
 import { usePrivy } from '@privy-io/react-auth';
 
@@ -289,10 +310,10 @@ function WalletButton() {
 ```
 
 ### 2. Game Status Display
+
 ```typescript
 function GameStatus({ game }) {
   const statusDisplay = {
-    idle: 'Waiting for players',
     waiting: 'Betting open!',
     awaitingWinnerRandomness: 'Selecting winner...',
     finished: 'Game complete!',
@@ -303,6 +324,7 @@ function GameStatus({ game }) {
 ```
 
 ### 3. Countdown Timer
+
 ```typescript
 function BettingTimer({ endTimestamp }) {
   const [timeLeft, setTimeLeft] = useState(0);
@@ -321,6 +343,7 @@ function BettingTimer({ endTimestamp }) {
 ```
 
 ### 4. Bet Input with Validation
+
 ```typescript
 function BetInput({ onBet }) {
   const { validateBet, MIN_BET } = useGameContract();
@@ -354,6 +377,7 @@ function BetInput({ onBet }) {
 ```
 
 ### 5. Transaction Status
+
 ```typescript
 function TransactionStatus({ signature, status }) {
   const explorerUrl = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
@@ -374,12 +398,14 @@ function TransactionStatus({ signature, status }) {
 ## ⚠️ MVP Limitations
 
 For the MVP (devnet), you can skip:
+
 - ❌ Emergency withdraw (needed for mainnet)
 - ❌ Winner claim separate from payout (needed for mainnet)
 - ❌ Rate limiting (good to have)
 - ❌ Advanced error recovery
 
 Just implement:
+
 - ✅ Wallet connection
 - ✅ Bet placement
 - ✅ Game status display
@@ -417,6 +443,7 @@ Before launching MVP:
 ## 🆘 Common Issues
 
 ### "Wallet not connected"
+
 Make sure you're wrapping your app with Privy provider:
 
 ```typescript
@@ -437,13 +464,17 @@ import { PrivyProvider } from '@privy-io/react-auth';
 ```
 
 ### "Insufficient funds"
+
 Test wallets need SOL. Get devnet SOL from:
+
 ```bash
 solana airdrop 1 YOUR_WALLET_ADDRESS --url devnet
 ```
 
 ### "Transaction simulation failed"
+
 Check:
+
 - Smart contract is deployed to devnet
 - Program ID matches in env vars
 - Game is initialized (run `anchor test` first)

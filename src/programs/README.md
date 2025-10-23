@@ -17,8 +17,8 @@ programs/
 ### Basic Program Access
 
 ```typescript
-import { Domin8PrgmIDL, DOMIN8_PROGRAM_ID, type Domin8Prgm } from '@/programs/domin8';
-import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Domin8PrgmIDL, DOMIN8_PROGRAM_ID, type Domin8Prgm } from "@/programs/domin8";
+import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
 
 // Create program instance
 const program = new Program<Domin8Prgm>(Domin8PrgmIDL, provider);
@@ -38,18 +38,18 @@ const tx = await program.methods
 ```typescript
 import {
   // IDL and Program ID
-  Domin8PrgmIDL,           // The full IDL for creating Program instances
-  DOMIN8_PROGRAM_ID,       // The deployed program's public key
+  Domin8PrgmIDL, // The full IDL for creating Program instances
+  DOMIN8_PROGRAM_ID, // The deployed program's public key
 
   // Types
-  Domin8Prgm,              // Main program type
-  GameConfig,              // Game configuration account
-  GameCounter,             // Round counter account
-  GameRound,               // Active game round account
-  BetEntry,                // Individual bet record
-  GameStatus,              // Enum: Idle | Waiting | AwaitingWinnerRandomness | Finished
-  GameDurationConfig,      // Duration configuration struct
-} from '@/programs/domin8';
+  Domin8Prgm, // Main program type
+  GameConfig, // Game configuration account
+  GameCounter, // Round counter account
+  GameRound, // Active game round account
+  BetEntry, // Individual bet record
+  GameStatus, // Enum:  Waiting | AwaitingWinnerRandomness | Finished
+  GameDurationConfig, // Duration configuration struct
+} from "@/programs/domin8";
 ```
 
 ### Type-Safe Instruction Calls
@@ -81,12 +81,9 @@ console.log(gameConfig.authority.toString());
 console.log(gameConfig.minBetLamports.toNumber());
 
 // Subscribe to account changes
-const listener = program.account.gameRound.subscribe(
-  gameRoundPda,
-  (account) => {
-    console.log('Game round updated:', account);
-  }
-);
+const listener = program.account.gameRound.subscribe(gameRoundPda, (account) => {
+  console.log("Game round updated:", account);
+});
 ```
 
 ## Updating

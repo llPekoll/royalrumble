@@ -130,7 +130,7 @@ export function Header() {
                     {gameState.game.status === "waiting" && "Waiting for players"}
                     {gameState.game.status === "awaitingWinnerRandomness" &&
                       "Determining winner..."}
-                    {gameState.game.status === "idle" && "Ready"}
+                    {gameState.game.status === "finished" && "Ready"}
                   </div>
                 </div>
               )}

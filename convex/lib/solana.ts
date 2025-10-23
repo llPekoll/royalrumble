@@ -133,41 +133,56 @@ export class SolanaClient {
   // Get current round ID from GameCounter
   async getCurrentRoundId(): Promise<number> {
     const { gameCounter } = this.getPDAs();
-    const account = await this.program.account.gameCounter.fetch(gameCounter);
 
-    if (!account) {
-      throw new Error("Failed to fetch game counter account");
+    try {
+      const account = await this.program.account.gameCounter.fetchNullable(gameCounter);
+
+      if (!account) {
+        console.warn("Game counter account doesn't exist yet");
+        return 0;
+      }
+
+      return account.currentRoundId?.toNumber() ?? 0;
+    } catch (error) {
+      console.error("Error fetching game counter:", error);
+      return 0;
     }
-
-    return account.currentRoundId?.toNumber() ?? 0;
   }
 
   // Get current game configuration
-  async getGameConfig(): Promise<GameConfig> {
+  async getGameConfig(): Promise<GameConfig | null> {
     const { gameConfig } = this.getPDAs();
-    const account = await this.program.account.gameConfig.fetch(gameConfig);
 
-    // Add null checks for account fields
-    if (!account) {
-      throw new Error("Failed to fetch game config account");
+    try {
+      const account = await this.program.account.gameConfig.fetchNullable(gameConfig);
+
+      if (!account) {
+        console.warn("Game config account doesn't exist yet");
+        return null;
+      }
+
+      return {
+        authority: account.authority?.toBase58() ?? "",
+        treasury: account.treasury?.toBase58() ?? "",
+        houseFeeBasisPoints: account.houseFeeBasisPoints ?? 0,
+        minBetLamports: account.minBetLamports?.toNumber() ?? 0,
+        smallGameDurationConfig: {
+          waitingPhaseDuration:
+            account.smallGameDurationConfig?.waitingPhaseDuration?.toNumber() ?? 0,
+        },
+        betsLocked: account.betsLocked ?? false,
+      };
+    } catch (error) {
+      console.error("Error fetching game config:", error);
+      return null;
     }
-
-    return {
-      authority: account.authority?.toBase58() ?? "", // Convert PublicKey to string
-      treasury: account.treasury?.toBase58() ?? "", // Convert PublicKey to string
-      houseFeeBasisPoints: account.houseFeeBasisPoints ?? 0,
-      minBetLamports: account.minBetLamports?.toNumber() ?? 0,
-      smallGameDurationConfig: {
-        waitingPhaseDuration: account.smallGameDurationConfig?.waitingPhaseDuration?.toNumber() ?? 0,
-      },
-      betsLocked: account.betsLocked ?? false,
-    };
   }
 
   // Get current game round state (simplified for small games MVP)
   async getGameRound(): Promise<GameRound | null> {
     // First get the current round ID
     const currentRoundId = await this.getCurrentRoundId();
+    console.log("---->Current round ID:", currentRoundId);
 
     // Derive the PDA for the current round
     const { gameRound } = this.getPDAs(currentRoundId);
@@ -177,20 +192,25 @@ export class SolanaClient {
     }
 
     try {
-      const account = await this.program.account.gameRound.fetch(gameRound);
+      // Fetch account with null check
+      const account = await this.program.account.gameRound.fetchNullable(gameRound);
 
-      // Add null checks for account fields
+      // If account doesn't exist or was closed, return null
       if (!account) {
-        throw new Error("Failed to fetch game round account");
+        console.log(`Game round ${currentRoundId} account doesn't exist or was closed`);
+        return null;
       }
 
       // Convert status from Anchor enum to our enum (simplified for small games MVP)
       let status: GameStatus;
-      if (account.status?.idle) status = GameStatus.Idle;
-      else if (account.status?.waiting) status = GameStatus.Waiting;
-      else if (account.status?.awaitingWinnerRandomness) status = GameStatus.AwaitingWinnerRandomness;
+      if (account.status?.waiting) status = GameStatus.Waiting;
+      else if (account.status?.awaitingWinnerRandomness)
+        status = GameStatus.AwaitingWinnerRandomness;
       else if (account.status?.finished) status = GameStatus.Finished;
-      else throw new Error("Unknown game status");
+      else {
+        console.warn("Unknown game status:", account.status);
+        return null;
+      }
 
       console.log("Fetched game round account:", account);
 
@@ -200,7 +220,9 @@ export class SolanaClient {
         startTimestamp: account.startTimestamp?.toNumber() ?? 0,
         endTimestamp: account.endTimestamp?.toNumber() ?? 0,
         betCount: account.betCount ?? 0,
-        betAmounts: Array.from(account.betAmounts || []).map((amount: any) => amount?.toNumber() ?? 0),
+        betAmounts: Array.from(account.betAmounts || []).map(
+          (amount: any) => amount?.toNumber() ?? 0
+        ),
         totalPot: account.totalPot?.toNumber() ?? 0,
         winner: account.winner ? account.winner.toBase58() : null, // Convert PublicKey to string or null
         winningBetIndex: account.winningBetIndex ?? 0,

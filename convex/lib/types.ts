@@ -8,7 +8,6 @@ export const DOMIN8_PROGRAM_ID = new PublicKey("EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBL
 
 // Game Status enum from the Solana program (simplified for small games MVP)
 export enum GameStatus {
-  Idle = "idle",
   Waiting = "waiting",
   AwaitingWinnerRandomness = "awaitingWinnerRandomness",
   Finished = "finished",

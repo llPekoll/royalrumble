@@ -11,7 +11,7 @@ export interface BetEntry {
 
 export interface GameState {
   roundId: number;
-  status: "Idle" | "Waiting" | "AwaitingWinnerRandomness" | "Finished";
+  status: "Waiting" | "AwaitingWinnerRandomness" | "Finished";
   startTimestamp: number;
   endTimestamp: number; // ⭐ NEW: When betting closes
   bets: BetEntry[];

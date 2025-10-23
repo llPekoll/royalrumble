@@ -3,6 +3,7 @@
 ## Overview
 
 This document outlines all security checks implemented to ensure:
+
 1. Players cannot bet after the betting window closes
 2. Winner animations only play when valid conditions are met
 
@@ -56,29 +57,36 @@ require!(
 The smart contract has **THREE** security layers:
 
 #### Layer 1: Timestamp Check
+
 ```rust
 require!(clock.unix_timestamp < game_round.end_timestamp)
 ```
 
 #### Layer 2: Game Lock Flag
+
 ```rust
 require!(!config.game_locked, Domin8Error::GameLocked);
 ```
+
 Once backend calls `progress_to_resolution`, it sets `game_locked = true`, preventing all new bets.
 
 #### Layer 3: Status Validation
+
 ```rust
 require!(game_round.can_accept_bets(), Domin8Error::InvalidGameStatus);
 ```
-Only `Idle` and `Waiting` statuses allow bets. Once status changes to `AwaitingWinnerRandomness`, betting is impossible.
+
+Only `Waiting` statuses allow bets. Once status changes to `AwaitingWinnerRandomness`, betting is impossible.
 
 #### Layer 4: Round ID Check
+
 ```rust
 require!(
     game_round.round_id == counter.current_round_id,
     Domin8Error::InvalidGameStatus
 );
 ```
+
 Prevents betting on old/completed games.
 
 ---
@@ -94,15 +102,24 @@ Prevents betting on old/completed games.
 const now = Date.now();
 const bettingWindowClosed = gameState.endTimestamp ? now > gameState.endTimestamp : false;
 const hasWinner = !!gameState.winnerId;
-const blockchainCallCompleted = gameState.blockchainCallStatus === 'completed';
+const blockchainCallCompleted = gameState.blockchainCallStatus === "completed";
 
 const canShowWinnerAnimation = bettingWindowClosed && hasWinner && blockchainCallCompleted;
 
-if (blockchainCallJustCompleted && this.isSmallGame && gameState.status === 'arena' && canShowWinnerAnimation) {
-  console.log('✅ Conditions met for winner animation:');
-  console.log('  - Betting window closed:', bettingWindowClosed, `(now: ${now}, end: ${gameState.endTimestamp})`);
-  console.log('  - Winner determined:', gameState.winnerId);
-  console.log('  - Blockchain call completed');
+if (
+  blockchainCallJustCompleted &&
+  this.isSmallGame &&
+  gameState.status === "arena" &&
+  canShowWinnerAnimation
+) {
+  console.log("✅ Conditions met for winner animation:");
+  console.log(
+    "  - Betting window closed:",
+    bettingWindowClosed,
+    `(now: ${now}, end: ${gameState.endTimestamp})`
+  );
+  console.log("  - Winner determined:", gameState.winnerId);
+  console.log("  - Blockchain call completed");
 
   this.hasWinner = true;
   // Trigger explosion after a short delay
@@ -114,6 +131,7 @@ if (blockchainCallJustCompleted && this.isSmallGame && gameState.status === 'are
 ```
 
 **Three Required Conditions**:
+
 1. ✅ `now > endTimestamp` (betting window closed)
 2. ✅ `winnerId != null` (winner determined)
 3. ✅ `blockchainCallStatus === 'completed'` (VRF fulfilled)
@@ -150,6 +168,7 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 ```
 
 **Two Required Conditions**:
+
 1. ✅ `now > endTimestamp` (betting window closed)
 2. ✅ `winnerId != null` (winner determined)
 
@@ -164,6 +183,7 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 **Attack**: Player sends `place_bet` transaction after `endTimestamp`
 
 **Protection**:
+
 - Smart contract checks: `clock.unix_timestamp < game_round.end_timestamp`
 - Transaction **REVERTS** with error: `BettingWindowClosed`
 - No funds transferred, player pays only transaction fee
@@ -177,6 +197,7 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 **Attack**: Modified frontend tries to show winner animation before window closes
 
 **Protection**:
+
 - Frontend checks: `now > gameState.endTimestamp`
 - Animation **BLOCKED** with console warning
 - Only visual - doesn't affect blockchain state
@@ -190,6 +211,7 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 **Attack**: Backend calls `unified_progress_to_resolution` before `endTimestamp`
 
 **Protection**:
+
 - Smart contract checks: `clock.unix_timestamp >= game_round.end_timestamp`
 - Transaction **REVERTS** with error: `BettingWindowStillOpen`
 - Game remains in `Waiting` status
@@ -203,6 +225,7 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 **Attack**: Player sends bet at exactly `endTimestamp`
 
 **Protection**:
+
 - Smart contract uses strict inequality: `<` (not `<=`)
 - At exactly `endTimestamp`, bet is **REJECTED**
 - Backend can immediately progress at `endTimestamp`
@@ -214,11 +237,13 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 ## Time Synchronization
 
 ### Blockchain Time (Source of Truth)
+
 - Uses Solana `Clock::get()?.unix_timestamp`
 - Cannot be manipulated by players or backend
 - Same time for all transactions in a slot (~400ms)
 
 ### Frontend Time (Display Only)
+
 - Uses JavaScript `Date.now()`
 - May differ by a few seconds from blockchain time
 - Only affects UI display, not security
@@ -253,12 +278,14 @@ private handleResultsPhase(gameState: any, phaseChanged: boolean) {
 ### Smart Contract Events
 
 Monitor for suspicious patterns:
+
 - Multiple `BettingWindowClosed` errors from same wallet → Player trying to cheat
 - `BettingWindowStillOpen` errors from backend → Backend timing issue
 
 ### Frontend Logs
 
 Watch for:
+
 - "⏳ Winner animation blocked" messages → Normal during VRF fulfillment
 - "⚠️ Cannot show results" messages → Should be rare, investigate if frequent
 
@@ -267,6 +294,7 @@ Watch for:
 ## Summary
 
 ### Smart Contract (Blockchain) ✅
+
 - **Timestamp enforcement**: Bets ONLY allowed when `now < endTimestamp`
 - **Progression lock**: Game ONLY progresses when `now >= endTimestamp`
 - **Triple protection**: Timestamp + Lock flag + Status check + Round ID
@@ -274,6 +302,7 @@ Watch for:
 - **Trustless**: Clock is Solana blockchain time (cannot be manipulated)
 
 ### Frontend (Display) ✅
+
 - **Animation guard**: Winner ONLY shown when `now > endTimestamp AND winner != null`
 - **Results guard**: Celebration ONLY shown when conditions met
 - **Logging**: Clear console messages for debugging

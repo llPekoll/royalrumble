@@ -1,4 +1,4 @@
-import { Scene } from 'phaser';
+import { Scene } from "phaser";
 
 export class UIManager {
   private scene: Scene;
@@ -11,7 +11,7 @@ export class UIManager {
   public timerBackground!: Phaser.GameObjects.Rectangle;
 
   private gameState: any = null;
-  private lastTimerValue: string = '';
+  private lastTimerValue: string = "";
   private timerContainer!: Phaser.GameObjects.Container;
   private digitContainers: Map<number, Phaser.GameObjects.Container> = new Map();
 
@@ -39,7 +39,7 @@ export class UIManager {
 
   create() {
     // Show logo for 2 seconds then disappear
-    this.titleLogo = this.scene.add.image(this.centerX, 350, 'logo');
+    this.titleLogo = this.scene.add.image(this.centerX, 350, "logo");
     this.titleLogo.setOrigin(0.5).setDepth(200);
 
     // Scale the logo appropriately (adjust this value as needed)
@@ -51,28 +51,31 @@ export class UIManager {
       targets: this.titleLogo,
       scale: { from: 0, to: 0.3 },
       duration: 500,
-      ease: 'Back.easeOut',
+      ease: "Back.easeOut",
       yoyo: true,
       hold: 1500,
       onComplete: () => {
         this.titleLogo.setVisible(false);
-      }
+      },
     });
 
     // Phase indicator (always visible after title)
-    this.phaseText = this.scene.add.text(this.centerX, 120, '', {
-      fontFamily: 'Arial Black',
-      fontSize: 28,
-      color: '#FFA500',
-      stroke: '#4B2F20',
-      strokeThickness: 4,
-      align: 'center',
-      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 3, fill: true }
-    }).setOrigin(0.5).setDepth(150);
+    this.phaseText = this.scene.add
+      .text(this.centerX, 120, "", {
+        fontFamily: "Arial Black",
+        fontSize: 28,
+        color: "#FFA500",
+        stroke: "#4B2F20",
+        strokeThickness: 4,
+        align: "center",
+        shadow: { offsetX: 1, offsetY: 1, color: "#000000", blur: 3, fill: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(150);
 
     // Timer background with gradient-like effect
-    this.timerBackground = this.scene.add.rectangle(this.centerX, 180, 160, 60, 0x2C1810, 0.8);
-    this.timerBackground.setStrokeStyle(4, 0xFFB347);
+    this.timerBackground = this.scene.add.rectangle(this.centerX, 180, 160, 60, 0x2c1810, 0.8);
+    this.timerBackground.setStrokeStyle(4, 0xffb347);
     this.timerBackground.setDepth(149);
 
     // Create timer container for animated digits
@@ -80,14 +83,13 @@ export class UIManager {
     this.timerContainer.setDepth(151);
 
     // Initialize with default timer display
-    this.lastTimerValue = '';
-    this.initializeTimer('0:00');
-
+    this.lastTimerValue = "";
+    this.initializeTimer("0:00");
   }
 
   private initializeTimer(timeText: string) {
     // Clear existing containers
-    this.digitContainers.forEach(container => container.destroy());
+    this.digitContainers.forEach((container) => container.destroy());
     this.digitContainers.clear();
 
     // Calculate centering offset based on string length
@@ -98,7 +100,7 @@ export class UIManager {
     // Create initial digits
     for (let i = 0; i < timeText.length; i++) {
       const char = timeText[i];
-      const xOffset = startOffset + (i * charWidth);
+      const xOffset = startOffset + i * charWidth;
 
       const container = this.scene.add.container(xOffset, 0);
       this.timerContainer.add(container);
@@ -111,7 +113,7 @@ export class UIManager {
       container.setMask(mask);
 
       // Add initial digit
-      const digit = this.createDigitText(char, '#FFDB58');
+      const digit = this.createDigitText(char, "#FFDB58");
       container.add(digit);
     }
   }
@@ -125,18 +127,17 @@ export class UIManager {
 
   private updatePhaseDisplay(gameState: any) {
     const phaseNames: { [key: string]: string } = {
-      'idle': 'WAITING FOR PLAYERS',
-      'waiting': 'WAITING FOR PLAYERS',
-      'arena': 'RUNNING TO CENTER',
-      'betting': 'PLACE YOUR BETS',
-      'battle': 'FINAL BATTLE',
-      'awaitingWinnerRandomness': 'DRAWING WINNER',
-      'finished': 'WINNER DECLARED',
-      'results': 'WINNER DECLARED'
+      arena: "RUNNING TO CENTER",
+      betting: "PLACE YOUR BETS",
+      battle: "FINAL BATTLE",
+      awaitingWinnerRandomness: "DRAWING WINNER",
+      finished: "WINNER DECLARED",
+      results: "WINNER DECLARED",
     };
 
-    const phaseName = phaseNames[gameState.status] || 'Game Phase';
-    const isSmallGame = gameState.isSmallGame || (gameState.playersCount !== undefined && gameState.playersCount < 8);
+    const phaseName = phaseNames[gameState.status] || "Game Phase";
+    const isSmallGame =
+      gameState.isSmallGame || (gameState.playersCount !== undefined && gameState.playersCount < 8);
     const maxPhases = isSmallGame ? 3 : 5;
 
     // Map internal phase to display phase based on game type
@@ -146,9 +147,9 @@ export class UIManager {
       // Phase 1: Waiting
       // Phase 2: Arena
       // Phase 3: Results (internal phase 3 when skipping betting/battle)
-      if (gameState.status === 'waiting') displayPhase = 1;
-      else if (gameState.status === 'arena') displayPhase = 2;
-      else if (gameState.status === 'results') displayPhase = 3;
+      if (gameState.status === "waiting") displayPhase = 1;
+      else if (gameState.status === "arena") displayPhase = 2;
+      else if (gameState.status === "results") displayPhase = 3;
     } else {
       // Normal game (≥ 8 participants): 5 phases
       // Phase 1: Waiting
@@ -161,7 +162,7 @@ export class UIManager {
 
     // Add player count for waiting phase
     let displayText = `${phaseName}`;
-    if (gameState.status === 'waiting' && gameState.playersCount !== undefined) {
+    if (gameState.status === "waiting" && gameState.playersCount !== undefined) {
       displayText = `${phaseName} (${gameState.playersCount}/5)`;
     } else if (displayPhase) {
       displayText = `${phaseName} (${displayPhase}/${maxPhases})`;
@@ -171,23 +172,30 @@ export class UIManager {
   }
 
   private createDigitText(char: string, color: string): Phaser.GameObjects.Text {
-    return this.scene.add.text(0, 0, char, {
-      fontFamily: 'Arial Black',
-      fontSize: 36,
-      color: color,
-      stroke: '#6B4423',
-      strokeThickness: 5,
-      align: 'center',
-      shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, fill: true }
-    }).setOrigin(0.5);
+    return this.scene.add
+      .text(0, 0, char, {
+        fontFamily: "Arial Black",
+        fontSize: 36,
+        color: color,
+        stroke: "#6B4423",
+        strokeThickness: 5,
+        align: "center",
+        shadow: { offsetX: 2, offsetY: 2, color: "#000000", blur: 4, fill: true },
+      })
+      .setOrigin(0.5);
   }
 
-  private animateDigitChange(position: number, newChar: string, color: string, totalLength: number) {
+  private animateDigitChange(
+    position: number,
+    newChar: string,
+    color: string,
+    totalLength: number
+  ) {
     // Calculate centering offset based on total string length
     const charWidth = 22;
     const totalWidth = totalLength * charWidth;
     const startOffset = -totalWidth / 2 + charWidth / 2;
-    const xOffset = startOffset + (position * charWidth);
+    const xOffset = startOffset + position * charWidth;
 
     // Get or create container for this position
     let container = this.digitContainers.get(position);
@@ -213,7 +221,7 @@ export class UIManager {
         toRemove.push(child);
       }
     });
-    toRemove.forEach(child => container.remove(child, true));
+    toRemove.forEach((child) => container.remove(child, true));
 
     // Create new digit coming from top
     const newDigit = this.createDigitText(newChar, color);
@@ -228,7 +236,7 @@ export class UIManager {
           targets: child,
           y: 0,
           duration: 200,
-          ease: 'Power2'
+          ease: "Power2",
         });
       } else {
         // Old digits slide down and fade out
@@ -237,10 +245,10 @@ export class UIManager {
           y: child.y + 40,
           alpha: 0,
           duration: 200,
-          ease: 'Power2',
+          ease: "Power2",
           onComplete: () => {
             container.remove(child, true);
-          }
+          },
         });
       }
     });
@@ -261,24 +269,24 @@ export class UIManager {
 
     // Determine if it's a quick game
     const isSmallGame = this.gameState.isSmallGame || this.gameState.playersCount < 8;
-    
+
     // Show timer only in specific phases
     if (isSmallGame) {
       // Quick game: show timer only in phase 1 (waiting)
-      if (this.gameState.status !== 'waiting') {
+      if (this.gameState.status !== "waiting") {
         this.timerContainer.setVisible(false);
         this.timerBackground.setVisible(false);
         return;
       }
     } else {
       // Normal game: show timer only in phase 1 (waiting) and phase 3 (betting)
-      if (this.gameState.status !== 'waiting' && this.gameState.status !== 'betting') {
+      if (this.gameState.status !== "waiting" && this.gameState.status !== "betting") {
         this.timerContainer.setVisible(false);
         this.timerBackground.setVisible(false);
         return;
       }
     }
-    
+
     // Make sure timer is visible
     this.timerContainer.setVisible(true);
     this.timerBackground.setVisible(true);
@@ -290,22 +298,22 @@ export class UIManager {
     // Format time as M:SS
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    const timeText = `${minutes}:${secs.toString().padStart(2, '0')}`;
+    const timeText = `${minutes}:${secs.toString().padStart(2, "0")}`;
 
     // Determine color based on time remaining
-    let color = '#FFDB58'; // Golden for normal
+    let color = "#FFDB58"; // Golden for normal
     if (seconds <= 5) {
-      color = '#FF6B6B'; // Red-orange for urgent
-      this.timerBackground.setStrokeStyle(4, 0xFF6B6B);
+      color = "#FF6B6B"; // Red-orange for urgent
+      this.timerBackground.setStrokeStyle(4, 0xff6b6b);
       // Pulse effect for last 5 seconds
       const scale = 1 + Math.sin(currentTime * 0.01) * 0.1;
       this.timerContainer.setScale(scale);
     } else if (seconds <= 10) {
-      color = '#FFA500'; // Orange for warning
-      this.timerBackground.setStrokeStyle(4, 0xFFA500);
+      color = "#FFA500"; // Orange for warning
+      this.timerBackground.setStrokeStyle(4, 0xffa500);
       this.timerContainer.setScale(1);
     } else {
-      this.timerBackground.setStrokeStyle(4, 0xFFB347);
+      this.timerBackground.setStrokeStyle(4, 0xffb347);
       this.timerContainer.setScale(1);
     }
 
@@ -319,7 +327,7 @@ export class UIManager {
         const startOffset = -totalWidth / 2 + charWidth / 2;
 
         for (let i = 0; i < timeText.length; i++) {
-          const xOffset = startOffset + (i * charWidth);
+          const xOffset = startOffset + i * charWidth;
           const container = this.digitContainers.get(i);
           if (container) {
             container.setX(xOffset);
@@ -329,7 +337,7 @@ export class UIManager {
 
       for (let i = 0; i < timeText.length; i++) {
         const newChar = timeText[i];
-        const oldChar = this.lastTimerValue[i] || '';
+        const oldChar = this.lastTimerValue[i] || "";
 
         if (newChar !== oldChar) {
           this.animateDigitChange(i, newChar, color, timeText.length);
@@ -338,7 +346,8 @@ export class UIManager {
           const container = this.digitContainers.get(i);
           if (container) {
             container.each((child: any) => {
-              if (child.y === 0) { // Only update the visible digit
+              if (child.y === 0) {
+                // Only update the visible digit
                 child.setColor(color);
               }
             });

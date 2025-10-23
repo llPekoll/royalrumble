@@ -70,6 +70,11 @@ export class DemoScene extends Scene {
     // Set up audio unlock on first user interaction
     this.setupAudioUnlock();
 
+    // Listen for insert coin event from React UI
+    EventBus.on("play-insert-coin-sound", () => {
+      SoundManager.playInsertCoin(this);
+    });
+
     // Create demo UI
     this.createDemoUI();
   }

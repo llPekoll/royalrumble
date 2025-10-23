@@ -51,7 +51,7 @@ export const startGame = internalMutation({
       event: "game_started",
       timestamp: now,
       success: true,
-      fromStatus: "idle",
+      fromStatus: "finished",
       toStatus: "waiting",
     });
 

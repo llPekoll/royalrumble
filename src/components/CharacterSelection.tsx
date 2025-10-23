@@ -10,6 +10,7 @@ import { CharacterPreviewScene } from "./CharacterPreviewScene";
 import styles from "./ButtonShine.module.css";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Buffer } from "buffer";
+import { EventBus } from "../game/EventBus";
 
 // Make Buffer available globally for Privy
 if (typeof window !== "undefined") {
@@ -51,10 +52,7 @@ const CharacterSelection = memo(function CharacterSelection({
 
   // Get current game state from Convex (SINGLE SOURCE OF TRUTH)
   const currentGame = useQuery(api.frontend.getCurrentGame);
-  const isPlayerInGame = useQuery(
-    api.frontend.isWalletInGame,
-    walletAddress ? { walletAddress } : "skip"
-  );
+
   const playerParticipants = useQuery(
     api.frontend.getPlayerParticipants,
     walletAddress ? { walletAddress } : "skip"
@@ -98,17 +96,23 @@ const CharacterSelection = memo(function CharacterSelection({
       return;
     }
 
+    // Play insert coin sound via Phaser
+    EventBus.emit("play-insert-coin-sound");
+
     // Check if player can place bet based on Convex game state
     if (!canPlaceBet && currentGame) {
       const status = currentGame.status;
       if (status === "awaitingWinnerRandomness") {
         toast.error("Game is determining winner, please wait...");
+        return;
       } else if (status === "finished") {
-        toast.error("Game has finished, new game will start soon");
+        // Game is finished - allow betting to create new round!
+        console.log("Previous game finished, placing bet will create new round");
+        // Continue to place bet (don't return)
       } else {
         toast.error("Cannot place bet at this time");
+        return;
       }
-      return;
     }
 
     const amount = parseFloat(betAmount);
