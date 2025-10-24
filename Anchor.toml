@@ -17,7 +17,7 @@ orao_vrf = "VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/work/domin8/solana/7H9uSFKd1h4pvFPFfqzLpSZyLac7F9ax9ZcFtv9B5oDf.json"
 
 [scripts]

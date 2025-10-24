@@ -730,7 +730,8 @@ describe("domin8_prgm - Devnet Tests (Real ORAO VRF)", () => {
 
       try {
         // Fetch BetEntry accounts to pass as remaining_accounts (needed to count unique players)
-        const betCount = gameAccount.betCount;
+        const gameAccount2 = await program.account.gameRound.fetch(gameRoundPda);
+        const betCount = gameAccount2.betCount;
         const remainingAccounts = [];
 
         for (let i = 0; i < betCount; i++) {
