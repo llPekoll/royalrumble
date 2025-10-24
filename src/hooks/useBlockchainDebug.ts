@@ -38,7 +38,7 @@ export function useBlockchainDebug(): BlockchainDebugState {
 
   const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
   const programId =
-    import.meta.env.VITE_GAME_PROGRAM_ID || "EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT";
+    import.meta.env.VITE_GAME_PROGRAM_ID || "2MmXcCXvS9WVvtPs162f6dTfWWpFUMGmgkZcXuQey6Yp";
 
   // Transform Convex data to match the debug interface
   const isLoading = gameStats === undefined || currentGame === undefined;

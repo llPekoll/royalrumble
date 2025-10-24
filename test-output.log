@@ -18,7 +18,7 @@ $ /Users/peko/work/domin8/node_modules/.bin/mocha -t 1000000 tests/comprehensive
 ║   DOMIN8 COMPREHENSIVE TEST SUITE          ║
 ╚════════════════════════════════════════════╝
 
-Program ID: EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT
+Program ID: 2MmXcCXvS9WVvtPs162f6dTfWWpFUMGmgkZcXuQey6Yp
 Authority: 7H9uSFKd1h4pvFPFfqzLpSZyLac7F9ax9ZcFtv9B5oDf
 
 === Global PDAs ===
@@ -99,13 +99,13 @@ Current Round ID: 0
 Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1. 
 Logs: 
 [
-  "Program EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT invoke [1]",
+  "Program 2MmXcCXvS9WVvtPs162f6dTfWWpFUMGmgkZcXuQey6Yp invoke [1]",
   "Program log: Instruction: CreateGame",
   "Program 11111111111111111111111111111111 invoke [2]",
   "Transfer: insufficient lamports 0, need 5581920",
   "Program 11111111111111111111111111111111 failed: custom program error: 0x1",
-  "Program EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT consumed 9076 of 200000 compute units",
-  "Program EUG7PPKMmzssdsyCrR4XXRcN5xMp1eBLXgF1SAsp28hT failed: custom program error: 0x1"
+  "Program 2MmXcCXvS9WVvtPs162f6dTfWWpFUMGmgkZcXuQey6Yp consumed 9076 of 200000 compute units",
+  "Program 2MmXcCXvS9WVvtPs162f6dTfWWpFUMGmgkZcXuQey6Yp failed: custom program error: 0x1"
 ]. 
 Catch the `SendTransactionError` and call `getLogs()` on it for full details.
   

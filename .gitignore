@@ -35,3 +35,4 @@ Cargo.lock
 .vercel
 
 test-ledger/
+docker-compose.yml

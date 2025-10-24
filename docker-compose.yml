@@ -2,11 +2,11 @@ services:
   db-init:
     image: postgres:16-alpine
     environment:
-      - PGPASSWORD=pal0LPW8hBO4zFsdW1Zas1fDFwdVqCg09e9rwPiWtjIR2HXW5UsENuP9UO7EnUBd
+      - PGPASSWORD=2fsW1dARLLXCPqZv0sbsG3NaGKuL26DEU5vu74Xk80xg9U4EN7wbb3Cj2P1Je5A7
     command: >
       sh -c "
-        psql -h 188.245.191.109 -p 3254 -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'convex_self_hosted'\" | grep -q 1 ||
-        psql -h 188.245.191.109 -p 3254 -U postgres -c 'CREATE DATABASE convex_self_hosted;'
+        psql -h 188.245.191.109 -p 3452 -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'convex_self_hosted'\" | grep -q 1 ||
+        psql -h 188.245.191.109 -p 3452 -U postgres -c 'CREATE DATABASE convex_self_hosted;'
       "
     restart: "no"
 
@@ -30,7 +30,7 @@ services:
       - DISABLE_BEACON
       - REDACT_LOGS_TO_CLIENT
       - DO_NOT_REQUIRE_SSL=true
-      - POSTGRES_URL=postgres://postgres:pal0LPW8hBO4zFsdW1Zas1fDFwdVqCg09e9rwPiWtjIR2HXW5UsENuP9UO7EnUBd@188.245.191.109:3254
+      - POSTGRES_URL=postgres://postgres:2fsW1dARLLXCPqZv0sbsG3NaGKuL26DEU5vu74Xk80xg9U4EN7wbb3Cj2P1Je5A7@188.245.191.109:3452/
       - RUST_LOG=${RUST_LOG:-info}
       - RUST_BACKTRACE
       - AWS_REGION
