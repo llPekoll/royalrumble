@@ -167,7 +167,7 @@ export default defineSchema({
     gameId: v.optional(v.string()), // Changed from gameId for consistency
     // TODO: not optional
     roundId: v.optional(v.number()), // Changed from gameId for consistency
-    event: v.string(), // "game_started", "phase_transition", "transaction_sent", "transaction_confirmed", "error"
+    event: v.string(), // "game_started", "phase_transition", "transaction_sent", "transaction_confirmed", "error", "single_player_auto_refund"
     timestamp: v.number(),
     transactionHash: v.optional(v.string()),
     success: v.boolean(),
@@ -177,6 +177,9 @@ export default defineSchema({
     toStatus: v.optional(v.string()),
     playersCount: v.optional(v.number()),
     transactionType: v.optional(v.string()),
+    // Single-player auto-refund fields (NEW)
+    refundAutomatic: v.optional(v.boolean()), // true if auto-refund succeeded, false if fallback
+    winnerPrizeUnclaimed: v.optional(v.number()), // Amount unclaimed for manual claim fallback
     // Performance tracking
     processingTimeMs: v.optional(v.number()),
     retryCount: v.optional(v.number()),

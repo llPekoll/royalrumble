@@ -245,10 +245,11 @@ export class SolanaClient {
   }
 
   // Close betting window and lock game for resolution
+  // NEW: For single-player games, passes player wallet for automatic refund
   async closeBettingWindow(): Promise<string> {
     // Get current round ID to derive correct game PDA
     const currentRoundId = await this.getCurrentRoundId();
-    const { gameConfig, gameCounter, gameRound } = this.getPDAs(currentRoundId);
+    const { gameConfig, gameCounter, gameRound, vault } = this.getPDAs(currentRoundId);
 
     if (!gameRound) {
       throw new Error("Failed to derive game round PDA");
@@ -260,6 +261,8 @@ export class SolanaClient {
 
     // Fetch BetEntry PDAs for all bets (needed to count unique players)
     const remainingAccounts = [];
+    const uniquePlayers = new Set<string>();
+
     for (let i = 0; i < betCount; i++) {
       const { betEntry } = this.getPDAs(currentRoundId, i);
       if (betEntry) {
@@ -268,7 +271,32 @@ export class SolanaClient {
           isWritable: false, // Read-only for validation
           isSigner: false,
         });
+
+        // Track unique players for single-player detection
+        try {
+          const betEntryAccount = await this.program.account.betEntry.fetch(betEntry);
+          uniquePlayers.add(betEntryAccount.wallet.toBase58());
+        } catch (error) {
+          console.error(`Failed to fetch bet entry ${i}:`, error);
+        }
       }
+    }
+
+    // NEW: For single-player games, add the player's wallet for automatic refund
+    if (uniquePlayers.size === 1) {
+      const playerWallet = Array.from(uniquePlayers)[0];
+      remainingAccounts.push({
+        pubkey: new PublicKey(playerWallet),
+        isWritable: true, // IMPORTANT: Must be writable for automatic transfer
+        isSigner: false, // Crank signs, not the player
+      });
+      console.log(
+        `Single-player game detected. Automatic refund will be attempted for player: ${playerWallet}`
+      );
+    } else {
+      console.log(
+        `Multi-player game with ${uniquePlayers.size} players. No automatic refund needed.`
+      );
     }
 
     console.log(`Closing betting window for round ${currentRoundId} with ${betCount} bets`);
@@ -279,6 +307,7 @@ export class SolanaClient {
         counter: gameCounter,
         gameRound: gameRound,
         config: gameConfig,
+        vault, // NOW required for auto-refund (was optional before)
         crank: this.authority.publicKey,
       } as any)
       .remainingAccounts(remainingAccounts)

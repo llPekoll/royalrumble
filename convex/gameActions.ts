@@ -41,7 +41,8 @@ export const closeBettingWindow = internalAction({
 
       const solanaClient = new SolanaClient(rpcEndpoint, authorityKey);
 
-      // Close betting window and transition to winner selection
+      // Close betting window and transition to winner selection or completion
+      // NEW: For single-player games, this now includes automatic refund attempt
       const txHash = await solanaClient.closeBettingWindow();
 
       await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
@@ -59,29 +60,79 @@ export const closeBettingWindow = internalAction({
 
       const confirmed = await solanaClient.confirmTransaction(txHash);
       if (confirmed) {
-        await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, {
-          roundId: game.roundId,
-          event: "transaction_confirmed",
-          details: {
-            success: true,
-            transactionHash: txHash,
-            transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
-          },
-        });
+        // Fetch updated game state to check if single-player with auto-refund
+        const updatedGameRound = await solanaClient.getGameRound();
 
-        await ctx.runMutation(internal.gameManagerDb.updateGame, {
-          gameId: game._id,
-          status: "awaitingWinnerRandomness",
-          lastUpdated: now,
-        });
+        // Check if this was a single-player game (and status is now Finished)
+        const isSinglePlayerAutoRefund =
+          game.playersCount === 1 && updatedGameRound?.status === "finished";
 
-        // Schedule VRF check after 5 seconds
-        await ctx.scheduler.runAfter(5000, internal.gameActions.checkVrfAndComplete, {
-          gameId,
-          retryCount: 0,
-        });
+        // Prepare event details with all required fields
+        const baseEventDetails = {
+          success: true,
+          transactionHash: txHash,
+          transactionType: TRANSACTION_TYPES.CLOSE_BETTING_WINDOW,
+        };
 
-        console.log(`Betting window closed for round ${game.roundId}, VRF check scheduled`);
+        let eventDetails: any;
+
+        if (isSinglePlayerAutoRefund) {
+          console.log(
+            `Single-player game ${game.roundId}: Automatic refund processed, game finished immediately`
+          );
+
+          // For single-player, game is already finished after close_betting_window
+          // Add auto-refund fields
+          eventDetails = {
+            roundId: game.roundId,
+            event: "single_player_auto_refund",
+            details: {
+              ...baseEventDetails,
+              refundAutomatic: updatedGameRound?.winnerPrizeUnclaimed === 0,
+              winnerPrizeUnclaimed: updatedGameRound?.winnerPrizeUnclaimed || 0,
+            },
+          };
+        } else {
+          // Multi-player game: regular confirmation
+          eventDetails = {
+            roundId: game.roundId,
+            event: "transaction_confirmed",
+            details: baseEventDetails,
+          };
+        }
+
+        await ctx.runMutation(internal.gameManagerDb.logGameEventRecord, eventDetails);
+
+        if (isSinglePlayerAutoRefund) {
+          // Single-player game finished immediately
+          await ctx.runMutation(internal.gameManagerDb.updateGame, {
+            gameId: game._id,
+            status: "finished",
+            lastUpdated: now,
+            winner: updatedGameRound?.winner ?? undefined,
+          });
+
+          console.log(
+            `Single-player game ${game.roundId} completed immediately with auto-refund`
+          );
+        } else {
+          // Multi-player game: transition to winner selection
+          await ctx.runMutation(internal.gameManagerDb.updateGame, {
+            gameId: game._id,
+            status: "awaitingWinnerRandomness",
+            lastUpdated: now,
+          });
+
+          // Schedule VRF check after 5 seconds
+          await ctx.scheduler.runAfter(5000, internal.gameActions.checkVrfAndComplete, {
+            gameId,
+            retryCount: 0,
+          });
+
+          console.log(
+            `Betting window closed for round ${game.roundId}, VRF check scheduled for multi-player game`
+          );
+        }
       } else {
         throw new Error("Transaction confirmation failed");
       }

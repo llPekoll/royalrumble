@@ -54,6 +54,8 @@ export interface GameRound {
   vrfRequestPubkey: string | null; // PublicKey as base58 string, or null if not requested
   vrfSeed: number[];
   randomnessFulfilled: boolean;
+  // Single-player auto-refund fields (NEW)
+  winnerPrizeUnclaimed?: number; // Amount unclaimed for manual claim fallback (0 if auto-refund succeeded)
 }
 
 // PDA seeds
