@@ -49,6 +49,15 @@ export function Header() {
   // Get game state from Solana-based system
   const gameState = useQuery(api.gameManagerDb.getGameState);
 
+  // Debug: log when game status changes
+  useEffect(() => {
+    if (gameState?.game) {
+      console.log(
+        `[Header] Game status update - Round ${gameState.game.roundId}: ${gameState.game.status}`
+      );
+    }
+  }, [gameState?.game?.status, gameState?.game?.roundId]);
+
   // Fetch ONLY Privy embedded wallet balance via direct RPC
   useEffect(() => {
     if (!authenticated || !privyWalletAddress) {
@@ -130,7 +139,11 @@ export function Header() {
                     {gameState.game.status === "waiting" && "Waiting for players"}
                     {gameState.game.status === "awaitingWinnerRandomness" &&
                       "Determining winner..."}
-                    {gameState.game.status === "finished" && "Ready"}
+                    {gameState.game.status === "finished" && "Game Over - Place bet for new round"}
+                    {/* Debug: show status if unexpected */}
+                    {!["waiting", "awaitingWinnerRandomness", "finished"].includes(
+                      gameState.game.status
+                    ) && `Status: ${gameState.game.status}`}
                   </div>
                 </div>
               )}
