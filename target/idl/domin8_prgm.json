@@ -408,6 +408,9 @@
         },
         {
           "name": "vault",
+          "docs": [
+            "The vault PDA that holds game funds"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
