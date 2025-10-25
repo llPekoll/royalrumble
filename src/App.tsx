@@ -24,7 +24,8 @@ export default function App() {
   // Demo mode is active when no real game exists or game is in "idle" state
   // Handle undefined (loading state), null, or idle status
   console.log({ gameData, phase, timeRemaining, description });
-  const isDemoMode = isDemo;
+  // const isDemoMode = isDemo;
+  const isDemoMode = false; // Temporarily force real game mode for testing
 
   // Event emitted from the PhaserGame component
   const currentScene = (scene: Phaser.Scene) => {

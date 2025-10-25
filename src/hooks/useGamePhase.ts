@@ -7,7 +7,6 @@ import { useMemo, useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
-  calculateGamePhase,
   getPhaseTimeRemaining,
   getPhaseDescription,
   type GamePhase,
@@ -45,16 +44,10 @@ export function useGamePhase(): GamePhaseState {
   const currentPhase = useMemo(() => {
     if (isDemo) return "finished";
 
-    const game = gameState.game;
-    if (!game.startTimestamp || !game.endTimestamp) return "finished";
+    const game = gameState?.game;
+    if (!game?.startTimestamp || !game?.endTimestamp) return "finished";
 
-    return calculateGamePhase(
-      game.status,
-      game.startTimestamp / 1000, // Convert ms to seconds
-      game.endTimestamp / 1000,
-      game.winner,
-      currentTime
-    );
+    return game.status as GamePhase;
   }, [gameState, isDemo, currentTime]);
 
   const timeRemaining = useMemo(() => {
