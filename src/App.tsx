@@ -76,7 +76,7 @@ export default function App() {
 
   // Show blockchain dialog during FIGHTING and VRF_DELAYED phases
   useEffect(() => {
-    const shouldShowDialog = phase === "FIGHTING" || phase === "VRF_DELAYED";
+    const shouldShowDialog = phase === "awaitingWinnerRandomness" && gameData?.game.randomnessFulfilled === false;
     setShowBlockchainDialog(shouldShowDialog);
   }, [phase]);
 

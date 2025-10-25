@@ -82,7 +82,7 @@ export class GamePhaseManager {
 
       // VRF dialog shown by React UI (BlockchainRandomnessDialog)
       // Battle animations play while waiting for VRF response (3-8 seconds)
-      // Handle if vrf fails or is delayed (show a dialog to inform users that we are waiting the VRF)
+      // Handle if vrf fails or is delayed (show a dialog, done in App.tsx)
     }
   }
 
