@@ -212,7 +212,15 @@ export class SolanaClient {
         return null;
       }
 
-      console.log("Fetched game round account:", account);
+      console.log("=== Game Round Account ===");
+      console.log(`  Round ID: ${account.roundId?.toNumber()}`);
+      console.log(`  Status: ${status}`);
+      console.log(`  Bet Count: ${account.betCount}`);
+      console.log(`  Total Pot: ${account.totalPot?.toNumber()} lamports`);
+      console.log(`  Winner: ${account.winner?.toBase58() ?? "None"}`);
+      console.log(`  Winning Bet Index: ${account.winningBetIndex ?? "N/A"}`);
+      console.log(`  VRF Fulfilled: ${account.randomnessFulfilled ?? false}`);
+      console.log("==========================");
 
       return {
         roundId: account.roundId?.toNumber() ?? 0,

@@ -69,11 +69,13 @@ async function scheduleGameActions(ctx: any, gameRound: any) {
         return;
       }
       const currentTime = Math.floor(Date.now() / 1000);
-      const delay = Math.max(0, endTimestamp - currentTime);
+      // Add 2 second buffer to ensure blockchain clock has definitely passed endTimestamp
+      const CLOSE_BETTING_BUFFER = 2; // seconds
+      const delay = Math.max(0, endTimestamp - currentTime + CLOSE_BETTING_BUFFER);
 
       if (delay > 0) {
-        // Schedule for future
-        const scheduledTime = endTimestamp;
+        // Schedule for future (with buffer to avoid BettingWindowStillOpen error)
+        const scheduledTime = endTimestamp + CLOSE_BETTING_BUFFER;
         const jobId = await ctx.scheduler.runAfter(
           delay * 1000, // Convert to milliseconds
           internal.gameScheduler.executeCloseBetting,
@@ -89,7 +91,7 @@ async function scheduleGameActions(ctx: any, gameRound: any) {
         });
 
         console.log(
-          `✓ Scheduled betting close for round ${roundId} in ${delay}s (at ${new Date(endTimestamp * 1000).toISOString()})`
+          `✓ Scheduled betting close for round ${roundId} in ${delay}s (at ${new Date(scheduledTime * 1000).toISOString()})`
         );
       } else {
         // Already past endTimestamp - trigger immediately

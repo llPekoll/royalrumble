@@ -52,12 +52,14 @@ export const executeCloseBetting = internalAction({
         return;
       }
 
-      // 2. Verify betting window has actually closed
+      // 2. Verify betting window has actually closed (with buffer for blockchain clock)
       const currentTime = Math.floor(Date.now() / 1000);
-      if (currentTime < latestState.endTimestamp) {
-        const remaining = latestState.endTimestamp - currentTime;
+      const BLOCKCHAIN_CLOCK_BUFFER = 2; // seconds to account for blockchain clock drift
+      
+      if (currentTime < latestState.endTimestamp + BLOCKCHAIN_CLOCK_BUFFER) {
+        const remaining = latestState.endTimestamp + BLOCKCHAIN_CLOCK_BUFFER - currentTime;
         console.log(
-          `Round ${roundId}: Betting window not closed yet (${remaining}s remaining), skipping`
+          `Round ${roundId}: Waiting for blockchain clock buffer (${remaining}s remaining), skipping`
         );
         return;
       }
@@ -144,7 +146,7 @@ export const executeCheckVrf = internalAction({
       }
 
       // 2. Check VRF fulfillment
-        //   const solanaClient = new SolanaClient(RPC_ENDPOINT, CRANK_AUTHORITY_PRIVATE_KEY);
+          const solanaClient = new SolanaClient(RPC_ENDPOINT, CRANK_AUTHORITY_PRIVATE_KEY);
         //   const vrfFulfilled = await solanaClient.checkVrfFulfillment(
         //     latestState.vrfRequestPubkey
         //   );
