@@ -98,6 +98,14 @@ export const executeCloseBetting = internalAction({
       }
     } catch (error) {
       console.error(`Round ${roundId}: Error closing betting:`, error);
+      
+      // Mark job as failed in database
+      await ctx.runMutation(internal.gameSchedulerMutations.markJobFailed, {
+        roundId,
+        action: "close_betting",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      
       // Don't throw - recovery cron will handle later
     }
   },
@@ -200,6 +208,8 @@ export const executeCheckVrf = internalAction({
     } catch (error) {
       console.error(`Round ${roundId}: Error checking VRF (attempt ${attempt}):`, error);
 
+      
+
       // On error, retry if we haven't exceeded max attempts
       if (attempt < MAX_VRF_ATTEMPTS) {
         console.log(`Round ${roundId}: Scheduling retry after error...`);
@@ -208,6 +218,13 @@ export const executeCheckVrf = internalAction({
           internal.gameScheduler.executeCheckVrf,
           { roundId, attempt: attempt + 1 }
         );
+      } else {
+            // Mark job as failed in database
+            await ctx.runMutation(internal.gameSchedulerMutations.markJobFailed, {
+                roundId,
+                action: "check_vrf",
+                error: error instanceof Error ? error.message : String(error),
+            });
       }
     }
   },
