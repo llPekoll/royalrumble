@@ -5,7 +5,7 @@
  * 1. Blockchain events from the domin8 program
  * 2. Game round state snapshots
  */
-import { query } from "./_generated/server";
+import { query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 // ============================================================================
@@ -126,6 +126,25 @@ export const getCurrentRoundState = query({
       .first();
 
     return latestState;
+  },
+});
+
+/**
+ * Get latest state for a specific round
+ * Used by scheduler to check current status before executing actions
+ */
+export const getLatestRoundState = internalQuery({
+  args: {
+    roundId: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const states = await ctx.db
+      .query("gameRoundStates")
+      .withIndex("by_round_id", (q) => q.eq("roundId", args.roundId))
+      .order("desc") // Most recent first
+      .first();
+
+    return states;
   },
 });
 

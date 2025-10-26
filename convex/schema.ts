@@ -64,6 +64,27 @@ export default defineSchema({
     .index("by_captured_at", ["capturedAt"]), // Chronological ordering
 
   // ============================================================================
+  // SCHEDULER TABLES
+  // ============================================================================
+
+  /**
+   * Scheduled Jobs - Track scheduled game progression actions
+   * Used for debugging and preventing duplicate scheduling
+   */
+  scheduledJobs: defineTable({
+    jobId: v.string(), // Unique job ID (Convex scheduler ID)
+    roundId: v.number(), // Game round
+    action: v.string(), // "close_betting" | "check_vrf"
+    scheduledTime: v.number(), // When to execute (Unix timestamp)
+    status: v.string(), // "pending" | "completed" | "failed"
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index("by_round_and_status", ["roundId", "status"])
+    .index("by_status", ["status"]),
+
+  // ============================================================================
   // FRONTEND UI TABLES (existing)
   // ============================================================================
 
