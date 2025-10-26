@@ -138,7 +138,8 @@ export const isJobScheduled = internalMutation({
     const job = await ctx.db
       .query("scheduledJobs")
       .withIndex("by_round_and_status", (q) =>
-        q.eq("roundId", args.roundId).eq("status", "pending")
+          q.eq("roundId", args.roundId).eq("status", "pending")
+          || q.eq("roundId", args.roundId).eq("status", "completed")
       )
       .filter((q) => q.eq(q.field("action"), args.action))
       .first();

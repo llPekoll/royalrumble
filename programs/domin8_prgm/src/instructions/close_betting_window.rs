@@ -7,6 +7,7 @@ use anchor_lang::prelude::*;
 #[derive(Accounts)]
 pub struct CloseBettingWindow<'info> {
     #[account(
+        mut,
         seeds = [GAME_COUNTER_SEED],
         bump
     )]

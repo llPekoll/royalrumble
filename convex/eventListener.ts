@@ -30,6 +30,7 @@ async function captureGameRoundState(ctx: any, solanaClient: SolanaClient) {
       status,
     });
     if (existingState) {
+      await scheduleGameActions(ctx, gameRound);
       return; // Already captured this state
     }
     await ctx.runMutation(internal.eventListenerMutations.saveGameRoundState, {
