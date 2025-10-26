@@ -60,7 +60,7 @@ class PrivyWalletAdapter {
     private privyWallet: any,
     private network: string
     ) {
-    console.log("[PrivyWalletAdapter] Initialized with network:", network);
+    // console.log("[PrivyWalletAdapter] Initialized with network:", network);
   }
 
   async signTransaction<T extends Transaction | VersionedTransaction>(tx: T): Promise<T> {

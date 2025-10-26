@@ -72,9 +72,21 @@ export default defineSchema({
    */
   characters: defineTable({
     name: v.string(),
-    spritesheet: v.string(),
+    assetPath: v.string(), // Path to character spritesheet (e.g., "/characters/orc.png")
+    description: v.optional(v.string()), // Character description
+    animations: v.optional(
+      v.object({
+        idle: v.object({
+          start: v.number(),
+          end: v.number(),
+        }),
+        walk: v.object({
+          start: v.number(),
+          end: v.number(),
+        }),
+      })
+    ),
     isActive: v.boolean(),
-    animationConfig: v.optional(v.any()),
   }).index("by_active", ["isActive"]),
 
   /**
@@ -82,11 +94,15 @@ export default defineSchema({
    */
   maps: defineTable({
     name: v.string(),
-    tilemapKey: v.string(),
-    isActive: v.boolean(),
+    background: v.string(), // Background identifier (e.g., "arena_classic")
+    assetPath: v.string(), // Path to map asset (e.g., "/maps/arena_classic.png")
+    description: v.optional(v.string()), // Map description
     spawnConfiguration: v.object({
-      spawnRadius: v.number(),
+      maxPlayers: v.number(), // Maximum players for this map
+      spawnRadius: v.number(), // Radius for spawn area
+      minSpacing: v.number(), // Minimum spacing between spawns
     }),
+    isActive: v.boolean(),
   }).index("by_active", ["isActive"]),
 
   /**
