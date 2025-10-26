@@ -18,6 +18,6 @@ export function getSolanaRpcUrl(): string {
       return "http://localhost:8899";
     case "devnet":
     default:
-      return "https://api.devnet.solana.com";
+      return "http://localhost:8899";
   }
 }
