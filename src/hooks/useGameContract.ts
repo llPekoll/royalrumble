@@ -488,7 +488,7 @@ export const useGameContract = () => {
 
           // LOCALNET: simulate ORAO by creating MockVrfAccount PDA and pass it to create_game
           // Fetch game config to read the current force field used as VRF seed
-          if (network === "localnet") {
+          if (network === "devnet") {
             // Use Anchor to fetch the GameConfig (has `force: [u8;32]`)
             const configAccount = await program.account.gameConfig.fetch(gameConfigPda);
             const forceArr = configAccount.force as any; // usually Uint8Array or number[]

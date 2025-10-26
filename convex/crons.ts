@@ -23,28 +23,16 @@ crons.interval(
  * Game recovery - self-healing system that catches overdue actions
  * Runs every 30 seconds to check if blockchain is ahead of expected state
  */
-crons.interval(
-  "game-recovery",
-  { seconds: 30 },
-  internal.gameRecovery.checkGameRecovery
-);
+// TODO LATER: priority medium
 
 /**
  * Transaction cleanup - removes 7-day old transactions
  */
-crons.interval(
-  "transaction-cleanup",
-  { hours: 24 },
-  internal.transactions.cleanupOldTransactions
-);
+// TODO LATER: priority low
 
 /**
  * Game cleanup - removes old completed games
  */
-crons.interval(
-  "game-cleanup",
-  { hours: 24 },
-  internal.gameManagerDb.cleanupOldGames
-);
+// TODO LATER: priority low
 
 export default crons;
