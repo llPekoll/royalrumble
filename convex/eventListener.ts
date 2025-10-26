@@ -20,7 +20,7 @@ export const listenToBlockchainEvents = internalAction({
 
     try {
       // Initialize Solana client
-      const rpcEndpoint = process.env.SOLANA_RPC_ENDPOINT || "https://api.devnet.solana.com";
+      const rpcEndpoint = "http://host.docker.internal:8899";
       const authorityKey = process.env.CRANK_AUTHORITY_PRIVATE_KEY;
 
       if (!authorityKey) {
@@ -65,6 +65,7 @@ async function subscribeToEvents(ctx: any, program: anchor.Program, now: number)
   );
 
   console.log(`Checking for events since slot ${lastProcessedSlot || "genesis"}`);
+  console.log('program id is ', program.programId.toString());
 
   // Fetch recent events from the program
   // Note: This uses getProgramAccounts which is more reliable than websocket subscriptions

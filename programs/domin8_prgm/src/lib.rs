@@ -18,7 +18,7 @@ pub use events::*;
 pub use state::*;
 pub use utils::*;
 
-declare_id!("2MmXcCXvS9WVvtPs162f6dTfWWpFUMGmgkZcXuQey6Yp");
+declare_id!("G14TvYVpv1Xzr2GSX65QfiWxYExCqncqMgSygK5u38Vc");
 
 #[program]
 pub mod domin8_prgm {
@@ -82,5 +82,11 @@ pub mod domin8_prgm {
     /// Rotate force field (admin only, for fixing stuck VRF states)
     pub fn rotate_force(ctx: Context<RotateForce>) -> Result<()> {
         instructions::rotate_force(ctx)
+    }
+
+    /// Fulfill mock VRF randomness (LOCALNET ONLY - for testing)
+    #[cfg(feature = "localnet")]
+    pub fn fulfill_mock_vrf(ctx: Context<FulfillMockVrf>, randomness: u64) -> Result<()> {
+        instructions::fulfill_mock_vrf(ctx, randomness)
     }
 }

@@ -23,7 +23,7 @@ export default function App() {
 
   // Demo mode is active when no real game exists or game is in "idle" state
   // Handle undefined (loading state), null, or idle status
-  console.log({ gameData, phase, timeRemaining, description });
+  // console.log({ gameData, phase, timeRemaining, description });
   // const isDemoMode = isDemo;
   const isDemoMode = false; // Temporarily force real game mode for testing
 
@@ -36,7 +36,7 @@ export default function App() {
       (scene as any).updateGamePhase?.(phase, timeRemaining);
 
       // Blockchain calls now handled by Solana crank system (no frontend trigger needed)
-      console.log(`Real game active - Phase: ${phase} (${timeRemaining}s remaining)`);
+      // console.log(`Real game active - Phase: ${phase} (${timeRemaining}s remaining)`);
     } else if (scene.scene.key === "DemoScene") {
       // Demo scene is ready - DemoGameManager will handle it
       console.log("DemoScene is ready");

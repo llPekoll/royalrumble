@@ -36,7 +36,7 @@ export interface GameConfig {
 }
 
 const PROGRAM_ID = idl.address;
-const RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+const RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL || "http://127.0.0.1:8899";
 
 export function useGameState() {
   const [gameState, setGameState] = useState<GameState | null>(null);
