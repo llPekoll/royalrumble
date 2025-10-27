@@ -16,7 +16,7 @@ const crons = cronJobs();
 crons.interval(
   "blockchain-fetch-round-pdas",
   { seconds: 5 },
-  internal.eventListener.fetchRoundPDAs
+  internal.fetchRoundPDAs.fetchRoundPDAs
 );
 
 /**

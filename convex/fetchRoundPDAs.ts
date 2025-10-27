@@ -26,15 +26,18 @@ async function captureGameRoundState(ctx: any, solanaClient: SolanaClient) {
       return;
     }
     const { roundId, status } = gameRound;
-    const existingState = await ctx.runMutation(internal.eventListenerMutations.checkStateCaptured, {
-      roundId,
-      status,
-    });
+    const existingState = await ctx.runMutation(
+      internal.fetchRoundPDAsMutations.checkStateCaptured,
+      {
+        roundId,
+        status,
+      }
+    );
     if (existingState) {
       await scheduleGameActions(ctx, gameRound);
       return; // Already captured this state
     }
-    await ctx.runMutation(internal.eventListenerMutations.saveGameRoundState, {
+    await ctx.runMutation(internal.fetchRoundPDAsMutations.saveGameRoundState, {
       gameRound,
     });
     console.log("Captured Round " + roundId + ": " + status);
@@ -59,9 +62,9 @@ async function captureGameRoundState(ctx: any, solanaClient: SolanaClient) {
 async function captureRoundBets(ctx: any, solanaClient: SolanaClient, roundId: number) {
   try {
     const bets = await solanaClient.getBetsForRound(roundId);
-    
+
     console.log(`Fetched ${bets.length} bets for round ${roundId}`);
-    
+
     for (const bet of bets) {
       // Check if bet already stored
       const existing = await ctx.runMutation(
@@ -73,20 +76,19 @@ async function captureRoundBets(ctx: any, solanaClient: SolanaClient, roundId: n
       );
 
       if (!existing) {
-        await ctx.runMutation(
-          (internal as any).betEventListenerMutations.storeBetFromPDA,
-          {
-            bet: {
-              gameRoundId: bet.gameRoundId,
-              betIndex: bet.betIndex,
-              wallet: bet.wallet,
-              betAmount: bet.betAmount,
-              timestamp: bet.timestamp,
-              payoutCollected: bet.payoutCollected,
-            },
-          }
+        await ctx.runMutation((internal as any).betEventListenerMutations.storeBetFromPDA, {
+          bet: {
+            gameRoundId: bet.gameRoundId,
+            betIndex: bet.betIndex,
+            wallet: bet.wallet,
+            betAmount: bet.betAmount,
+            timestamp: bet.timestamp,
+            payoutCollected: bet.payoutCollected,
+          },
+        });
+        console.log(
+          `✓ Stored bet ${bet.betIndex} for round ${roundId}: ${bet.wallet} - ${bet.betAmount / 1e9} SOL`
         );
-        console.log(`✓ Stored bet ${bet.betIndex} for round ${roundId}: ${bet.wallet} - ${bet.betAmount / 1e9} SOL`);
       }
     }
   } catch (error) {
@@ -145,11 +147,9 @@ async function scheduleGameActions(ctx: any, gameRound: any) {
         );
       } else {
         // Already past endTimestamp - trigger immediately
-        const jobId = await ctx.scheduler.runAfter(
-          0,
-          internal.gameScheduler.executeCloseBetting,
-          { roundId }
-        );
+        const jobId = await ctx.scheduler.runAfter(0, internal.gameScheduler.executeCloseBetting, {
+          roundId,
+        });
 
         await ctx.runMutation(internal.gameSchedulerMutations.saveScheduledJob, {
           jobId: jobId.toString(),
@@ -188,11 +188,10 @@ async function scheduleGameActions(ctx: any, gameRound: any) {
 
       // Schedule first VRF check after 2 seconds
       const currentTime = Math.floor(Date.now() / 1000);
-      const jobId = await ctx.scheduler.runAfter(
-        2000,
-        internal.gameScheduler.executeCheckVrf,
-        { roundId, attempt: 1 }
-      );
+      const jobId = await ctx.scheduler.runAfter(2000, internal.gameScheduler.executeCheckVrf, {
+        roundId,
+        attempt: 1,
+      });
 
       await ctx.runMutation(internal.gameSchedulerMutations.saveScheduledJob, {
         jobId: jobId.toString(),

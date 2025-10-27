@@ -38,7 +38,7 @@ export function useBlockchainDebug(): BlockchainDebugState {
 
   const rpcUrl = import.meta.env.VITE_SOLANA_RPC_URL || "http://127.0.0.1:8899";
   const programId =
-    import.meta.env.VITE_GAME_PROGRAM_ID || "G14TvYVpv1Xzr2GSX65QfiWxYExCqncqMgSygK5u38Vc";
+    import.meta.env.VITE_GAME_PROGRAM_ID || "93swWR5KYURGFWhDbgat9HxRdJAS5pQKssPffnj9bfXK";
 
   const isLoading = currentRoundState === undefined || stateStats === undefined;
   const error = null;

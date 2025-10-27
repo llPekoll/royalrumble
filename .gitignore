@@ -4,8 +4,8 @@
 
 
 convex/_generated
-
-
+test-output.log
+target/.rustc_info.json
 .anchor/*
 solana
 
