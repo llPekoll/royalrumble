@@ -6,7 +6,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=localdevpassword
-      - POSTGRES_DB=convex_self_hosted
+      # Don't create database - Convex will create it
     ports:
       - "5432:5432"
     volumes:
@@ -37,7 +37,8 @@ services:
       - DISABLE_BEACON
       - REDACT_LOGS_TO_CLIENT
       - DO_NOT_REQUIRE_SSL=true
-      - POSTGRES_URL=postgres://postgres:localdevpassword@postgres:5432/convex_self_hosted
+      # Convex expects just the base URL without database name - it will create the DB
+      - POSTGRES_URL=postgres://postgres:localdevpassword@postgres:5432
       - RUST_LOG=${RUST_LOG:-info}
       - RUST_BACKTRACE
       - AWS_REGION
