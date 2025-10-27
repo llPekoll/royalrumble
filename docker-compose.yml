@@ -1,14 +1,21 @@
 services:
-  db-init:
+  # Local PostgreSQL database for development
+  postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      - PGPASSWORD=pal0LPW8hBO4zFsdW1Zas1fDFwdVqCg09e9rwPiWtjIR2HXW5UsENuP9UO7EnUBd
-    command: >
-      sh -c "
-        psql -h 188.245.191.109 -p 3254 -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'convex_self_hosted'\" | grep -q 1 ||
-        psql -h 188.245.191.109 -p 3254 -U postgres -c 'CREATE DATABASE convex_self_hosted;'
-      "
-    restart: "no"
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=localdevpassword
+      - POSTGRES_DB=convex_self_hosted
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     # Change this to :${REV} if you want to pin to a specific version
@@ -30,7 +37,7 @@ services:
       - DISABLE_BEACON
       - REDACT_LOGS_TO_CLIENT
       - DO_NOT_REQUIRE_SSL=true
-      - POSTGRES_URL=postgres://postgres:pal0LPW8hBO4zFsdW1Zas1fDFwdVqCg09e9rwPiWtjIR2HXW5UsENuP9UO7EnUBd@188.245.191.109:3254
+      - POSTGRES_URL=postgres://postgres:localdevpassword@postgres:5432/convex_self_hosted
       - RUST_LOG=${RUST_LOG:-info}
       - RUST_BACKTRACE
       - AWS_REGION
@@ -48,8 +55,8 @@ services:
       - S3_ENDPOINT_URL
 
     depends_on:
-      db-init:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
     healthcheck:
       test: curl -f http://localhost:3210/version
@@ -71,3 +78,4 @@ services:
 
 volumes:
   data:
+  postgres_data:
