@@ -332,6 +332,7 @@
       "accounts": [
         {
           "name": "counter",
+          "writable": true,
           "pda": {
             "seeds": [
               {
