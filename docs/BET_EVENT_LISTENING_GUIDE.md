@@ -352,7 +352,7 @@ export const saveBetPlacedEvent = internalMutation({
 ### Step 2: Update Event Listener to Include Bets
 
 ```typescript
-// UPDATE: convex/eventListener.ts
+// UPDATE: convex/fetchRoundPDAs.ts
 async function captureGameRoundState(ctx: any, solanaClient: SolanaClient) {
   try {
     const gameRound = await solanaClient.getGameRound();
@@ -481,9 +481,9 @@ const crons = cronJobs();
 
 // Existing event listener (captures game state)
 crons.interval(
-  "Listen to blockchain events",
+  "Ftech round PDAs",
   { seconds: 2 },
-  internal.eventListener.listenToBlockchainEvents
+  internal.eventListener.fetchRoundPDAs
 );
 
 // NEW: Bet event listener (captures individual bets)

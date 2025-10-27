@@ -33,9 +33,12 @@ export interface GameDurationConfig {
 // Bet entry in the game (renamed from PlayerEntry)
 // Note: PublicKeys are serialized as strings for Convex compatibility
 export interface BetEntry {
+  gameRoundId: number; // Which game round this bet belongs to
+  betIndex: number; // Index of this bet (0, 1, 2, ...)
   wallet: string; // PublicKey as base58 string
-  betAmount: number;
-  timestamp: number;
+  betAmount: number; // Amount in lamports
+  timestamp: number; // When bet was placed
+  payoutCollected: boolean; // Track if winnings have been collected
 }
 
 // Game round state (simplified for small games MVP)

@@ -2,6 +2,7 @@
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { SolanaClient } from "./lib/solana";
+import * as betMutations from "./betEventListenerMutations";
 
 const RPC_ENDPOINT = process.env.SOLANA_RPC_ENDPOINT || "http://127.0.0.1:8899";
 const CRANK_AUTHORITY_PRIVATE_KEY = process.env.CRANK_AUTHORITY_PRIVATE_KEY || "";
@@ -38,11 +39,59 @@ async function captureGameRoundState(ctx: any, solanaClient: SolanaClient) {
     });
     console.log("Captured Round " + roundId + ": " + status);
 
+    // ⭐ NEW: Capture individual bets when in WAITING state
+    if (status === "waiting") {
+      await captureRoundBets(ctx, solanaClient, roundId);
+    }
+
     // ⭐ NEW: Schedule actions based on game state
     await scheduleGameActions(ctx, gameRound);
   } catch (error) {
     console.error("Error capturing game round state:", error);
     throw error;
+  }
+}
+
+/**
+ * Capture all bets for a round from blockchain
+ * Fetches BetEntry PDAs and stores them in Convex database
+ */
+async function captureRoundBets(ctx: any, solanaClient: SolanaClient, roundId: number) {
+  try {
+    const bets = await solanaClient.getBetsForRound(roundId);
+    
+    console.log(`Fetched ${bets.length} bets for round ${roundId}`);
+    
+    for (const bet of bets) {
+      // Check if bet already stored
+      const existing = await ctx.runMutation(
+        (internal as any).betEventListenerMutations.isBetStored,
+        {
+          roundId: bet.gameRoundId,
+          betIndex: bet.betIndex,
+        }
+      );
+
+      if (!existing) {
+        await ctx.runMutation(
+          (internal as any).betEventListenerMutations.storeBetFromPDA,
+          {
+            bet: {
+              gameRoundId: bet.gameRoundId,
+              betIndex: bet.betIndex,
+              wallet: bet.wallet,
+              betAmount: bet.betAmount,
+              timestamp: bet.timestamp,
+              payoutCollected: bet.payoutCollected,
+            },
+          }
+        );
+        console.log(`✓ Stored bet ${bet.betIndex} for round ${roundId}: ${bet.wallet} - ${bet.betAmount / 1e9} SOL`);
+      }
+    }
+  } catch (error) {
+    console.error(`Error capturing bets for round ${roundId}:`, error);
+    // Don't throw - let game state capture succeed even if bet capture fails
   }
 }
 

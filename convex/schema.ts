@@ -101,6 +101,7 @@ export default defineSchema({
 
 
     // Blockchain tracking
+    betIndex: v.optional(v.number()), // Index of this bet in the round (0, 1, 2, ...)
     txSignature: v.optional(v.string()), // Transaction signature
     onChainConfirmed: v.optional(v.boolean()), // Transaction confirmed on-chain
     timestamp: v.optional(v.number()), // When bet was placed (for event listener)
@@ -109,6 +110,7 @@ export default defineSchema({
     .index("by_player", ["playerId"])
     .index("by_wallet", ["walletAddress"])
     .index("by_round_wallet", ["roundId", "walletAddress"])
+    .index("by_round_index", ["roundId", "betIndex"]) // Query bets by round and index
     .index("by_status", ["status"])
     .index("by_bet_type", ["betType"])
     .index("by_round_type", ["roundId", "betType"])

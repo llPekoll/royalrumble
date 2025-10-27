@@ -2,7 +2,7 @@
 "use node";
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey, Keypair, Transaction, VersionedTransaction } from "@solana/web3.js";
-import { GameConfig, GameRound, GameStatus, DOMIN8_PROGRAM_ID, PDA_SEEDS } from "./types";
+import { GameConfig, GameRound, GameStatus, DOMIN8_PROGRAM_ID, PDA_SEEDS, BetEntry } from "./types";
 import { Buffer } from "buffer";
 import bs58 from "bs58";
 
@@ -401,6 +401,44 @@ export class SolanaClient {
       console.error("Error checking VRF fulfillment:", error);
       return false;
     }
+  }
+
+  // Fetch all bets for a specific round (for bet event capture)
+  async getBetsForRound(roundId: number): Promise<BetEntry[]> {
+    const bets: BetEntry[] = [];
+    
+    // Get bet count from game round
+    const { gameRound } = this.getPDAs(roundId);
+    if (!gameRound) return bets;
+
+    try {
+      const gameRoundAccount = await this.program.account.gameRound.fetch(gameRound);
+      const betCount = gameRoundAccount.betCount;
+
+      // Fetch each bet entry PDA
+      for (let i = 0; i < betCount; i++) {
+        const { betEntry } = this.getPDAs(roundId, i);
+        if (!betEntry) continue;
+
+        try {
+          const betEntryAccount = await this.program.account.betEntry.fetch(betEntry);
+          bets.push({
+            gameRoundId: betEntryAccount.gameRoundId.toNumber(),
+            betIndex: betEntryAccount.betIndex,
+            wallet: betEntryAccount.wallet.toBase58(),
+            betAmount: betEntryAccount.betAmount.toNumber(),
+            timestamp: betEntryAccount.timestamp.toNumber(),
+            payoutCollected: betEntryAccount.payoutCollected,
+          });
+        } catch (error) {
+          console.error(`Failed to fetch bet entry ${i}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching bets for round ${roundId}:`, error);
+    }
+
+    return bets;
   }
 
   // Note: VRF helper methods removed - VRF is now handled directly by the smart contract
