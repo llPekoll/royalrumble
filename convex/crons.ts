@@ -14,9 +14,9 @@ const crons = cronJobs();
  * Runs every 5 seconds to detect on-chain transactions
  */
 crons.interval(
-  "blockchain-event-listener",
+  "blockchain-fetch-round-pdas",
   { seconds: 5 },
-  internal.eventListener.listenToBlockchainEvents
+  internal.eventListener.fetchRoundPDAs
 );
 
 /**

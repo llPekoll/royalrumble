@@ -63,6 +63,57 @@ export default defineSchema({
     .index("by_status", ["status"]) // Query rounds by status
     .index("by_captured_at", ["capturedAt"]), // Chronological ordering
 
+  
+  bets: defineTable({
+    // Core identifiers
+    roundId: v.id("games"),
+    playerId: v.optional(v.id("players")), // Optional for bots
+    walletAddress: v.string(),
+
+    // Bet classification
+    betType: v.union(
+      v.literal("self"),       // Player betting on themselves (creates participant)
+      v.literal("refund")        // Bank bot opponent
+    ),
+
+    // Financial data
+    amount: v.number(), // Bet amount in SOL
+    odds: v.optional(v.number()), // Win probability (0-1) at time of bet
+    payout: v.optional(v.number()), // Actual payout amount if won
+
+    // Status tracking
+    status: v.union(
+      v.literal("pending"),
+      v.literal("won"),
+      v.literal("lost"),
+      v.literal("refunded")
+    ),
+    placedAt: v.number(), // Timestamp when bet was placed
+    settledAt: v.optional(v.number()), // Timestamp when bet was settled
+
+    // Participant data (only for self/bank bets, null for spectator)
+    characterId: v.optional(v.id("characters")),
+    position: v.optional(v.object({ x: v.number(), y: v.number() })),
+    spawnIndex: v.optional(v.number()), // Spawn position index
+
+    // Game progression (only for self/bank bets)
+    isWinner: v.optional(v.boolean()),
+
+
+    // Blockchain tracking
+    txSignature: v.optional(v.string()), // Transaction signature
+    onChainConfirmed: v.optional(v.boolean()), // Transaction confirmed on-chain
+    timestamp: v.optional(v.number()), // When bet was placed (for event listener)
+  })
+    .index("by_round", ["roundId"])
+    .index("by_player", ["playerId"])
+    .index("by_wallet", ["walletAddress"])
+    .index("by_round_wallet", ["roundId", "walletAddress"])
+    .index("by_status", ["status"])
+    .index("by_bet_type", ["betType"])
+    .index("by_round_type", ["roundId", "betType"])
+    .index("by_character", ["characterId"])
+    .index("by_tx_signature", ["txSignature"]),
   // ============================================================================
   // SCHEDULER TABLES
   // ============================================================================

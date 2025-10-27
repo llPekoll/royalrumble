@@ -6,7 +6,7 @@ import { SolanaClient } from "./lib/solana";
 const RPC_ENDPOINT = process.env.SOLANA_RPC_ENDPOINT || "http://127.0.0.1:8899";
 const CRANK_AUTHORITY_PRIVATE_KEY = process.env.CRANK_AUTHORITY_PRIVATE_KEY || "";
 
-export const listenToBlockchainEvents = internalAction({
+export const fetchRoundPDAs = internalAction({
   handler: async (ctx) => {
     try {
       const solanaClient = new SolanaClient(RPC_ENDPOINT, CRANK_AUTHORITY_PRIVATE_KEY);
